@@ -1,6 +1,6 @@
 (ns features.app.zero.backend.view
   (:require
-   [hiccup.page :refer [html5 include-js]]
+   [hiccup.page :refer [html5 include-js include-css]]
    [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]))
 
 (defn loading []
@@ -17,6 +17,9 @@
   "Generates the HTML page for the app."
   []
   (html5
+   [:head
+    (include-css "/css/normalize.css")
+    (include-css "/css/app.css")]
    [:body
     (let [csrf-token (force *anti-forgery-token*)]
       [:div#csrf-token {:data-csrf-token csrf-token}])
