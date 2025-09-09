@@ -1,15 +1,12 @@
 (ns app.backend.main
   (:gen-class)
   (:require
-   [authentication.routes :as authentication-routes]
    [features.site.zero.backend.zero :as site]
    [features.site.zero :as site-features]
    [pathom.backend.zero :as pathom]
    [zero.backend.state.env :as env]
    [zero.backend.zero :as zero]
    
-   [features.common.stripe.backend.utils :as stripe.utils]
-   [features.common.stripe.routes        :as stripe.routes]
    [features.common.health.routes        :as health.routes]
    [parquery.routes                       :as parquery.routes]))
 
@@ -22,13 +19,10 @@
    health.routes/routes
    parquery.routes/routes
    site/routes
-   stripe.routes/routes
    pathom/routes
-   authentication-routes/routes))
+))
 
 (defn -main [& _args]
-  ;; Initialize Stripe
-  (stripe.utils/init-stripe!)
   ;; Start server
   (zero/start-server
    {:routes     routes

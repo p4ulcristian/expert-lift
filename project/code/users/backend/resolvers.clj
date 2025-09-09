@@ -1,8 +1,7 @@
 (ns users.backend.resolvers
   (:require
    [com.wsscode.pathom3.connect.operation :as pco]
-   [users.backend.db :as user-db]
-   [features.flex.workspaces.backend.db :as workspace-db]))
+   [users.backend.db :as user-db]))
 
 
 (defn get-user-full-name [user]
@@ -28,22 +27,20 @@
 ;; Pathom resolvers
 (pco/defresolver get-current-user-res 
   "Get current user data from session"
-  [{:keys [request] :as _env} {:workspace/keys [id]}]
+  [{:keys [request] :as _env} _input]
   {::pco/output [:current-user/data]}
   {:current-user/data 
    (let [user-id (get-user-id-from-request request)]
      (if user-id
        (try
-         (let [user (get-user-by-id-fn user-id)
-               workspace-role (when id (workspace-db/get-user-workspace-role user-id id))]
+         (let [user (get-user-by-id-fn user-id)]
            (when user
              {:user/id (:id user)
               :user/first-name (:first_name user)
               :user/last-name (:last_name user)
               :user/email (:email user)
               :user/picture-url (:picture_url user)
-              :user/full-name (get-user-full-name user)
-              :user/workspace-role workspace-role}))
+              :user/full-name (get-user-full-name user)}))
          (catch Exception e
            (println "Error fetching current user:" (.getMessage e))
            nil))
@@ -81,13 +78,6 @@
               (assoc user :roles (mapv :role roles))))
           users))})
 
-(pco/defresolver get-user-workspace-role-res 
-  [{:user/keys [id] :as user} {:workspace/keys [id] :as workspace}]
-  {::pco/output [:user/workspace-role]}
-  {:user/workspace-role 
-   (let [user-id (:user/id user)
-         workspace-id (:workspace/id workspace)]
-     (workspace-db/get-user-workspace-role user-id workspace-id))})
 
 (pco/defresolver get-current-user-basic-res 
   "Get current user data without workspace context"
@@ -115,5 +105,4 @@
                 get-user-email-by-id
                 get-users-list-res
                 get-current-user-res
-                get-current-user-basic-res
-                get-user-workspace-role-res])
+                get-current-user-basic-res])

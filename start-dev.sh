@@ -65,7 +65,7 @@ WEBPACK_PID=$!
   # Wait for server to be ready (status 200)
   echo "Waiting for server to be ready..."
   while true; do
-    HTTP_STATUS=$(curl -k -s -o /dev/null -w "%{http_code}" https://localhost/health/ready 2>/dev/null)
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3002/health/ready 2>/dev/null)
     if [ "$HTTP_STATUS" = "200" ]; then
       break
     fi
@@ -80,7 +80,7 @@ WEBPACK_PID=$!
     --no-first-run \
     --no-default-browser-check \
     --disable-features=VizDisplayCompositor \
-    "https://localhost/paul" \
+    "http://localhost:3002/paul" \
     >/dev/null 2>&1 &
   
   # Wait for Chrome's debugging port to be ready
