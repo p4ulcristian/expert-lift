@@ -2,9 +2,6 @@
   (:gen-class)
   (:require
    [authentication.routes :as authentication-routes]
-   [features.customizer.zero.backend.zero :as customizer]
-   [features.flex.zero.backend.zero :as flex]
-   [features.labs.zero.backend.zero :as labs]
    [features.site.zero.backend.zero :as site]
    [features.site.zero :as site-features]
    [pathom.backend.zero :as pathom]
@@ -18,8 +15,6 @@
 
 (def pathom-handlers
   (concat
-   customizer/pathom-handlers
-   labs/pathom-handlers 
    site-features/pathom-handlers))
 
 (def routes
@@ -27,9 +22,6 @@
    health.routes/routes
    parquery.routes/routes
    site/routes
-   customizer/routes
-   labs/routes
-   flex/routes
    stripe.routes/routes
    pathom/routes
    authentication-routes/routes))
