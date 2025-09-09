@@ -29,110 +29,67 @@
       (and is-new? (< (count (str/trim password)) 6))
       (assoc :user/password "Password must be at least 6 characters"))))
 
-(defn input-field
-  "Renders input field with validation styling and error message"
-  [label field-key user errors attrs]
-  (let [has-error? (contains? errors field-key)
-        field-value (get @user field-key "")]
-    [:div {:style {:margin-bottom "1rem"}}
-     [:label {:style {:display "block"
-                      :margin-bottom "0.5rem"
-                      :font-weight "bold"
-                      :color (if has-error? "#dc3545" "inherit")}}
-      label (when (#{:user/username :user/full-name :user/password} field-key) " *")]
-     [:input (merge attrs
-                    {:value (str field-value)
-                     :on-change #(swap! user assoc field-key (.. % -target -value))
-                     :style (merge {:width "100%"
-                                    :padding "0.5rem"
-                                    :border (str "1px solid " (if has-error? "#dc3545" "#ccc"))
-                                    :border-radius "4px"}
-                                   (:style attrs))})]
-     (when has-error?
-       [:div {:style {:color "#dc3545"
-                      :font-size "0.875rem"
-                      :margin-top "0.25rem"}}
-        (get errors field-key)])]))
+(defn- field-label [label field-key has-error?]
+  [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "bold"
+                   :color (if has-error? "#dc3545" "inherit")}}
+   label (when (#{:user/username :user/full-name :user/password} field-key) " *")])
 
-(defn role-select
-  "Renders role selection dropdown with validation"
-  [user errors]
+(defn- field-input [field-key user has-error? attrs]
+  [:input (merge attrs
+                 {:value (str (get @user field-key ""))
+                  :on-change #(swap! user assoc field-key (.. % -target -value))
+                  :style (merge {:width "100%" :padding "0.5rem" :border-radius "4px"
+                                 :border (str "1px solid " (if has-error? "#dc3545" "#ccc"))}
+                                (:style attrs))})])
+
+(defn- field-error [field-key errors]
+  (when-let [error (get errors field-key)]
+    [:div {:style {:color "#dc3545" :font-size "0.875rem" :margin-top "0.25rem"}}
+     error]))
+
+(defn input-field [label field-key user errors attrs]
+  (let [has-error? (contains? errors field-key)]
+    [:div {:style {:margin-bottom "1rem"}}
+     [field-label label field-key has-error?]
+     [field-input field-key user has-error? attrs]
+     [field-error field-key errors]]))
+
+(defn role-select [user errors]
   (let [has-error? (contains? errors :user/role)]
     [:div {:style {:margin-bottom "1rem"}}
-     [:label {:style {:display "block"
-                      :margin-bottom "0.5rem"
-                      :font-weight "bold"
-                      :color (if has-error? "#dc3545" "inherit")}}
-      "Role *"]
+     [field-label "Role" :user/role has-error?]
      [:select {:value (or (:user/role @user) "")
                :on-change #(swap! user assoc :user/role (.. % -target -value))
-               :style {:width "100%"
-                       :padding "0.5rem"
-                       :border (str "1px solid " (if has-error? "#dc3545" "#ccc"))
-                       :border-radius "4px"}}
+               :style {:width "100%" :padding "0.5rem" :border-radius "4px"
+                       :border (str "1px solid " (if has-error? "#dc3545" "#ccc"))}}
       [:option {:value ""} "-- Select Role --"]
       [:option {:value "employee"} "Employee"]
       [:option {:value "admin"} "Admin"]
       [:option {:value "superadmin"} "Super Admin"]]
-     (when has-error?
-       [:div {:style {:color "#dc3545"
-                      :font-size "0.875rem"
-                      :margin-top "0.25rem"}}
-        (get errors :user/role)])]))
+     [field-error :user/role errors]]))
 
-(defn validation-summary
-  "Shows validation error summary when there are errors"
-  [errors]
-  (when-not (empty? errors)
-    [:div {:style {:background "#f8d7da"
-                   :border "1px solid #f5c6cb"
-                   :color "#721c24"
-                   :padding "0.75rem"
-                   :border-radius "4px"
-                   :margin-bottom "1rem"}}
+(defn validation-summary [errors]
+  (when (seq errors)
+    [:div {:style {:background "#f8d7da" :border "1px solid #f5c6cb" :color "#721c24"
+                   :padding "0.75rem" :border-radius "4px" :margin-bottom "1rem"}}
      "Please fix the errors above before saving."]))
 
-(defn modal-buttons
-  "Renders cancel and save buttons for the modal"
-  [is-valid? on-cancel on-save]
-  (println "Button debug - Is valid?:" is-valid?)
-  [:div {:style {:display "flex"
-                 :gap "1rem"
-                 :justify-content "flex-end"
-                 :margin-top "2rem"}}
-   [:button {:type "button"
-             :on-click on-cancel
-             :style {:padding "0.5rem 1rem"
-                     :border "1px solid #ccc"
-                     :background "#f5f5f5"
-                     :border-radius "4px"
-                     :cursor "pointer"}}
+(defn modal-buttons [is-valid? on-cancel on-save]
+  [:div {:style {:display "flex" :gap "1rem" :justify-content "flex-end" :margin-top "2rem"}}
+   [:button {:type "button" :on-click on-cancel
+             :style {:padding "0.5rem 1rem" :border "1px solid #ccc" :background "#f5f5f5"
+                     :border-radius "4px" :cursor "pointer"}}
     "Cancel"]
-   [:button {:type "submit"
-             :disabled (not is-valid?)
-             :on-click (fn [e]
-                        (println "Save button clicked!")
-                        (println "Is valid?:" is-valid?)
-                        (.preventDefault e)
-                        (when is-valid?
-                          (println "Calling on-save")
-                          (on-save)))
-             :style {:padding "0.5rem 1rem"
-                     :border "none"
+   [:button {:type "submit" :disabled (not is-valid?)
+             :on-click (fn [e] (.preventDefault e) (when is-valid? (on-save)))
+             :style {:padding "0.5rem 1rem" :border "none" :color "white" :border-radius "4px"
                      :background (if is-valid? "#007bff" "#6c757d")
-                     :color "white"
-                     :border-radius "4px"
                      :cursor (if is-valid? "pointer" "not-allowed")
                      :opacity (if is-valid? 1 0.6)}}
     "Save"]])
 
-(defn modal-form
-  "Renders the user form inside the modal"
-  [user is-new? errors is-valid? on-save]
-  [:form {:on-submit (fn [e]
-                      (.preventDefault e)
-                      (when is-valid?
-                        (on-save)))}
+(defn modal-form [user is-new? errors is-valid? on-save]
+  [:form {:on-submit (fn [e] (.preventDefault e) (when is-valid? (on-save)))}
    [input-field "Username" :user/username user errors {:type "text"}]
    [input-field "Full Name" :user/full-name user errors {:type "text"}]
    [input-field "Email" :user/email user errors {:type "email"}]
@@ -142,43 +99,23 @@
      [input-field "Password" :user/password user errors {:type "password"}])
    [validation-summary errors]])
 
-(defn modal-header
-  "Renders the modal header with title"
-  [is-new?]
+(defn modal-header [is-new?]
   [:h2 {:style {:margin-bottom "1.5rem"}}
    (if is-new? "Add New User" "Edit User")])
 
-(defn modal-backdrop
-  "Renders the modal backdrop and container"
-  [children]
-  [:div {:style {:position "fixed"
-                 :top "0"
-                 :left "0"
-                 :width "100%"
-                 :height "100%"
-                 :background "rgba(0, 0, 0, 0.5)"
-                 :display "flex"
-                 :align-items "center"
-                 :justify-content "center"
-                 :z-index "1000"}}
-   [:div {:style {:background "#fff"
-                  :border-radius "8px"
-                  :padding "2rem"
-                  :width "500px"
-                  :max-width "90vw"}}
+(defn modal-backdrop [children]
+  [:div {:style {:position "fixed" :top "0" :left "0" :width "100%" :height "100%"
+                 :background "rgba(0, 0, 0, 0.5)" :display "flex" :align-items "center"
+                 :justify-content "center" :z-index "1000"}}
+   [:div {:style {:background "#fff" :border-radius "8px" :padding "2rem"
+                  :width "500px" :max-width "90vw"}}
     children]])
 
-(defn user-modal
-  "Main user modal component - composed of smaller functions"
-  [user modal-open? on-save on-cancel]
+(defn user-modal [user modal-open? on-save on-cancel]
   (when @modal-open?
     (let [is-new? (not (:user/id @user))
           current-errors (validate-user @user is-new?)
           is-valid? (empty? current-errors)]
-      (println "Modal debug - User data:" @user)
-      (println "Modal debug - Is new?:" is-new?)
-      (println "Modal debug - Errors:" current-errors)
-      (println "Modal debug - Is valid?:" is-valid?)
       [modal-backdrop
        [:<>
         [modal-header is-new?]
