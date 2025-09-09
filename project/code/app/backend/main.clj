@@ -1,7 +1,7 @@
 (ns app.backend.main
   (:gen-class)
   (:require
-   [features.site.zero.backend.zero :as site]
+   [features.app.zero.backend.zero :as site]
    [zero.backend.state.env :as env]
    [zero.backend.zero :as zero]
    

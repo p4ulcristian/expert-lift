@@ -1,6 +1,6 @@
-(ns features.site.homepage.routes
-  #?(:cljs (:require [features.site.homepage.frontend.view :as homepage]))
-  #?(:clj  (:require [features.site.zero.backend.view :as backend-view])))
+(ns features.app.homepage.routes
+  #?(:cljs (:require [features.app.homepage.frontend.view :as homepage]))
+  #?(:clj  (:require [features.app.zero.backend.view :as backend-view])))
 
 (def homepage-path "/")
 

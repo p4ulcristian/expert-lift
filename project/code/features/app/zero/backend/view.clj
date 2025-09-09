@@ -1,4 +1,4 @@
-(ns features.site.zero.backend.view
+(ns features.app.zero.backend.view
   (:require
    [hiccup.page :refer [html5 include-js]]
    [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]))

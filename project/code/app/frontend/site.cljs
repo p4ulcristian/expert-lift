@@ -1,6 +1,6 @@
 (ns app.frontend.site
   (:require
-   [features.site.zero.frontend.zero :as main]
+   [features.app.zero.frontend.zero :as main]
    [reagent.core :as reagent.core]
    [reagent.dom.client  :as reagent.dom.client]
    [router.frontend.zero :as router]))

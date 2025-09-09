@@ -1,9 +1,7 @@
-(ns features.site.zero.frontend.zero
+(ns features.app.zero.frontend.zero
   (:require
    [app.frontend.request :as request]
-   [features.site.homepage.routes :as homepage-routes]
-   [features.site.orders.routes :as orders-routes]
-   [features.site.profile.routes :as profile-routes]
+   [features.app.homepage.routes :as homepage-routes]
    [router.frontend.zero :as router]
    [zero.frontend.re-frame]
    [zero.frontend.react :as react]))
@@ -17,10 +15,7 @@
     ;; Small delay to let Auth0 logout complete, then navigate main tab
     (js/setTimeout #(set! js/window.location.href "/logout/customizer") 500)))
 
-(def routes (concat
-             homepage-routes/routes
-             orders-routes/routes
-             profile-routes/routes))
+(def routes homepage-routes/routes)
 
 (defn profile-picture []
   (let [[user set-user] (react/use-state nil)]
@@ -128,34 +123,6 @@
      [:nav {:style {:display "flex"
                     :align-items "center"
                     :gap "1.5rem"}}
-      ;; Show orders only when logged in
-      (when user
-        [:a {:href "/orders"
-             :style {:color "#f6d55c"
-                     :text-decoration "none"
-                     :font-weight "600"
-                     :font-size "1rem"
-                     :padding "0.75rem 1.5rem"
-                     :border "2px solid rgba(246, 213, 92, 0.3)"
-                     :border-radius "12px"
-                     :background "rgba(246, 213, 92, 0.1)"
-                     :transition "all 0.3s ease"
-                     :display "flex"
-                     :align-items "center"
-                     :gap "0.5rem"
-                     :backdrop-filter "blur(5px)"
-                     :box-shadow "0 2px 10px rgba(0, 0, 0, 0.3)"}
-             :on-mouse-enter #(do
-                               (set! (.-style.background (.-target %)) "#f6d55c")
-                               (set! (.-style.color (.-target %)) "#333")
-                               (set! (.-style.transform (.-target %)) "translateY(-2px)")
-                               (set! (.-style.boxShadow (.-target %)) "0 4px 15px rgba(246, 213, 92, 0.4)"))
-             :on-mouse-leave #(do
-                               (set! (.-style.background (.-target %)) "rgba(246, 213, 92, 0.1)")
-                               (set! (.-style.color (.-target %)) "#f6d55c")
-                               (set! (.-style.transform (.-target %)) "translateY(0)")
-                               (set! (.-style.boxShadow (.-target %)) "0 2px 10px rgba(0, 0, 0, 0.3)"))}
-         [:i {:class "fas fa-box"}] "Orders"])
       [:a {:href "/customize"
            :style {:color "#10b981"
                    :text-decoration "none"

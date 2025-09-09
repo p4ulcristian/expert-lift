@@ -1,4 +1,4 @@
-(ns features.site.homepage.frontend.view
+(ns features.app.homepage.frontend.view
   (:require
    [ui.link :as link]))
 
