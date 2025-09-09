@@ -5,7 +5,6 @@
    ;; App manager contains integrant managers with defmethods
    [zero.backend.server.zero :as server]
    [mount.core :refer [defstate] :as mount]
-   [pathom.backend.zero :as pathom]
    ;[zero.backend.watchers.routes-updater]
    ;; Watcher need to be required to add watches
    ))
@@ -37,8 +36,7 @@
     (println "Stopping server...")
     (@server-atom)))
 
-(defn start-server [{:keys [routes pathom-handlers port]}]
-  (pathom/set-handlers! pathom-handlers)
+(defn start-server [{:keys [routes port]}]
   (set-routes! routes)
   (set-port! port)
   (mount/stop)

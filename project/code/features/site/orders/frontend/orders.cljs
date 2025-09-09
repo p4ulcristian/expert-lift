@@ -3,7 +3,6 @@
    [re-frame.core :as r]
    [app.frontend.request :as request]
    [zero.frontend.react :as react]
-   [features.site.orders.frontend.stripe :as stripe]
    [router.frontend.zero :as router]))
 
 (defn status-badge [status]
@@ -404,14 +403,5 @@
                                 (set-show-payment true))])
           orders)])
       
-      ;; Payment Modal 
-      [stripe/payment-modal
-       {:order selected-order
-        :visible? show-payment
-        :on-close #(do (set-show-payment false)
-                       (set-selected-order nil))
-        :on-success #(do (set-show-payment false)
-                        (set-selected-order nil)
-                        (js/alert "🎉 Payment successful! We'll get started on your order right away. Thank you for choosing us!"))
-        :on-error #(do (js/alert "😔 Payment didn't go through this time. No worries - you can try again or contact us if you need help!")
-                       (js/console.log "Payment failed:" %))}]]])) 
+      ;; Payment functionality removed
+      ]])) 

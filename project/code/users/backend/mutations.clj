@@ -1,6 +1,5 @@
 (ns users.backend.mutations
   (:require
-   [com.wsscode.pathom3.connect.operation :as pathom.co :refer [defmutation]]
    [users.backend.db :as user-db]))
 
 
@@ -19,8 +18,3 @@
       (println "Error creating user:" (.getMessage e))
       nil)))
 
-(defmutation add-user [env mutation-props]
-  {::pathom.co/op-name 'users/add-user!}
-  (add-user-fn env mutation-props))
-
-(def mutations [add-user])

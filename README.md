@@ -166,11 +166,6 @@ export IRONRAINBOW_EMAIL_PASSWORD="your_email_password"
 export IRONRAINBOW_MINIO_URL="http://localhost:9000"
 ```
 
-#### Payment Processing (Stripe)
-```bash
-export STRIPE_SECRET_KEY="sk_test_..."
-export STRIPE_WEBHOOK_SECRET="whsec_..."
-```
 
 ### Development Tools
 

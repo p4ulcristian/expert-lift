@@ -5,8 +5,6 @@
     "@react-three/fiber": "^9.1.2",
     "@react-three/postprocessing": "^3.0.4",
     "@reactour/tour": "^3.8.0",
-    "@stripe/react-stripe-js": "^3.9.2",
-    "@stripe/stripe-js": "^7.9.0",
     "@turf/turf": "^7.2.0",
     "@use-gesture/react": "^10.3.1",
     "@xyflow/react": "^12.6.4",

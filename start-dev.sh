@@ -80,7 +80,7 @@ WEBPACK_PID=$!
     --no-first-run \
     --no-default-browser-check \
     --disable-features=VizDisplayCompositor \
-    "http://localhost:3002/paul" \
+    "http://localhost:3002/" \
     >/dev/null 2>&1 &
   
   # Wait for Chrome's debugging port to be ready

@@ -1,7 +1,6 @@
 (ns features.site.zero.backend.view
   (:require
-   [hiccup.page :refer [html5 include-css include-js]]
-   [app.backend.favicons :as favicons]
+   [hiccup.page :refer [html5 include-js]]
    [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]))
 
 (defn loading []
@@ -18,21 +17,13 @@
   "Generates the HTML page for the app."
   []
   (html5
-   [:head
-    [:title "IronRainbow"]
-    (favicons/favicons)
-    (include-css "/css/normalize.css")
-    (include-css "/fonts/montserrat.css")
-    (include-css "/css/app.css")
-    (include-css "/css/ui.css")
-    (include-css "/css/flex.css")]
    [:body
     (let [csrf-token (force *anti-forgery-token*)]
       [:div#csrf-token {:data-csrf-token csrf-token}])
     [:div#reagent-container (loading)]
     (font-awesome-include)
-    (include-js "/js/libs/site.js")
-    (include-js "/js/core/site.js")]))
+    (include-js "/js/libs/app.js")
+    (include-js "/js/core/app.js")]))
 
 (defn response [_req]
   {:status 200

@@ -16,8 +16,6 @@
                                            site-defaults
                                            (assoc-in [:session :cookie-attrs :same-site] :lax)
                                            (assoc-in [:security :anti-forgery] (not @env/dev?))))]})
-                ;; commented out because it was causing issues with the stripe webhook
-                ;; #(wrap-json-body % {:keywords? true})]})
 
 
 
