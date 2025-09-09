@@ -1,1 +1,1 @@
-./atlas.sh schema apply --env dev --url $IRONRAINBOW_DB_URL
+./atlas.sh schema apply --env dev --url $EXPERTLIFT_DB_URL

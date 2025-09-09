@@ -3,28 +3,26 @@
    [com.wsscode.pathom3.connect.operation :as pco]
    [users.backend.db :as user-db]))
 
-
 (defn get-user-full-name [user]
   (when user
-    (str (:first_name user) " " (:last_name user))))
+    (:full_name user)))
 
 ;; Helper functions for direct database access
 (defn get-user-by-id-fn [id]
   (first (user-db/get-user-by-id id)))
 
-(defn get-user-by-oauth-id-fn [oauth-id]
-  (first (user-db/get-user-by-oauth-id oauth-id)))
-
 (defn get-user-by-email-fn [email]
   (first (user-db/get-user-by-email email)))
+
+(defn get-all-users-fn []
+  (user-db/get-all-users))
 
 (defn get-user-id-from-request 
   "Get user ID from request session"
   [request]
   (get-in request [:session :user-id]))
 
-
-;; Pathom resolvers
+;; Updated Pathom resolvers for Expert Lift schema
 (pco/defresolver get-current-user-res 
   "Get current user data from session"
   [{:keys [request] :as _env} _input]
@@ -36,22 +34,16 @@
          (let [user (get-user-by-id-fn user-id)]
            (when user
              {:user/id (:id user)
-              :user/first-name (:first_name user)
-              :user/last-name (:last_name user)
+              :user/username (:username user)
+              :user/full-name (:full_name user)
               :user/email (:email user)
-              :user/picture-url (:picture_url user)
-              :user/full-name (get-user-full-name user)}))
+              :user/phone (:phone user)
+              :user/role (:role user)
+              :user/active (:active user)}))
          (catch Exception e
            (println "Error fetching current user:" (.getMessage e))
            nil))
        nil))})
-
-(pco/defresolver get-id-by-oauth-id 
-  [{:user/keys [oauth-id]}] 
-  {::pco/output [:user/id]}
-  {:user/id 
-   (let [user (get-user-by-oauth-id-fn oauth-id)]
-     (:id user))})
 
 (pco/defresolver get-username-by-id 
   [{:user/keys [id]}]
@@ -68,16 +60,22 @@
      (:email user))})
 
 (pco/defresolver get-users-list-res
-  "Get all users with their roles"
+  "Get all users for admin interface"
   [_env]
   {::pco/output [:users/list]}
   {:users/list 
-   (let [users (user-db/get-all-users)]
+   (let [users (get-all-users-fn)]
      (mapv (fn [user]
-            (let [roles (user-db/get-user-roles (:id user))]
-              (assoc user :roles (mapv :role roles))))
+            {:user/id (:id user)
+             :user/username (:username user)
+             :user/full-name (:full_name user)
+             :user/email (:email user)
+             :user/phone (:phone user)
+             :user/role (:role user)
+             :user/active (:active user)
+             :user/created-at (:created_at user)
+             :user/updated-at (:updated_at user)})
           users))})
-
 
 (pco/defresolver get-current-user-basic-res 
   "Get current user data without workspace context"
@@ -90,18 +88,18 @@
          (let [user (get-user-by-id-fn user-id)]
            (when user
              {:user/id (:id user)
-              :user/first-name (:first_name user)
-              :user/last-name (:last_name user)
+              :user/username (:username user)
+              :user/full-name (:full_name user)
               :user/email (:email user)
-              :user/picture-url (:picture_url user)
-              :user/full-name (get-user-full-name user)}))
+              :user/phone (:phone user)
+              :user/role (:role user)
+              :user/active (:active user)}))
          (catch Exception e
            (println "Error fetching current user basic data:" (.getMessage e))
            nil))
        nil))})
 
-(def resolvers [get-id-by-oauth-id
-                get-username-by-id
+(def resolvers [get-username-by-id
                 get-user-email-by-id
                 get-users-list-res
                 get-current-user-res

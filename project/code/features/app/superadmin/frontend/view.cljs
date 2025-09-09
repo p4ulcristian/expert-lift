@@ -1,140 +1,305 @@
-(ns features.app.superadmin.frontend.view)
+(ns features.app.superadmin.frontend.view
+  (:require [reagent.core :as r]
+            [parquery.frontend.request :as parquery]))
+
+(defn user-modal [user modal-open? on-save on-cancel]
+  (when @modal-open?
+    [:div {:style {:position "fixed"
+                   :top "0"
+                   :left "0"
+                   :width "100%"
+                   :height "100%"
+                   :background "rgba(0, 0, 0, 0.5)"
+                   :display "flex"
+                   :align-items "center"
+                   :justify-content "center"
+                   :z-index "1000"}}
+     [:div {:style {:background "#fff"
+                    :border-radius "8px"
+                    :padding "2rem"
+                    :width "500px"
+                    :max-width "90vw"}}
+      [:h2 {:style {:margin-bottom "1.5rem"}}
+       (if (:user/id @user) "Edit User" "Add New User")]
+      
+      [:form {:on-submit (fn [e]
+                          (.preventDefault e)
+                          (on-save))}
+       [:div {:style {:margin-bottom "1rem"}}
+        [:label {:style {:display "block"
+                         :margin-bottom "0.5rem"
+                         :font-weight "bold"}}
+         "Username"]
+        [:input {:type "text"
+                 :value (or (:user/username @user) "")
+                 :on-change #(swap! user assoc :user/username (.. % -target -value))
+                 :style {:width "100%"
+                         :padding "0.5rem"
+                         :border "1px solid #ccc"
+                         :border-radius "4px"}}]]
+       
+       [:div {:style {:margin-bottom "1rem"}}
+        [:label {:style {:display "block"
+                         :margin-bottom "0.5rem"
+                         :font-weight "bold"}}
+         "Full Name"]
+        [:input {:type "text"
+                 :value (or (:user/full-name @user) "")
+                 :on-change #(swap! user assoc :user/full-name (.. % -target -value))
+                 :style {:width "100%"
+                         :padding "0.5rem"
+                         :border "1px solid #ccc"
+                         :border-radius "4px"}}]]
+       
+       [:div {:style {:margin-bottom "1rem"}}
+        [:label {:style {:display "block"
+                         :margin-bottom "0.5rem"
+                         :font-weight "bold"}}
+         "Email"]
+        [:input {:type "email"
+                 :value (or (:user/email @user) "")
+                 :on-change #(swap! user assoc :user/email (.. % -target -value))
+                 :style {:width "100%"
+                         :padding "0.5rem"
+                         :border "1px solid #ccc"
+                         :border-radius "4px"}}]]
+       
+       [:div {:style {:margin-bottom "1rem"}}
+        [:label {:style {:display "block"
+                         :margin-bottom "0.5rem"
+                         :font-weight "bold"}}
+         "Phone"]
+        [:input {:type "tel"
+                 :value (or (:user/phone @user) "")
+                 :on-change #(swap! user assoc :user/phone (.. % -target -value))
+                 :style {:width "100%"
+                         :padding "0.5rem"
+                         :border "1px solid #ccc"
+                         :border-radius "4px"}}]]
+       
+       [:div {:style {:margin-bottom "1rem"}}
+        [:label {:style {:display "block"
+                         :margin-bottom "0.5rem"
+                         :font-weight "bold"}}
+         "Role"]
+        [:select {:value (or (:user/role @user) "employee")
+                  :on-change #(swap! user assoc :user/role (.. % -target -value))
+                  :style {:width "100%"
+                          :padding "0.5rem"
+                          :border "1px solid #ccc"
+                          :border-radius "4px"}}
+         [:option {:value "employee"} "Employee"]
+         [:option {:value "admin"} "Admin"]
+         [:option {:value "superadmin"} "Super Admin"]]]
+       
+       (when-not (:user/id @user)
+         [:div {:style {:margin-bottom "1rem"}}
+          [:label {:style {:display "block"
+                           :margin-bottom "0.5rem"
+                           :font-weight "bold"}}
+           "Password"]
+          [:input {:type "password"
+                   :value (or (:user/password @user) "")
+                   :on-change #(swap! user assoc :user/password (.. % -target -value))
+                   :style {:width "100%"
+                           :padding "0.5rem"
+                           :border "1px solid #ccc"
+                           :border-radius "4px"}}]])
+       
+       [:div {:style {:display "flex"
+                      :gap "1rem"
+                      :justify-content "flex-end"
+                      :margin-top "2rem"}}
+        [:button {:type "button"
+                  :on-click on-cancel
+                  :style {:padding "0.5rem 1rem"
+                          :border "1px solid #ccc"
+                          :background "#f5f5f5"
+                          :border-radius "4px"
+                          :cursor "pointer"}}
+         "Cancel"]
+        [:button {:type "submit"
+                  :style {:padding "0.5rem 1rem"
+                          :border "none"
+                          :background "#007bff"
+                          :color "white"
+                          :border-radius "4px"
+                          :cursor "pointer"}}
+         "Save"]]]]]))
+
+(defn user-table [users on-add on-edit on-delete]
+  [:div {:style {:background "white"
+                 :border-radius "8px"
+                 :padding "1.5rem"
+                 :box-shadow "0 2px 4px rgba(0,0,0,0.1)"}}
+   [:div {:style {:display "flex"
+                  :justify-content "space-between"
+                  :align-items "center"
+                  :margin-bottom "1.5rem"}}
+    [:h2 "Users"]
+    [:button {:on-click on-add
+              :style {:padding "0.5rem 1rem"
+                      :background "#28a745"
+                      :color "white"
+                      :border "none"
+                      :border-radius "4px"
+                      :cursor "pointer"}}
+     "Add User"]]
+   
+   [:table {:style {:width "100%"
+                    :border-collapse "collapse"}}
+    [:thead
+     [:tr {:style {:background "#f8f9fa"}}
+      [:th {:style {:padding "0.75rem"
+                    :text-align "left"
+                    :border-bottom "1px solid #ddd"}}
+       "Name"]
+      [:th {:style {:padding "0.75rem"
+                    :text-align "left"
+                    :border-bottom "1px solid #ddd"}}
+       "Email"]
+      [:th {:style {:padding "0.75rem"
+                    :text-align "left"
+                    :border-bottom "1px solid #ddd"}}
+       "Role"]
+      [:th {:style {:padding "0.75rem"
+                    :text-align "left"
+                    :border-bottom "1px solid #ddd"}}
+       "Status"]
+      [:th {:style {:padding "0.75rem"
+                    :text-align "center"
+                    :border-bottom "1px solid #ddd"}}
+       "Actions"]]]
+    
+    [:tbody
+     (for [user users]
+       ^{:key (:user/id user)}
+       [:tr {:style {:border-bottom "1px solid #eee"}}
+        [:td {:style {:padding "0.75rem"}} 
+         [:div (:user/full-name user)]
+         [:div {:style {:font-size "0.8rem" :color "#666"}} (:user/username user)]]
+        [:td {:style {:padding "0.75rem"}} (:user/email user)]
+        [:td {:style {:padding "0.75rem"}} 
+         [:span {:style {:padding "0.25rem 0.5rem"
+                         :border-radius "4px"
+                         :font-size "0.875rem"
+                         :background (case (:user/role user)
+                                      "superadmin" "#dc3545"
+                                      "admin" "#fd7e14"
+                                      "#28a745")
+                         :color "white"}}
+          (:user/role user)]]
+        [:td {:style {:padding "0.75rem"}}
+         [:span {:style {:padding "0.25rem 0.5rem"
+                         :border-radius "4px"
+                         :font-size "0.875rem"
+                         :background (if (:user/active user) "#28a745" "#6c757d")
+                         :color "white"}}
+          (if (:user/active user) "Active" "Inactive")]]
+        [:td {:style {:padding "0.75rem"
+                      :text-align "center"}}
+         [:button {:on-click #(on-edit user)
+                   :style {:padding "0.25rem 0.5rem"
+                           :margin-right "0.5rem"
+                           :background "#007bff"
+                           :color "white"
+                           :border "none"
+                           :border-radius "4px"
+                           :cursor "pointer"
+                           :font-size "0.875rem"}}
+          "Edit"]
+         [:button {:on-click #(on-delete user)
+                   :style {:padding "0.25rem 0.5rem"
+                           :background "#dc3545"
+                           :color "white"
+                           :border "none"
+                           :border-radius "4px"
+                           :cursor "pointer"
+                           :font-size "0.875rem"}}
+          "Delete"]]])]]])
 
 (defn view []
-  [:div {:style {:min-height "100vh"
-                 :background "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)"
-                 :display "flex"
-                 :flex-direction "column"
-                 :align-items "center"
-                 :justify-content "center"
-                 :padding "2rem"}}
-   [:div {:style {:max-width "800px"
-                  :margin "0 auto"
-                  :text-align "center"
-                  :background "rgba(255, 255, 255, 0.05)"
-                  :border-radius "16px"
-                  :padding "3rem"
-                  :backdrop-filter "blur(10px)"
-                  :border "1px solid rgba(255, 255, 255, 0.1)"}}
-    [:h1 {:style {:font-size "3rem"
-                  :font-weight "700"
-                  :color "#fff"
-                  :margin-bottom "1rem"
-                  :text-shadow "0 2px 20px rgba(0,0,0,0.3)"}}
-     "🔧 Super Admin Panel"]
-    [:p {:style {:font-size "1.2rem"
-                 :color "rgba(255, 255, 255, 0.8)"
-                 :margin-bottom "3rem"
-                 :line-height "1.6"}}
-     "Expert Lift System Administration"]
+  (let [users (r/atom [])
+        current-user (r/atom {})
+        modal-open? (r/atom false)
+        loading? (r/atom true)
+        
+        load-users (fn []
+                     (reset! loading? true)
+                     (parquery/send-queries
+                       {:queries {:users/get-all {}}
+                        :parquery/context {}
+                        :callback (fn [response]
+                                    (println "Users loaded:" response)
+                                    (reset! users (:users/get-all response))
+                                    (reset! loading? false))}))
+        
+        save-user (fn [user-data is-new?]
+                    (let [query-key (if is-new? :users/create :users/update)]
+                      (parquery/send-queries
+                        {:queries {query-key user-data}
+                         :parquery/context {}
+                         :callback (fn [response]
+                                     (println "User save response:" response)
+                                     (if (:success (get response query-key))
+                                       (do
+                                         (load-users)
+                                         (reset! modal-open? false))
+                                       (js/alert (str "Error: " (:error (get response query-key))))))})))
+        
+        delete-user-fn (fn [user]
+                         (when (js/confirm (str "Delete user " (:user/full-name user) "?"))
+                           (parquery/send-queries
+                             {:queries {:users/delete {:user/id (:user/id user)}}
+                              :parquery/context {}
+                              :callback (fn [response]
+                                          (println "Delete response:" response)
+                                          (if (:success (:users/delete response))
+                                            (load-users)
+                                            (js/alert (str "Error: " (:error (:users/delete response))))))})))]
     
-    [:div {:style {:display "grid"
-                   :grid-template-columns "repeat(auto-fit, minmax(300px, 1fr))"
-                   :gap "2rem"
-                   :margin-top "2rem"}}
-     [:div {:style {:background "rgba(34, 197, 94, 0.1)"
-                    :border "1px solid rgba(34, 197, 94, 0.3)"
-                    :border-radius "12px"
-                    :padding "2rem"
-                    :transition "all 0.3s ease"
-                    :cursor "pointer"}
-            :on-mouse-enter #(do
-                              (set! (.-style.background (.-target %)) "rgba(34, 197, 94, 0.15)")
-                              (set! (.-style.transform (.-target %)) "translateY(-4px)")
-                              (set! (.-style.boxShadow (.-target %)) "0 8px 25px rgba(34, 197, 94, 0.2)"))
-            :on-mouse-leave #(do
-                              (set! (.-style.background (.-target %)) "rgba(34, 197, 94, 0.1)")
-                              (set! (.-style.transform (.-target %)) "translateY(0)")
-                              (set! (.-style.boxShadow (.-target %)) "none"))}
-      [:div {:style {:font-size "2.5rem"
-                     :margin-bottom "1rem"}} "👥"]
-      [:h3 {:style {:color "#22c55e"
-                    :font-size "1.3rem"
-                    :margin-bottom "0.5rem"}}
-       "User Management"]
-      [:p {:style {:color "rgba(255, 255, 255, 0.7)"
-                   :font-size "0.95rem"
-                   :line-height "1.5"}}
-       "Manage employees, admins, and permissions"]]
-     
-     [:div {:style {:background "rgba(59, 130, 246, 0.1)"
-                    :border "1px solid rgba(59, 130, 246, 0.3)"
-                    :border-radius "12px"
-                    :padding "2rem"
-                    :transition "all 0.3s ease"
-                    :cursor "pointer"}
-            :on-mouse-enter #(do
-                              (set! (.-style.background (.-target %)) "rgba(59, 130, 246, 0.15)")
-                              (set! (.-style.transform (.-target %)) "translateY(-4px)")
-                              (set! (.-style.boxShadow (.-target %)) "0 8px 25px rgba(59, 130, 246, 0.2)"))
-            :on-mouse-leave #(do
-                              (set! (.-style.background (.-target %)) "rgba(59, 130, 246, 0.1)")
-                              (set! (.-style.transform (.-target %)) "translateY(0)")
-                              (set! (.-style.boxShadow (.-target %)) "none"))}
-      [:div {:style {:font-size "2.5rem"
-                     :margin-bottom "1rem"}} "⚙️"]
-      [:h3 {:style {:color "#3b82f6"
-                    :font-size "1.3rem"
-                    :margin-bottom "0.5rem"}}
-       "System Settings"]
-      [:p {:style {:color "rgba(255, 255, 255, 0.7)"
-                   :font-size "0.95rem"
-                   :line-height "1.5"}}
-       "Configure logos, templates, and system preferences"]]
-     
-     [:div {:style {:background "rgba(168, 85, 247, 0.1)"
-                    :border "1px solid rgba(168, 85, 247, 0.3)"
-                    :border-radius "12px"
-                    :padding "2rem"
-                    :transition "all 0.3s ease"
-                    :cursor "pointer"}
-            :on-mouse-enter #(do
-                              (set! (.-style.background (.-target %)) "rgba(168, 85, 247, 0.15)")
-                              (set! (.-style.transform (.-target %)) "translateY(-4px)")
-                              (set! (.-style.boxShadow (.-target %)) "0 8px 25px rgba(168, 85, 247, 0.2)"))
-            :on-mouse-leave #(do
-                              (set! (.-style.background (.-target %)) "rgba(168, 85, 247, 0.1)")
-                              (set! (.-style.transform (.-target %)) "translateY(0)")
-                              (set! (.-style.boxShadow (.-target %)) "none"))}
-      [:div {:style {:font-size "2.5rem"
-                     :margin-bottom "1rem"}} "📊"]
-      [:h3 {:style {:color "#a855f7"
-                    :font-size "1.3rem"
-                    :margin-bottom "0.5rem"}}
-       "System Analytics"]
-      [:p {:style {:color "rgba(255, 255, 255, 0.7)"
-                   :font-size "0.95rem"
-                   :line-height "1.5"}}
-       "View usage statistics and system reports"]]
-     
-     [:div {:style {:background "rgba(245, 158, 11, 0.1)"
-                    :border "1px solid rgba(245, 158, 11, 0.3)"
-                    :border-radius "12px"
-                    :padding "2rem"
-                    :transition "all 0.3s ease"
-                    :cursor "pointer"}
-            :on-mouse-enter #(do
-                              (set! (.-style.background (.-target %)) "rgba(245, 158, 11, 0.15)")
-                              (set! (.-style.transform (.-target %)) "translateY(-4px)")
-                              (set! (.-style.boxShadow (.-target %)) "0 8px 25px rgba(245, 158, 11, 0.2)"))
-            :on-mouse-leave #(do
-                              (set! (.-style.background (.-target %)) "rgba(245, 158, 11, 0.1)")
-                              (set! (.-style.transform (.-target %)) "translateY(0)")
-                              (set! (.-style.boxShadow (.-target %)) "none"))}
-      [:div {:style {:font-size "2.5rem"
-                     :margin-bottom "1rem"}} "🗄️"]
-      [:h3 {:style {:color "#f59e0b"
-                    :font-size "1.3rem"
-                    :margin-bottom "0.5rem"}}
-       "Data Management"]
-      [:p {:style {:color "rgba(255, 255, 255, 0.7)"
-                   :font-size "0.95rem"
-                   :line-height "1.5"}}
-       "Backup, export, and maintain system data"]]]
+    ;; Load users on component mount
+    (load-users)
     
-    [:div {:style {:margin-top "3rem"
-                   :padding-top "2rem"
-                   :border-top "1px solid rgba(255, 255, 255, 0.1)"}}
-     [:p {:style {:color "rgba(255, 255, 255, 0.5)"
-                  :font-size "0.9rem"}}
-      "Expert Lift Management System v1.0"]]]])
+    (fn []
+      [:div {:style {:min-height "100vh"
+                     :background "#f5f5f5"
+                     :padding "2rem"}}
+       [:div {:style {:max-width "1200px"
+                      :margin "0 auto"}}
+        [:h1 {:style {:color "#333"
+                      :margin-bottom "2rem"}}
+         "Super Admin - User Management"]
+        
+        (if @loading?
+          [:div {:style {:text-align "center" :padding "2rem"}}
+           "Loading users..."]
+          [user-table @users
+         (fn [] ; on-add
+           (reset! current-user {})
+           (reset! modal-open? true))
+         (fn [user] ; on-edit
+           (reset! current-user user)
+           (reset! modal-open? true))
+         delete-user-fn])
+        
+        [user-modal current-user modal-open?
+         (fn [] ; on-save
+           (let [is-new? (not (:user/id @current-user))
+                 user-data (if is-new?
+                            {:user/username (:user/username @current-user)
+                             :user/full-name (:user/full-name @current-user)
+                             :user/password (:user/password @current-user)
+                             :user/email (:user/email @current-user)
+                             :user/phone (:user/phone @current-user)
+                             :user/role (:user/role @current-user)}
+                            {:user/id (:user/id @current-user)
+                             :user/username (:user/username @current-user)
+                             :user/full-name (:user/full-name @current-user)
+                             :user/email (:user/email @current-user)
+                             :user/phone (:user/phone @current-user)
+                             :user/role (:user/role @current-user)
+                             :user/active (:user/active @current-user)})]
+             (save-user user-data is-new?)))
+         (fn [] ; on-cancel
+           (reset! modal-open? false))]]])))
