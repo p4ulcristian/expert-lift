@@ -1,0 +1,1 @@
+./atlas.sh schema inspect --env dev

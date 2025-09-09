@@ -1,0 +1,6 @@
+---
+description: 
+globs: *.cljs
+alwaysApply: false
+---
+We use modern react with hooks, no atoms from clojure.

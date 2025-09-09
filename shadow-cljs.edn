@@ -1,0 +1,47 @@
+{:source-paths ["project/code"]
+ :dependencies [[cider/cider-nrepl "0.21.1"]
+                [re-frame/re-frame  "1.2.0"]
+                [binaryage/devtools "1.0.6"]
+                [djblue/portal      "0.58.5"]
+                [reagent "2.0.0-alpha2"]
+                [venantius/accountant "0.2.5"]
+                [pez/clerk "1.0.0"]
+                [metosin/reitit-frontend "0.8.0"]
+                [re-frame/re-frame "1.4.3"]
+                [cljs-http "0.1.48"]
+                [org.babashka/sci "0.10.47"]]
+ :builds
+;; -----------------------------------------------------------------------------
+;; ---- Development ----
+
+ {:app   {:target           :browser
+          :output-dir       "project/resources/public/js/core"
+          
+          :compiler-options {:infer-externs      true
+                             :output-feature-set :es-next}
+          :devtools         {:watch-dir  "project/resources/public"
+                             :after-load app.frontend.app/render-app!}
+          
+          :js-options       {:js-provider    :external 
+                             :external-index "target/app_libs.js"}
+          :modules          {:app       {:init-fn  app.frontend.app/start-app!}}}
+
+;; ---- Development ----
+;; -----------------------------------------------------------------------------
+
+;; -----------------------------------------------------------------------------
+;; ---- Production ----
+
+  :app.prod  {:target           :browser
+              :optimizations    :advanced
+              :output-dir       "project/resources/public/js/core"
+
+              :compiler-options {:infer-externs      true
+                                 :optimizations      :advanced
+                                 :output-feature-set :es-next}
+              :modules          {:app {:init-fn app.frontend.app/start-app!}}
+              :js-options       {:js-provider :external
+                                 :external-index "target/app_libs.js"}}}}
+
+;; ---- Production ----
+;; -----------------------------------------------------------------------------

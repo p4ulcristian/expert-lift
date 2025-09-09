@@ -1,0 +1,312 @@
+{:rim {:id "rim"
+       :name "One piece rim"
+       :icon "icons/alloy-wheel.svg"
+       :description "<div>
+                    <b style=\"color:var(--irb-clr)\">Alloy Wheel Excellence</b>
+                    <p>Our premium one-piece alloy wheels represent the perfect blend of performance and style. Each wheel is crafted from high-grade aluminum alloy, offering:</p>
+                    <ul>
+                      <li>Superior strength-to-weight ratio</li>
+                      <li>Enhanced heat dissipation</li>
+                      <li>Perfect balance and stability</li>
+                    </ul>
+                    <p>Available in various finishes including:</p>
+                    <ul>
+                      <li>Glossy metallic</li>
+                      <li>Matte black</li>
+                      <li>Chrome</li>
+                      <li>Custom colors</li>
+                    </ul>
+                    </div>"
+       :type "part"
+       :model {:src "/media/models/rim.glb"
+               :rotation [0 -2 0]}
+       :price-group {:basic 70
+                    :basic+ 90
+                    :pro 120
+                    :pro+ 140}
+       :look-allowed []
+       :form {:id :one-piece-rim-form
+              :price-formula "([:quantity] * ([:look-cost] * [:size] * [:material] * [:condition]))"
+              :template :one-piece-rim-form
+              :metadata {:timestamp "form-timestamp"}}}
+
+ :three-piece-rim {:id "three-piece-rim"
+                  :name "Three piece rim"
+                  :icon "icons/3-piece-rim.svg"
+                  :description "<div>
+                    <b style=\"color:var(--irb-clr)\">Customizable Three-Piece Design</b>
+                    <p>Experience the ultimate in wheel customization with our three-piece rim system. This modular design allows for:</p>
+                    <ul>
+                      <li>Individual component replacement</li>
+                      <li>Custom width adjustments</li>
+                      <li>Mixed finish combinations</li>
+                    </ul>
+                    <p>Components include:</p>
+                    <ul>
+                      <li>Forged center disc</li>
+                      <li>Customizable outer lip</li>
+                      <li>Adjustable inner barrel</li>
+                    </ul>
+                    <p>Perfect for enthusiasts seeking maximum customization and performance.</p>
+                    </div>"
+                  :type "package"
+                  :parts ["barrel" "face" "lip"]
+                  :model {:src "/media/models/three_piece_rim.gltf"
+                         :rotation [0 -0.8 0]}
+                  :look-allowed []
+                  :form {:id :three-piece-rim-form
+                        :template :three-piece-rim-form
+                        :price-formula "([:diamond_cut] + [:repair :curb_rash_repair] + [:repair :welding] + [:repair :straightening] + [:tyre-servcice :remove_and_fitting] + [:tyre-servcice :fitting])"
+                        :metadata {:timestamp "form-timestamp"}}}
+
+ :barrel {:id "barrel"
+          :name "Barrel"
+          :icon "icons/3-piece-barrel.svg"
+          :description "<div>
+                    <b style=\"color:var(--irb-clr)\">Precision Engineered Barrel</b>
+                    <p>The heart of your three-piece wheel system. Our barrels are:</p>
+                    <ul>
+                      <li>CNC-machined to exact specifications</li>
+                      <li>Available in multiple widths</li>
+                      <li>Compatible with all standard tire sizes</li>
+                    </ul>
+                    <p>Features:</p>
+                    <ul>
+                      <li>Reinforced mounting points</li>
+                      <li>Optimized airflow design</li>
+                      <li>Heat-resistant construction</li>
+                    </ul>
+                    </div>"
+          :type "part"
+          :package-id "three-piece-rim"
+          :look-allowed []
+          :model {:src "/media/models/three_piece_rim.gltf"
+                 :rotation [1 -0.8 0]}
+          :price-group {:basic 70
+                       :basic+ 90
+                       :pro 110
+                       :pro+ 130}
+          :form {:id :three-piece-rim-barrel
+                :template :three-piece-rim-part-form
+                :price-formula "([:quantity] * ([:look-cost] * [:size] * [:material] * [:condition]))"
+                :metadata {:timestamp "form-timestamp"}}}
+
+ :face {:id "face"
+        :name "Face"
+        :icon "icons/face.svg"
+        :description "<div>
+                    <b style=\"color:var(--irb-clr)\">Custom Wheel Face</b>
+                    <p>The centerpiece of your wheel that makes a statement. Our faces offer:</p>
+                    <ul>
+                      <li>Multiple spoke designs</li>
+                      <li>Custom offset options</li>
+                      <li>Premium finish choices</li>
+                    </ul>
+                    <p>Available finishes:</p>
+                    <ul>
+                      <li>Polished aluminum</li>
+                      <li>Brushed titanium</li>
+                      <li>Custom powder coat</li>
+                    </ul>
+                    <p>Each face is precision-balanced for optimal performance.</p>
+                    </div>"
+        :type "part"
+        :package-id "three-piece-rim"
+        :model {:src "/media/models/three_piece_rim.gltf"
+               :rotation [0 -0.8 2]}
+        :look-allowed []
+        :price-group {:basic 70
+                     :basic+ 90
+                     :pro 120
+                     :pro+ 140}
+        :form {:id :three-piece-rim-face
+              :template :three-piece-rim-part-form
+              :price-formula "([:quantity] * ([:look-cost] * [:size] * [:material] * [:condition]))"
+              :metadata {:timestamp "form-timestamp"}}}
+
+ :lip {:id "lip"
+       :name "Lip"
+       :icon "icons/lip.svg"
+       :description "<div>
+                    <b style=\"color:var(--irb-clr)\">Custom Wheel Lip</b>
+                    <p>The finishing touch that defines your wheel's character. Our lips feature:</p>
+                    <ul>
+                      <li>Multiple depth options</li>
+                      <li>Step-lip and flat-lip designs</li>
+                      <li>Polished or brushed finishes</li>
+                    </ul>
+                    <p>Benefits:</p>
+                    <ul>
+                      <li>Enhanced visual depth</li>
+                      <li>Improved wheel protection</li>
+                      <li>Easy maintenance</li>
+                    </ul>
+                    <p>Perfect for achieving that deep-dish look while maintaining structural integrity.</p>
+                    </div>"
+       :type "part"
+       :package-id "three-piece-rim"
+       :model {:src "/media/models/three_piece_rim.gltf"
+              :rotation [0 1 0]}
+       :look-allowed []
+       :price-group {:basic 40
+                    :basic+ 90
+                    :pro 120
+                    :pro+ 140}
+       :form {:id :three-piece-rim-lip
+             :template :three-piece-rim-part-form
+             :price-formula "([:quantity] * ([:look-cost] * [:size] * [:material] * [:condition]))"
+             :metadata {:timestamp "form-timestamp"}}}
+
+ :downhill {:id "downhill"
+           :name "Downhill"
+           :icon "icons/bicycle.svg"
+           :description "<div>
+                    <b style=\"color:var(--irb-clr)\">Downhill Bike Package</b>
+                    <p>Complete wheel solution for downhill enthusiasts. This package includes:</p>
+                    <ul>
+                      <li>Reinforced three-piece construction</li>
+                      <li>Impact-resistant design</li>
+                      <li>Optimized for rough terrain</li>
+                    </ul>
+                    <p>Features:</p>
+                    <ul>
+                      <li>Extra-wide profile</li>
+                      <li>Enhanced braking surface</li>
+                      <li>Quick-release compatibility</li>
+                    </ul>
+                    <p>Built to withstand the demands of professional downhill racing.</p>
+                    </div>"
+           :type "package"
+           :model {:src "/media/models/downhill_2.glb"
+                  :rotation [0 2.5 0]}
+           :parts ["barrel" "face" "lip"]
+           :look-allowed []
+           :form {:id :three-piece-rim-item-form
+                 :template :three-piece-rim-form
+                 :metadata {:timestamp "form-timestamp"}}}
+
+ :car {:id "car"
+       :name "Car"
+       :grouped? true
+       :model {:src "/media/models/car.glb"
+              :rotation [0 -0.8 0]}
+       :description "<div>
+                    <b style=\"color:var(--irb-clr)\">Automotive Wheel Solutions</b>
+                    <p>Comprehensive wheel solutions for all vehicle types:</p>
+                    <ul>
+                      <li>Performance cars</li>
+                      <li>Luxury vehicles</li>
+                      <li>SUVs and trucks</li>
+                    </ul>
+                    <p>Services include:</p>
+                    <ul>
+                      <li>Custom wheel design</li>
+                      <li>Size optimization</li>
+                      <li>Performance tuning</li>
+                    </ul>
+                    <p>Expert consultation available for your specific vehicle needs.</p>
+                    </div>"
+       :look-allowed []}
+
+ :drum {:id "drum"
+        :name "Drum"
+        :model {:src "/media/models/model11.glb"
+               :rotation [0 -0.8 0]}
+        :description "<div>
+                    <b style=\"color:var(--irb-clr)\">Drum Brake Wheel Solutions</b>
+                    <p>Specialized wheels designed for drum brake systems:</p>
+                    <ul>
+                      <li>Optimized clearance</li>
+                      <li>Enhanced heat dissipation</li>
+                      <li>Improved braking performance</li>
+                    </ul>
+                    <p>Perfect for:</p>
+                    <ul>
+                      <li>Classic vehicles</li>
+                      <li>Vintage restorations</li>
+                      <li>Custom builds</li>
+                    </ul>
+                    <p>Maintains authentic look while improving functionality.</p>
+                    </div>"
+        :look-allowed []}
+
+ :truck-rim {:id "truck-rim"
+             :name "Rim"
+             :icon "icons/alloy-wheel.svg"
+             :model {:src "/media/models/rim1.glb"
+                    :rotation [(/ js/Math.PI 2) 0 0.8]}
+             :description "<div>
+                    <b style=\"color:var(--irb-clr)\">Heavy-Duty Truck Wheels</b>
+                    <p>Built for durability and performance:</p>
+                    <ul>
+                      <li>Extra load capacity</li>
+                      <li>Reinforced construction</li>
+                      <li>Commercial-grade materials</li>
+                    </ul>
+                    <p>Features:</p>
+                    <ul>
+                      <li>Extended service life</li>
+                      <li>Easy maintenance</li>
+                      <li>Weather resistance</li>
+                    </ul>
+                    <p>Ideal for commercial and heavy-duty applications.</p>
+                    </div>"
+             :price-group {:basic 130
+                          :basic+ 160
+                          :pro 220
+                          :pro+ 340}
+             :look-allowed []
+             :form {:id :one-piece-rim--form-snapshot-1
+                   :template :one-piece-rim-form
+                   :metadata {:timestamp "form-timestamp"}}
+             :form-template :one-piece-rim-form}
+
+ :guitar {:id "guitar"
+          :name "Guitar"
+          :icon "icons/bicycle.svg"
+          :model {:src "/media/models/model6.glb"
+                 :rotation [1 0 0]}
+          :description "<div>
+                    <b style=\"color:var(--irb-clr)\">Custom Guitar Parts</b>
+                    <p>Premium components for your instrument:</p>
+                    <ul>
+                      <li>Custom hardware</li>
+                      <li>Specialized finishes</li>
+                      <li>Performance upgrades</li>
+                    </ul>
+                    <p>Available for:</p>
+                    <ul>
+                      <li>Electric guitars</li>
+                      <li>Acoustic guitars</li>
+                      <li>Bass guitars</li>
+                    </ul>
+                    <p>Enhance your instrument's look and performance.</p>
+                    </div>"
+          :look-allowed []
+          :grouped? true}
+
+ :1 {:id "1"
+     :name "Guitar piece"
+     :icon "icons/bicycle.svg"
+     :description "<div>
+                    <b style=\"color:var(--irb-clr)\">Guitar Component</b>
+                    <p>High-quality replacement parts:</p>
+                    <ul>
+                      <li>Precision engineering</li>
+                      <li>Premium materials</li>
+                      <li>Perfect fit guarantee</li>
+                    </ul>
+                    <p>Compatible with:</p>
+                    <ul>
+                      <li>Major guitar brands</li>
+                      <li>Custom builds</li>
+                      <li>Vintage instruments</li>
+                    </ul>
+                    <p>Restore or upgrade your instrument with confidence.</p>
+                    </div>"
+     :price-group {:basic 60
+                  :basic+ 80
+                  :pro 100
+                  :pro+ 120}
+     :look-allowed []
+     :form-template :downhill/basic-template}} 

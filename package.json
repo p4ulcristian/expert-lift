@@ -1,0 +1,37 @@
+{
+  "dependencies": {
+    "@emotion/is-prop-valid": "^1.3.1",
+    "@react-three/drei": "^10.0.7",
+    "@react-three/fiber": "^9.1.2",
+    "@react-three/postprocessing": "^3.0.4",
+    "@reactour/tour": "^3.8.0",
+    "@stripe/react-stripe-js": "^3.9.2",
+    "@stripe/stripe-js": "^7.9.0",
+    "@turf/turf": "^7.2.0",
+    "@use-gesture/react": "^10.3.1",
+    "@xyflow/react": "^12.6.4",
+    "framer-motion": "^11.15.0",
+    "json-edit-react": "^1.26.2",
+    "keen-slider": "^6.8.6",
+    "mathjs": "^14.5.3",
+    "node-polyfill-webpack-plugin": "^4.1.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-hot-toast": "^2.5.2",
+    "react-sortablejs": "^6.1.4",
+    "react-window": "^1.8.11",
+    "vanilla-calendar-pro": "^3.0.5"
+  },
+  "scripts": {
+    "console-stream": "node console-stream.js"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.10",
+    "@babel/preset-env": "^7.26.9",
+    "babel-loader": "^10.0.0",
+    "chrome-remote-interface": "^0.33.3",
+    "shadow-cljs": "^3.1.4",
+    "webpack": "^5.99.9",
+    "webpack-cli": "^6.0.1"
+  }
+}

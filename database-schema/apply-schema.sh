@@ -1,0 +1,1 @@
+./atlas.sh schema apply --env dev --url $IRONRAINBOW_DB_URL

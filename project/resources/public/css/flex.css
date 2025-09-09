@@ -1,0 +1,694 @@
+/******************************************************************************/
+/**** Sidebar ****/
+
+#flex-sidebar {
+  button {
+    border-radius: 0;
+  }
+
+  .flex-sidebar--group-label {
+    padding: 6px 12px 6px;
+    font-size: .85rem;
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+
+  .menu-item-label {
+    font-weight: 400;
+    width: 100%;
+  }
+
+  &[data-minify="true"] {
+
+    padding: 8px;
+
+    .flex-sidebar--group {
+      display: grid;
+      gap: 8px;
+    }
+
+    & button {
+      border-radius: 6px;
+    }
+  }
+}
+
+/**** Sidebar ****/
+/******************************************************************************/
+
+/* Service Areas Map Controls */
+.maplibregl-ctrl-top-left {
+  top: 10px !important;
+  left: 10px !important;
+}
+
+.maplibregl-ctrl-geocoder {
+  margin: 0 !important;
+}
+
+/* Service Areas Map Controls */
+/******************************************************************************/
+
+/* Batch Module Styles */
+.batch-header {
+  padding: 20px;
+  border-bottom: 1px solid #eaeaea;
+  background: #fafafa;
+  border-radius: 12px 12px 0 0;
+}
+
+.batch-header b {
+  font-size: 1.1rem;
+  color: #333;
+  font-weight: 600;
+}
+
+.batch-header p {
+  margin: 8px 0;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.batch-header--remove-btn {
+  background: white;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  z-index: 1;
+  border: 1px solid #eaeaea;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.batch-header--remove-btn:hover {
+  background: #ef4444;
+  color: white;
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+}
+
+.batch-header--remove-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.1);
+}
+
+.process-card {
+  width: 100%;
+  background: #FFF;
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  opacity: 1;
+  transition: all 0.2s ease;
+  border: 1px solid #eaeaea;
+}
+
+.process-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-1px);
+}
+
+.process-card--container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+}
+
+.process-card--container[data-dragging="true"] {
+  opacity: 0.3;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+}
+
+.process-card--remove-button {
+  display: none;
+  position: absolute;
+  background: white;
+  right: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: #666;
+  transition: all 0.2s ease;
+}
+
+.process-card--remove-button:hover {
+  color: var(--hover-color-warning);
+  background: #fff5f5;
+}
+
+.process-card--container:hover>.process-card--remove-button {
+  display: block;
+}
+
+/* Process Card Modern Design */
+.process-item {
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 4px 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: grab;
+  position: relative;
+  overflow: visible;
+  min-height: auto;
+}
+
+.process-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-1px);
+  border-color: #cbd5e1;
+}
+
+.process-item:active {
+  cursor: grabbing;
+  transform: translateY(0);
+}
+
+/* Current Step Highlighting - To-Do State (Blue) */
+.process-item.current-step.to-do {
+  border: 2px solid #6366f1 !important;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2) !important;
+}
+
+.process-item.current-step.to-do:hover {
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3) !important;
+  transform: translateY(-2px);
+}
+
+.process-item.current-step.to-do::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #6366f1, #4f46e5);
+  border-radius: 8px 8px 0 0;
+}
+
+/* Current Step Highlighting - Doing State (Amber) */
+.process-item.current-step.doing {
+  border: 2px solid #f59e0b !important;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2) !important;
+}
+
+.process-item.current-step.doing:hover {
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.3) !important;
+  transform: translateY(-2px);
+}
+
+.process-item.current-step.doing::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+  border-radius: 8px 8px 0 0;
+}
+
+/* Current Step Highlighting - Default/Fallback (Gray) */
+.process-item.current-step {
+  border: 2px solid #6b7280 !important;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%) !important;
+  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.2) !important;
+}
+
+.process-item.current-step:hover {
+  box-shadow: 0 6px 16px rgba(107, 114, 128, 0.3) !important;
+  transform: translateY(-2px);
+}
+
+.process-item.current-step::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #6b7280, #4b5563);
+  border-radius: 8px 8px 0 0;
+}
+
+/* Completed Step Highlighting (Green) */
+.process-item.completed-step {
+  border: 2px solid #10b981 !important;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%) !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15) !important;
+  opacity: 0.8;
+}
+
+.process-item.completed-step:hover {
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25) !important;
+  transform: translateY(-1px);
+  opacity: 1;
+}
+
+.process-item.completed-step::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #10b981, #059669);
+  border-radius: 8px 8px 0 0;
+}
+
+.process-item.completed-step::after {
+  content: "✓";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #10b981;
+  color: white;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  z-index: 10;
+}
+
+/* Process Content */
+.process-item .drag-handle {
+  color: #94a3b8;
+  font-size: 12px;
+  margin-right: 6px;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.process-item:hover .drag-handle {
+  opacity: 1;
+}
+
+.process-item .process-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  flex: 1;
+  line-height: 1.3;
+}
+
+.process-item.current-step.to-do .process-name {
+  color: #312e81;
+  font-weight: 700;
+}
+
+.process-item.current-step.doing .process-name {
+  color: #92400e;
+  font-weight: 700;
+}
+
+.process-item.current-step .process-name {
+  color: #374151;
+  font-weight: 700;
+}
+
+.process-item.completed-step .process-name {
+  color: #666;
+  font-weight: 500;
+}
+
+/* Remove Button */
+.process-item .remove-btn {
+  background: #ef4444;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.process-item:hover .remove-btn {
+  opacity: 1;
+}
+
+.process-item .remove-btn:hover {
+  background: #dc2626;
+  transform: scale(1.1);
+}
+
+/* Circular Remove Button */
+.process-item .circular-remove-btn {
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.2s ease;
+}
+
+.process-item:hover .circular-remove-btn {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.process-item .circular-remove-btn:hover {
+  transform: scale(1.1) !important;
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3) !important;
+}
+
+/* Workstation Links */
+.process-item .workstations {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #f1f5f9;
+  font-size: 10px;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.process-item .workstation-link {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.process-item .workstation-link:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.process-item.current-step.to-do .workstations {
+  border-top-color: #c7d2fe;
+}
+
+.process-item.current-step.to-do .workstation-link {
+  color: #4338ca;
+}
+
+.process-item.current-step.to-do .workstation-link:hover {
+  color: #3730a3;
+}
+
+.process-item.current-step.doing .workstations {
+  border-top-color: #fde68a;
+}
+
+.process-item.current-step.doing .workstation-link {
+  color: #b45309;
+}
+
+.process-item.current-step.doing .workstation-link:hover {
+  color: #92400e;
+}
+
+.process-item.current-step .workstations {
+  border-top-color: #e5e7eb;
+}
+
+.process-item.current-step .workstation-link {
+  color: #4b5563;
+}
+
+.process-item.current-step .workstation-link:hover {
+  color: #374151;
+}
+
+.process-item.completed-step .workstations {
+  border-top-color: #a7f3d0;
+}
+
+.process-item.completed-step .workstation-link {
+  color: #059669;
+  opacity: 0.8;
+}
+
+.process-item.completed-step .workstation-link:hover {
+  color: #047857;
+  opacity: 1;
+}
+
+/* Dragging State */
+.process-item[data-dragging="true"] {
+  opacity: 0.8;
+  transform: rotate(2deg) scale(1.03);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+}
+
+/* Recipe Cards - Fixed Design */
+.recipe-item {
+  background: #ffffff;
+  color: #1e293b;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 4px 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.recipe-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  border-color: #cbd5e1;
+}
+
+.recipe-item .recipe-name {
+  font-weight: 700;
+  color: #1e293b;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.recipe-item .recipe-details {
+  font-size: 10px;
+  color: #64748b;
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+.recipe-item .recipe-badge {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* Batch Cards - Modern Design */
+.batch-card {
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0;
+  margin: 16px 0;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.batch-card[data-confirmed="true"] {
+  background: #f0fdf4;
+  border-color: #10b981;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
+.batch-card[data-confirmed="true"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #10b981, #059669);
+  border-radius: 8px 8px 0 0;
+}
+
+.batch-header {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 1px solid #e2e8f0;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.batch-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.batch-part-image {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 2px solid #e2e8f0;
+}
+
+.batch-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.batch-name-input {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+  border: none;
+  background: transparent;
+  padding: 0;
+  outline: none;
+}
+
+.batch-name-input:focus {
+  color: #3b82f6;
+}
+
+.batch-color-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.batch-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+}
+
+.batch-step-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.batch-step-indicator .step-number {
+  color: #3b82f6;
+  font-weight: 700;
+}
+
+.batch-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.batch-quantity {
+  font-size: 14px;
+  color: #64748b;
+  background: #f8fafc;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  font-weight: 600;
+}
+
+.batch-split-btn {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s ease;
+}
+
+.batch-split-btn:hover {
+  background: #e2e8f0;
+  transform: scale(1.05);
+}
+
+.batch-processes {
+  padding: 16px 20px;
+  min-height: 100px;
+}
+
+/* Drop Zones */
+.droppable-area {
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  transition: all 0.3s ease;
+  min-height: 80px;
+  padding: 12px;
+}
+
+.droppable-area.drag-over {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  box-shadow: inset 0 0 0 1px #3b82f6;
+}
+
+.droppable-area.empty {
+  padding: 24px 20px;
+  text-align: center;
+  color: #64748b;
+}
+
+.droppable-area.empty .drop-message {
+  font-size: 13px;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.droppable-area.empty .drop-icons {
+  font-size: 20px;
+  opacity: 0.6;
+}
+
+/******************************************************************************/
+/**** Service Areas ****/
+
+.map-container {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%;
+  border-radius: 10px;
+}
+
+.map-container canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  height: 100%;
+}
+
+/**** Service Areas ****/
+/******************************************************************************/

@@ -1,0 +1,9 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+I prefer small functions for better readability. Comments in clojure are after the function name, before the parameter list. No unnecessary changes, ask first.
+in clojure, filenames are underscored, while the namespaces are dashed.
+defresolver is a macro, and it expects a map as it's returning value, it cannot be a function call.
+careful with hugsql, don't make overlapping functions with the calling namespace.
