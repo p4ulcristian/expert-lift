@@ -122,96 +122,58 @@
         [modal-form user is-new? current-errors is-valid? on-save]
         [modal-buttons is-valid? on-cancel on-save]]])))
 
+(defn- table-header [on-add]
+  [:div {:style {:display "flex" :justify-content "space-between" :align-items "center" :margin-bottom "1.5rem"}}
+   [:h2 "Users"]
+   [:button {:on-click on-add :style {:padding "0.5rem 1rem" :background "#28a745" :color "white" :border "none" :border-radius "4px" :cursor "pointer"}} "Add User"]])
+
+(defn- table-th [text align]
+  [:th {:style {:padding "0.75rem" :text-align (or align "left") :border-bottom "1px solid #ddd"}} text])
+
+(defn- role-badge [role]
+  [:span {:style {:padding "0.25rem 0.5rem" :border-radius "4px" :font-size "0.875rem" :color "white"
+                  :background (case role "superadmin" "#dc3545" "admin" "#fd7e14" "#28a745")}}
+   role])
+
+(defn- status-badge [active?]
+  [:span {:style {:padding "0.25rem 0.5rem" :border-radius "4px" :font-size "0.875rem" :color "white"
+                  :background (if active? "#28a745" "#6c757d")}}
+   (if active? "Active" "Inactive")])
+
+(defn- action-button [text color on-click margin?]
+  [:button {:on-click on-click
+            :style {:padding "0.25rem 0.5rem" :background color :color "white" :border "none"
+                    :border-radius "4px" :cursor "pointer" :font-size "0.875rem"
+                    :margin-right (when margin? "0.5rem")}}
+   text])
+
+(defn- user-row [user on-edit on-delete]
+  ^{:key (:user/id user)}
+  [:tr {:style {:border-bottom "1px solid #eee"}}
+   [:td {:style {:padding "0.75rem"}}
+    [:div (:user/full-name user)]
+    [:div {:style {:font-size "0.8rem" :color "#666"}} (:user/username user)]]
+   [:td {:style {:padding "0.75rem"}} (:user/email user)]
+   [:td {:style {:padding "0.75rem"}} [role-badge (:user/role user)]]
+   [:td {:style {:padding "0.75rem"}} [status-badge (:user/active user)]]
+   [:td {:style {:padding "0.75rem" :text-align "center"}}
+    [action-button "Edit" "#007bff" #(on-edit user) true]
+    [action-button "Delete" "#dc3545" #(on-delete user) false]]])
+
 (defn user-table [users on-add on-edit on-delete]
-  [:div {:style {:background "white"
-                 :border-radius "8px"
-                 :padding "1.5rem"
-                 :box-shadow "0 2px 4px rgba(0,0,0,0.1)"}}
-   [:div {:style {:display "flex"
-                  :justify-content "space-between"
-                  :align-items "center"
-                  :margin-bottom "1.5rem"}}
-    [:h2 "Users"]
-    [:button {:on-click on-add
-              :style {:padding "0.5rem 1rem"
-                      :background "#28a745"
-                      :color "white"
-                      :border "none"
-                      :border-radius "4px"
-                      :cursor "pointer"}}
-     "Add User"]]
-   
-   [:table {:style {:width "100%"
-                    :border-collapse "collapse"}}
+  [:div {:style {:background "white" :border-radius "8px" :padding "1.5rem" :box-shadow "0 2px 4px rgba(0,0,0,0.1)"}}
+   [table-header on-add]
+   [:table {:style {:width "100%" :border-collapse "collapse"}}
     [:thead
      [:tr {:style {:background "#f8f9fa"}}
-      [:th {:style {:padding "0.75rem"
-                    :text-align "left"
-                    :border-bottom "1px solid #ddd"}}
-       "Name"]
-      [:th {:style {:padding "0.75rem"
-                    :text-align "left"
-                    :border-bottom "1px solid #ddd"}}
-       "Email"]
-      [:th {:style {:padding "0.75rem"
-                    :text-align "left"
-                    :border-bottom "1px solid #ddd"}}
-       "Role"]
-      [:th {:style {:padding "0.75rem"
-                    :text-align "left"
-                    :border-bottom "1px solid #ddd"}}
-       "Status"]
-      [:th {:style {:padding "0.75rem"
-                    :text-align "center"
-                    :border-bottom "1px solid #ddd"}}
-       "Actions"]]]
-    
+      [table-th "Name" nil]
+      [table-th "Email" nil]
+      [table-th "Role" nil]
+      [table-th "Status" nil]
+      [table-th "Actions" "center"]]]
     [:tbody
      (for [user users]
-       ^{:key (:user/id user)}
-       [:tr {:style {:border-bottom "1px solid #eee"}}
-        [:td {:style {:padding "0.75rem"}} 
-         [:div (:user/full-name user)]
-         [:div {:style {:font-size "0.8rem" :color "#666"}} (:user/username user)]]
-        [:td {:style {:padding "0.75rem"}} (:user/email user)]
-        [:td {:style {:padding "0.75rem"}} 
-         [:span {:style {:padding "0.25rem 0.5rem"
-                         :border-radius "4px"
-                         :font-size "0.875rem"
-                         :background (case (:user/role user)
-                                      "superadmin" "#dc3545"
-                                      "admin" "#fd7e14"
-                                      "#28a745")
-                         :color "white"}}
-          (:user/role user)]]
-        [:td {:style {:padding "0.75rem"}}
-         [:span {:style {:padding "0.25rem 0.5rem"
-                         :border-radius "4px"
-                         :font-size "0.875rem"
-                         :background (if (:user/active user) "#28a745" "#6c757d")
-                         :color "white"}}
-          (if (:user/active user) "Active" "Inactive")]]
-        [:td {:style {:padding "0.75rem"
-                      :text-align "center"}}
-         [:button {:on-click #(on-edit user)
-                   :style {:padding "0.25rem 0.5rem"
-                           :margin-right "0.5rem"
-                           :background "#007bff"
-                           :color "white"
-                           :border "none"
-                           :border-radius "4px"
-                           :cursor "pointer"
-                           :font-size "0.875rem"}}
-          "Edit"]
-         [:button {:on-click #(on-delete user)
-                   :style {:padding "0.25rem 0.5rem"
-                           :background "#dc3545"
-                           :color "white"
-                           :border "none"
-                           :border-radius "4px"
-                           :cursor "pointer"
-                           :font-size "0.875rem"}}
-          "Delete"]]])]]])
+       [user-row user on-edit on-delete])]]])
 
 (defn view []
   (let [users (r/atom [])
@@ -219,15 +181,13 @@
         modal-open? (r/atom false)
         loading? (r/atom true)
         
-        load-users (fn []
-                     (reset! loading? true)
-                     (parquery/send-queries
-                       {:queries {:users/get-all {}}
-                        :parquery/context {}
-                        :callback (fn [response]
-                                    (println "Users loaded:" response)
-                                    (reset! users (:users/get-all response))
-                                    (reset! loading? false))}))
+        load-users #(do (reset! loading? true)
+                         (parquery/send-queries
+                           {:queries {:users/get-all {}}
+                            :parquery/context {}
+                            :callback (fn [response]
+                                        (reset! users (:users/get-all response))
+                                        (reset! loading? false))}))
         
         save-user (fn [user-data is-new?]
                     (let [query-key (if is-new? :users/create :users/update)]
@@ -235,11 +195,8 @@
                         {:queries {query-key user-data}
                          :parquery/context {}
                          :callback (fn [response]
-                                     (println "User save response:" response)
                                      (if (:success (get response query-key))
-                                       (do
-                                         (load-users)
-                                         (reset! modal-open? false))
+                                       (do (load-users) (reset! modal-open? false))
                                        (js/alert (str "Error: " (:error (get response query-key))))))})))
         
         delete-user-fn (fn [user]
@@ -248,7 +205,6 @@
                              {:queries {:users/delete {:user/id (:user/id user)}}
                               :parquery/context {}
                               :callback (fn [response]
-                                          (println "Delete response:" response)
                                           (if (:success (:users/delete response))
                                             (load-users)
                                             (js/alert (str "Error: " (:error (:users/delete response))))))})))]
@@ -270,31 +226,20 @@
           [:div {:style {:text-align "center" :padding "2rem"}}
            "Loading users..."]
           [user-table @users
-           (fn [] ; on-add
-             (reset! current-user {:user/role "employee"})
-             (reset! modal-open? true))
-           (fn [user] ; on-edit
-             (reset! current-user user)
-             (reset! modal-open? true))
+           #(do (reset! current-user {:user/role "employee"}) (reset! modal-open? true))
+           #(do (reset! current-user %) (reset! modal-open? true))
            delete-user-fn])
         
         [user-modal current-user modal-open?
-         (fn [] ; on-save
-           (let [is-new? (not (:user/id @current-user))
-                 user-data (if is-new?
-                            {:user/username (:user/username @current-user)
-                             :user/full-name (:user/full-name @current-user)
-                             :user/password (:user/password @current-user)
-                             :user/email (:user/email @current-user)
-                             :user/phone (:user/phone @current-user)
-                             :user/role (:user/role @current-user)}
-                            {:user/id (:user/id @current-user)
-                             :user/username (:user/username @current-user)
-                             :user/full-name (:user/full-name @current-user)
-                             :user/email (:user/email @current-user)
-                             :user/phone (:user/phone @current-user)
-                             :user/role (:user/role @current-user)
-                             :user/active (:user/active @current-user)})]
-             (save-user user-data is-new?)))
-         (fn [] ; on-cancel
-           (reset! modal-open? false))]]])))
+         #(let [is-new? (not (:user/id @current-user))
+                user @current-user
+                base-data {:user/username (:user/username user)
+                           :user/full-name (:user/full-name user)
+                           :user/email (:user/email user)
+                           :user/phone (:user/phone user)
+                           :user/role (:user/role user)}
+                user-data (if is-new?
+                            (assoc base-data :user/password (:user/password user))
+                            (assoc base-data :user/id (:user/id user) :user/active (:user/active user)))]
+            (save-user user-data is-new?))
+         #(reset! modal-open? false)]]])))
