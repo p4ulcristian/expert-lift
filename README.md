@@ -1,6 +1,10 @@
-# IronRainbow
+# Expert Lift
 
-Full-stack Clojure/ClojureScript web application with multi-module frontend architecture.
+Elevator service management system built with Clojure/ClojureScript for tracking maintenance work, generating worksheets, and managing technician assignments.
+
+## Overview
+
+Expert Lift is a web-based management system for elevator service companies. It enables technicians and administrators to create, manage, and track elevator maintenance and repair work through digital worksheets with PDF generation capabilities.
 
 ## Quick Start
 
@@ -20,170 +24,155 @@ cd database-schema
 ```
 
 ### Development
-
-#### Start Development Server
-Requires specifying frontend configuration:
 ```bash
-# Start with single module
-./start-dev.sh site
+# Start development server
+./start-dev.sh app
 
-# Start with multiple modules
-./start-dev.sh flex customizer
+# The application will be available at http://localhost:3002
 ```
 
-Available modules:
-- `site` - Public website
-- `flex` - Business management application
-- `customizer` - Product customization interface
-- `labs` - Development/experimental features
+## System Features
 
-#### Backend Development
-```bash
-# Start Clojure REPL
-clj -X:zero
+### User Management
+- **Employee Role**: Create and edit their own worksheets
+- **Admin Role**: Manage addresses, edit any worksheet, configure system settings
+- **Super Admin Role**: Full system administration
 
-# REPL connects on port 5555
-```
+### Worksheet Management
+- Digital worksheet creation with automatic serial numbering (`YYYY-MM-DD/###`)
+- Work type classification: repair/maintenance/other
+- Service type tracking: normal/night/weekend-holiday hours
+- Material usage tracking with quantities
+- Arrival and departure time logging
+- Automatic work duration calculation (rounded up to nearest hour)
 
-#### Production Build
-```bash
-./start-prod.sh
-```
+### PDF Generation
+- Automatic PDF worksheet generation
+- Customizable company logo and footer text
+- Digital signature support
+- Server-side PDF storage with download links
+- PDF naming convention: `work_type + date + serial.pdf`
 
-### Railway Deployment
+### Address & Customer Management
+- Elevator location tracking with postal codes
+- Customer information management
+- Address-based worksheet assignment
 
-Railway builds using the root `Dockerfile` by default. The included `railway.toml` selects the development Dockerfile:
+## Database Schema
 
-```toml
-[build]
-dockerfilePath = "Dockerfile.dev"
-```
+### Core Tables
 
-If configuring the service manually, set the `RAILWAY_DOCKERFILE_PATH` variable to `Dockerfile.dev`.
+**Users**
+- Username, full name, encrypted password
+- Role-based access control (employee/admin/superadmin)
+- Address associations with search indexing
+
+**Elevators**
+- Elevator identification codes
+- Location tracking by postal code
+- Service history linkage
+
+**Worksheets**
+- Unique serial number generation
+- Creation, arrival, and departure timestamps
+- Work categorization and descriptions
+- Material usage vectors with quantities
+- PDF file path storage
+- User and location associations
+
+**Settings**
+- Configurable company logo for worksheets
+- Customizable footer text for PDF generation
 
 ## Architecture
 
-### Frontend Architecture
+### Frontend
+- ClojureScript with Reagent/React
+- Single-page application (SPA) architecture
+- Shadow-CLJS for development and building
+- Webpack for external dependencies
 
-Multi-module system with independent frontend applications:
+### Backend
+- Clojure web server with Ring/Reitit routing
+- ParQuery data layer for frontend-backend communication
+- PostgreSQL with connection pooling
+- PDF generation and file storage
 
-| Module | Path | Description |
-|--------|------|-------------|
-| Site | `/` | Public-facing website |
-| Flex | `/app` | Business management application |
-| Customizer | Custom routes | Product customization interface |
-| Labs | Development | Experimental features |
-
-Each module includes:
-- Shadow-CLJS build configuration (`shadow-cljs.edn`)
-- Webpack configuration for external JS dependencies
-- Entry point in `app/frontend/`
-- Backend routes in `app/z_*/backend/`
-
-### Backend Architecture
-
-| Component | Purpose |
-|-----------|---------|
-| Zero Framework | Custom web framework for server, routing, and state |
-| Pathom3 | GraphQL-like data layer for frontend-backend communication |
-| Mount | State management and dependency injection |
-| PostgreSQL | Primary database with HCL-based schema management (Atlas) |
-| Ring/Reitit | HTTP handling and routing |
-
-### Project Structure
-
-```
-ironrainbow/
-├── project/
-│   ├── code/
-│   │   ├── app/           # Main application modules
-│   │   ├── features/      # Feature-specific code by domain
-│   │   ├── zero/          # Core framework code
-│   │   └── ui/            # Reusable UI components (Reagent/React)
-│   └── resources/
-│       └── public/        # Static assets and compiled JS
-└── database-schema/       # Database definitions and migrations
-```
-
-### Data Flow
-
-- **Frontend State**: Re-frame with modern React hooks (no Clojure atoms)
-- **Data Fetching**: Pathom resolvers for GraphQL-like queries
-- **Database Access**: PG2 connection pooling
-- **File Storage**: MinIO integration for object storage
+### Development Stack
+- **Frontend**: ClojureScript, Reagent, Re-frame
+- **Backend**: Clojure, Ring, Reitit
+- **Database**: PostgreSQL with HCL schema management
+- **Build Tools**: Shadow-CLJS, Webpack
+- **Development**: Hot reloading, REPL-driven development
 
 ## Configuration
 
 ### Required Environment Variables
 
-#### Core Settings
 ```bash
-# Development mode flag
+# Development mode
 export IRONRAINBOW_DEV="true"
 
-# Server port (default: 4000)
-export IRONRAINBOW_PORT="4000"
+# Server configuration
+export IRONRAINBOW_PORT="3002"
+export IRONRAINBOW_DOMAIN="your-domain.com"
 
-# Domain for the application
-export IRONRAINBOW_DOMAIN="yourdomain.com"
+# Database
+export IRONRAINBOW_DB_URL="postgresql://username:password@localhost:5432/expert_lift"
 
-# JavaScript version for cache busting
-export IRONRAINBOW_JS_VERSION="1.0.0"
-```
-
-#### Database Configuration
-```bash
-# Database connection URL for schema management
-export IRONRAINBOW_DB_URL="postgresql://username:password@localhost:5432/dbname"
-```
-
-#### Authentication (Auth0)
-```bash
-# Customizer module
-export IRONRAINBOW_AUTH0_CUSTOMIZER_CLIENT_ID="your_customizer_client_id"
-export IRONRAINBOW_AUTH0_CUSTOMIZER_SECRET="your_customizer_secret"
-
-# Flex module
-export IRONRAINBOW_AUTH0_FLEX_CLIENT_ID="your_flex_client_id"
-export IRONRAINBOW_AUTH0_FLEX_SECRET="your_flex_secret"
-
-# Labs module
-export IRONRAINBOW_AUTH0_LABS_CLIENT_ID="your_labs_client_id"
-export IRONRAINBOW_AUTH0_LABS_SECRET="your_labs_secret"
-```
-
-#### Email Configuration
-```bash
-export IRONRAINBOW_EMAIL_HOST="mail.privateemail.com"
-export IRONRAINBOW_EMAIL_PORT="465"
-export IRONRAINBOW_EMAIL_SSL="true"
-export IRONRAINBOW_EMAIL_USERNAME="your_email@domain.com"
-export IRONRAINBOW_EMAIL_PASSWORD="your_email_password"
-```
-
-#### File Storage (MinIO)
-```bash
+# File storage
 export IRONRAINBOW_MINIO_URL="http://localhost:9000"
 ```
 
+## Project Structure
 
-### Development Tools
+```
+expert-lift/
+├── project/
+│   ├── code/
+│   │   ├── app/               # Main application entry points
+│   │   ├── features/          # Feature modules
+│   │   │   └── app/          # Core app features
+│   │   │       ├── homepage/  # Landing page
+│   │   │       └── zero/      # Framework integration
+│   │   ├── zero/             # Custom web framework
+│   │   ├── ui/               # Reusable UI components
+│   │   ├── parquery/         # Data layer
+│   │   └── router/           # Routing system
+│   └── resources/
+│       └── public/           # Static assets and compiled JS
+└── database-schema/          # Database migrations and schema
+```
 
-- **Shadow-CLJS**: Frontend hot reloading and build tool
-- **REPL**: Interactive development on port 5555
-- **Live Reloading**: Automatic for both frontend and backend changes
+## Development Commands
 
-## Testing
+```bash
+# Start development server
+./start-dev.sh app
 
-Run tests appropriate for your environment. The testing framework supports both unit and integration tests.
+# Start Clojure REPL (connects on port 7888)
+clj -X:zero
+
+# Build for production
+./start-prod.sh
+```
+
+## Features in Development
+
+- Digital worksheet creation and management
+- PDF generation with company branding
+- User role management and permissions
+- Elevator and address management
+- Time tracking and billing calculations
+- Material usage reporting
 
 ## Contributing
 
-1. Follow the code style guidelines in the project
-2. Ensure all tests pass before submitting changes
-3. Keep functions small and focused (30 lines maximum)
-4. Use descriptive commit messages
+1. Follow Clojure code style conventions
+2. Keep functions small and focused (max 30 lines)
+3. Use descriptive commit messages
+4. Ensure all tests pass before submitting changes
 
 ## License
 
-[License information here]
+[License information to be added]
