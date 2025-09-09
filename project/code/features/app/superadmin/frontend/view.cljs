@@ -1,131 +1,189 @@
 (ns features.app.superadmin.frontend.view
   (:require [reagent.core :as r]
+            [clojure.string :as str]
             [parquery.frontend.request :as parquery]))
 
-(defn user-modal [user modal-open? on-save on-cancel]
-  (when @modal-open?
-    [:div {:style {:position "fixed"
-                   :top "0"
-                   :left "0"
-                   :width "100%"
-                   :height "100%"
-                   :background "rgba(0, 0, 0, 0.5)"
-                   :display "flex"
-                   :align-items "center"
-                   :justify-content "center"
-                   :z-index "1000"}}
-     [:div {:style {:background "#fff"
-                    :border-radius "8px"
-                    :padding "2rem"
-                    :width "500px"
-                    :max-width "90vw"}}
-      [:h2 {:style {:margin-bottom "1.5rem"}}
-       (if (:user/id @user) "Edit User" "Add New User")]
+(defn validate-user
+  "Validates user data and returns map of field errors"
+  [user is-new?]
+  (let [errors {}
+        username (str (:user/username user))
+        full-name (str (:user/full-name user))
+        email (str (:user/email user))
+        password (str (:user/password user))
+        role (:user/role user)]
+    (cond-> errors
+      (< (count (str/trim username)) 3)
+      (assoc :user/username "Username must be at least 3 characters")
       
-      [:form {:on-submit (fn [e]
-                          (.preventDefault e)
-                          (on-save))}
-       [:div {:style {:margin-bottom "1rem"}}
-        [:label {:style {:display "block"
-                         :margin-bottom "0.5rem"
-                         :font-weight "bold"}}
-         "Username"]
-        [:input {:type "text"
-                 :value (or (:user/username @user) "")
-                 :on-change #(swap! user assoc :user/username (.. % -target -value))
-                 :style {:width "100%"
-                         :padding "0.5rem"
-                         :border "1px solid #ccc"
-                         :border-radius "4px"}}]]
-       
-       [:div {:style {:margin-bottom "1rem"}}
-        [:label {:style {:display "block"
-                         :margin-bottom "0.5rem"
-                         :font-weight "bold"}}
-         "Full Name"]
-        [:input {:type "text"
-                 :value (or (:user/full-name @user) "")
-                 :on-change #(swap! user assoc :user/full-name (.. % -target -value))
-                 :style {:width "100%"
-                         :padding "0.5rem"
-                         :border "1px solid #ccc"
-                         :border-radius "4px"}}]]
-       
-       [:div {:style {:margin-bottom "1rem"}}
-        [:label {:style {:display "block"
-                         :margin-bottom "0.5rem"
-                         :font-weight "bold"}}
-         "Email"]
-        [:input {:type "email"
-                 :value (or (:user/email @user) "")
-                 :on-change #(swap! user assoc :user/email (.. % -target -value))
-                 :style {:width "100%"
-                         :padding "0.5rem"
-                         :border "1px solid #ccc"
-                         :border-radius "4px"}}]]
-       
-       [:div {:style {:margin-bottom "1rem"}}
-        [:label {:style {:display "block"
-                         :margin-bottom "0.5rem"
-                         :font-weight "bold"}}
-         "Phone"]
-        [:input {:type "tel"
-                 :value (or (:user/phone @user) "")
-                 :on-change #(swap! user assoc :user/phone (.. % -target -value))
-                 :style {:width "100%"
-                         :padding "0.5rem"
-                         :border "1px solid #ccc"
-                         :border-radius "4px"}}]]
-       
-       [:div {:style {:margin-bottom "1rem"}}
-        [:label {:style {:display "block"
-                         :margin-bottom "0.5rem"
-                         :font-weight "bold"}}
-         "Role"]
-        [:select {:value (or (:user/role @user) "employee")
-                  :on-change #(swap! user assoc :user/role (.. % -target -value))
-                  :style {:width "100%"
-                          :padding "0.5rem"
-                          :border "1px solid #ccc"
-                          :border-radius "4px"}}
-         [:option {:value "employee"} "Employee"]
-         [:option {:value "admin"} "Admin"]
-         [:option {:value "superadmin"} "Super Admin"]]]
-       
-       (when-not (:user/id @user)
-         [:div {:style {:margin-bottom "1rem"}}
-          [:label {:style {:display "block"
-                           :margin-bottom "0.5rem"
-                           :font-weight "bold"}}
-           "Password"]
-          [:input {:type "password"
-                   :value (or (:user/password @user) "")
-                   :on-change #(swap! user assoc :user/password (.. % -target -value))
-                   :style {:width "100%"
-                           :padding "0.5rem"
-                           :border "1px solid #ccc"
-                           :border-radius "4px"}}]])
-       
-       [:div {:style {:display "flex"
-                      :gap "1rem"
-                      :justify-content "flex-end"
-                      :margin-top "2rem"}}
-        [:button {:type "button"
-                  :on-click on-cancel
-                  :style {:padding "0.5rem 1rem"
-                          :border "1px solid #ccc"
-                          :background "#f5f5f5"
-                          :border-radius "4px"
-                          :cursor "pointer"}}
-         "Cancel"]
-        [:button {:type "submit"
-                  :style {:padding "0.5rem 1rem"
-                          :border "none"
-                          :background "#007bff"
-                          :color "white"
-                          :border-radius "4px"
-                          :cursor "pointer"}}
-         "Save"]]]]]))
+      (< (count (str/trim full-name)) 2)
+      (assoc :user/full-name "Full name is required")
+      
+      (or (nil? role) (empty? (str role)))
+      (assoc :user/role "Role is required")
+      
+      (and (not (empty? email))
+           (not (re-matches #".+@.+\..+" email)))
+      (assoc :user/email "Please enter a valid email address")
+      
+      (and is-new? (< (count (str/trim password)) 6))
+      (assoc :user/password "Password must be at least 6 characters"))))
+
+(defn input-field
+  "Renders input field with validation styling and error message"
+  [label field-key user errors attrs]
+  (let [has-error? (contains? errors field-key)
+        field-value (get @user field-key "")]
+    [:div {:style {:margin-bottom "1rem"}}
+     [:label {:style {:display "block"
+                      :margin-bottom "0.5rem"
+                      :font-weight "bold"
+                      :color (if has-error? "#dc3545" "inherit")}}
+      label (when (#{:user/username :user/full-name :user/password} field-key) " *")]
+     [:input (merge attrs
+                    {:value (str field-value)
+                     :on-change #(swap! user assoc field-key (.. % -target -value))
+                     :style (merge {:width "100%"
+                                    :padding "0.5rem"
+                                    :border (str "1px solid " (if has-error? "#dc3545" "#ccc"))
+                                    :border-radius "4px"}
+                                   (:style attrs))})]
+     (when has-error?
+       [:div {:style {:color "#dc3545"
+                      :font-size "0.875rem"
+                      :margin-top "0.25rem"}}
+        (get errors field-key)])]))
+
+(defn role-select
+  "Renders role selection dropdown with validation"
+  [user errors]
+  (let [has-error? (contains? errors :user/role)]
+    [:div {:style {:margin-bottom "1rem"}}
+     [:label {:style {:display "block"
+                      :margin-bottom "0.5rem"
+                      :font-weight "bold"
+                      :color (if has-error? "#dc3545" "inherit")}}
+      "Role *"]
+     [:select {:value (or (:user/role @user) "")
+               :on-change #(swap! user assoc :user/role (.. % -target -value))
+               :style {:width "100%"
+                       :padding "0.5rem"
+                       :border (str "1px solid " (if has-error? "#dc3545" "#ccc"))
+                       :border-radius "4px"}}
+      [:option {:value ""} "-- Select Role --"]
+      [:option {:value "employee"} "Employee"]
+      [:option {:value "admin"} "Admin"]
+      [:option {:value "superadmin"} "Super Admin"]]
+     (when has-error?
+       [:div {:style {:color "#dc3545"
+                      :font-size "0.875rem"
+                      :margin-top "0.25rem"}}
+        (get errors :user/role)])]))
+
+(defn validation-summary
+  "Shows validation error summary when there are errors"
+  [errors]
+  (when-not (empty? errors)
+    [:div {:style {:background "#f8d7da"
+                   :border "1px solid #f5c6cb"
+                   :color "#721c24"
+                   :padding "0.75rem"
+                   :border-radius "4px"
+                   :margin-bottom "1rem"}}
+     "Please fix the errors above before saving."]))
+
+(defn modal-buttons
+  "Renders cancel and save buttons for the modal"
+  [is-valid? on-cancel on-save]
+  (println "Button debug - Is valid?:" is-valid?)
+  [:div {:style {:display "flex"
+                 :gap "1rem"
+                 :justify-content "flex-end"
+                 :margin-top "2rem"}}
+   [:button {:type "button"
+             :on-click on-cancel
+             :style {:padding "0.5rem 1rem"
+                     :border "1px solid #ccc"
+                     :background "#f5f5f5"
+                     :border-radius "4px"
+                     :cursor "pointer"}}
+    "Cancel"]
+   [:button {:type "submit"
+             :disabled (not is-valid?)
+             :on-click (fn [e]
+                        (println "Save button clicked!")
+                        (println "Is valid?:" is-valid?)
+                        (.preventDefault e)
+                        (when is-valid?
+                          (println "Calling on-save")
+                          (on-save)))
+             :style {:padding "0.5rem 1rem"
+                     :border "none"
+                     :background (if is-valid? "#007bff" "#6c757d")
+                     :color "white"
+                     :border-radius "4px"
+                     :cursor (if is-valid? "pointer" "not-allowed")
+                     :opacity (if is-valid? 1 0.6)}}
+    "Save"]])
+
+(defn modal-form
+  "Renders the user form inside the modal"
+  [user is-new? errors is-valid? on-save]
+  [:form {:on-submit (fn [e]
+                      (.preventDefault e)
+                      (when is-valid?
+                        (on-save)))}
+   [input-field "Username" :user/username user errors {:type "text"}]
+   [input-field "Full Name" :user/full-name user errors {:type "text"}]
+   [input-field "Email" :user/email user errors {:type "email"}]
+   [input-field "Phone" :user/phone user errors {:type "tel"}]
+   [role-select user errors]
+   (when is-new?
+     [input-field "Password" :user/password user errors {:type "password"}])
+   [validation-summary errors]])
+
+(defn modal-header
+  "Renders the modal header with title"
+  [is-new?]
+  [:h2 {:style {:margin-bottom "1.5rem"}}
+   (if is-new? "Add New User" "Edit User")])
+
+(defn modal-backdrop
+  "Renders the modal backdrop and container"
+  [children]
+  [:div {:style {:position "fixed"
+                 :top "0"
+                 :left "0"
+                 :width "100%"
+                 :height "100%"
+                 :background "rgba(0, 0, 0, 0.5)"
+                 :display "flex"
+                 :align-items "center"
+                 :justify-content "center"
+                 :z-index "1000"}}
+   [:div {:style {:background "#fff"
+                  :border-radius "8px"
+                  :padding "2rem"
+                  :width "500px"
+                  :max-width "90vw"}}
+    children]])
+
+(defn user-modal
+  "Main user modal component - composed of smaller functions"
+  [user modal-open? on-save on-cancel]
+  (when @modal-open?
+    (let [is-new? (not (:user/id @user))
+          current-errors (validate-user @user is-new?)
+          is-valid? (empty? current-errors)]
+      (println "Modal debug - User data:" @user)
+      (println "Modal debug - Is new?:" is-new?)
+      (println "Modal debug - Errors:" current-errors)
+      (println "Modal debug - Is valid?:" is-valid?)
+      [modal-backdrop
+       [:<>
+        [modal-header is-new?]
+        [modal-form user is-new? current-errors is-valid? on-save]
+        [modal-buttons is-valid? on-cancel on-save]]])))
 
 (defn user-table [users on-add on-edit on-delete]
   [:div {:style {:background "white"
@@ -275,13 +333,13 @@
           [:div {:style {:text-align "center" :padding "2rem"}}
            "Loading users..."]
           [user-table @users
-         (fn [] ; on-add
-           (reset! current-user {})
-           (reset! modal-open? true))
-         (fn [user] ; on-edit
-           (reset! current-user user)
-           (reset! modal-open? true))
-         delete-user-fn])
+           (fn [] ; on-add
+             (reset! current-user {:user/role "employee"})
+             (reset! modal-open? true))
+           (fn [user] ; on-edit
+             (reset! current-user user)
+             (reset! modal-open? true))
+           delete-user-fn])
         
         [user-modal current-user modal-open?
          (fn [] ; on-save
