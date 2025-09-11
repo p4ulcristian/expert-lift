@@ -10,18 +10,18 @@
   (try
     (let [users (users/get-all-users-fn)]
       (mapv (fn [user]
-             {:user/id (:id user)
+             {:user/id (str (:id user))
               :user/username (:username user)  
               :user/full-name (:full_name user)
               :user/email (:email user)
               :user/phone (:phone user)
-              :user/role (:role user)
+              :user/role (str (:role user))
               :user/active (:active user)
-              :user/created-at (:created_at user)
-              :user/updated-at (:updated_at user)})
+              :user/created-at (str (:created_at user))
+              :user/updated-at (str (:updated_at user))})
            users))
     (catch Exception e
-      (println "Error fetching users:" (.getMessage e))
+      (println "ERROR: get-all-users failed:" (.getMessage e))
       [])))
 
 (defn create-user

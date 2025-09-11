@@ -148,8 +148,8 @@
    text])
 
 (defn- user-row [user on-edit on-delete]
-  ^{:key (:user/id user)}
-  [:tr {:style {:border-bottom "1px solid #eee"}}
+  [:tr {:key (:user/id user)
+        :style {:border-bottom "1px solid #eee"}}
    [:td {:style {:padding "0.75rem"}}
     [:div (:user/full-name user)]
     [:div {:style {:font-size "0.8rem" :color "#666"}} (:user/username user)]]
@@ -199,8 +199,13 @@
                            {:queries {:users/get-all {}}
                             :parquery/context {}
                             :callback (fn [response]
-                                        (reset! users (:users/get-all response))
-                                        (reset! loading? false))}))
+                                        (let [users-data (:users/get-all response)]
+                                          (if (:error users-data)
+                                            (do 
+                                              (js/console.error "Users query failed:" (:error users-data))
+                                              (reset! users []))
+                                            (reset! users (or users-data [])))
+                                          (reset! loading? false)))}))
         
         save-user (fn [user-data is-new?]
                     (let [query-key (if is-new? :users/create :users/update)]

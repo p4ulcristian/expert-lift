@@ -30,8 +30,11 @@
     (instance? java.util.Date data) (str data)
     (instance? java.sql.Timestamp data) (str data)
     (instance? java.time.LocalDateTime data) (str data)
+    (instance? java.time.OffsetDateTime data) (str data)
     (instance? java.time.Instant data) (str data)
     (instance? java.util.UUID data) (str data)
+    ;; Handle PostgreSQL RowMap objects
+    (instance? org.pg.clojure.RowMap data) (into {} (map (fn [[k v]] [k (sanitize-for-json v)]) data))
     (map? data) (into {} (map (fn [[k v]] [k (sanitize-for-json v)]) data))
     (coll? data) (mapv sanitize-for-json data)
     :else (str data)))
@@ -46,10 +49,13 @@
                          sanitized-result (sanitize-for-json raw-result)
                          validated-result (spec/validate query-result-schema sanitized-result (str "query result for " fn-key))]
                      ;; Check for session data in the result and update session if present
-                     (when-let [session-data (:session-data validated-result)]
-                       (swap! session-atom merge session-data))
-                     ;; Return result without session-data key
-                     (dissoc validated-result :session-data))
+                     (when (map? validated-result)
+                       (when-let [session-data (:session-data validated-result)]
+                         (swap! session-atom merge session-data)))
+                     ;; Return result without session-data key (only for maps)
+                     (if (map? validated-result)
+                       (dissoc validated-result :session-data)
+                       validated-result))
                    (catch Exception e
                      {:error (.getMessage e)
                       :query fn-key}))
