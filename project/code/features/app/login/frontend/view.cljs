@@ -29,20 +29,28 @@
                              {:queries {:users/login @form-data}
                               :parquery/context {}
                               :callback (fn [response]
+                                          (println "Login callback received response:" response)
                                           (let [result (:users/login response)]
+                                            (println "Extracted result:" result)
                                             (reset! loading? false)
                                             (if (:success result)
                                               (do
                                                 (println "Login successful for:" (:user/username result))
+                                                (println "Full login result:" result)
+                                                (println "User role:" (:user/role result))
+                                                (println "User workspace-id:" (:user/workspace-id result))
                                                 (cond
                                                   (= "superadmin" (:user/role result))
-                                                  (set! (.-location js/window) "/superadmin")
+                                                  (do (println "Redirecting to superadmin")
+                                                      (set! (.-location js/window) "/superadmin"))
                                                   
                                                   (:user/workspace-id result)
-                                                  (set! (.-location js/window) (str "/app/workspace/" (:user/workspace-id result)))
+                                                  (do (println "Redirecting to workspace:" (:user/workspace-id result))
+                                                      (set! (.-location js/window) (str "/app/" (:user/workspace-id result))))
                                                   
                                                   :else
-                                                  (set! (.-location js/window) "/app")))
+                                                  (do (println "Redirecting to /app")
+                                                      (set! (.-location js/window) "/app"))))
                                               (reset! errors {:general (:error result)}))))}))))]
     
     (fn []
