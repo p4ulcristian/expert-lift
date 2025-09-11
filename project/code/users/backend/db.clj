@@ -29,22 +29,24 @@
    {:params [email]}))
 
 (defn get-all-users []
-  "Get all users"
+  "Get all users with workspace names"
   (postgres/execute-sql
-   "SELECT id, username, full_name, email, phone, role, active, created_at, updated_at
-    FROM expert_lift.users
-    ORDER BY full_name"
+   "SELECT u.id, u.username, u.full_name, u.email, u.phone, u.role, u.workspace_id, u.active, u.created_at, u.updated_at,
+           w.name as workspace_name
+    FROM expert_lift.users u
+    LEFT JOIN expert_lift.workspaces w ON u.workspace_id = w.id
+    ORDER BY u.full_name"
    {:params []}))
 
-(defn create-user [username full-name password email phone role]
+(defn create-user [username full-name password email phone role workspace-id]
   "Create new user with plain password (TODO: add proper hashing)"
   (postgres/execute-sql
-   "INSERT INTO expert_lift.users (username, full_name, password_hash, email, phone, role, active, created_at, updated_at)
-    VALUES ($1, $2, $3, $4, $5, $6::expert_lift.user_role, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    RETURNING id, username, full_name, email, phone, role, active, created_at, updated_at"
-   {:params [username full-name password email phone role]}))
+   "INSERT INTO expert_lift.users (username, full_name, password_hash, email, phone, role, workspace_id, active, created_at, updated_at)
+    VALUES ($1, $2, $3, $4, $5, $6::expert_lift.user_role, $7, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    RETURNING id, username, full_name, email, phone, role, workspace_id, active, created_at, updated_at"
+   {:params [username full-name password email phone role workspace-id]}))
 
-(defn update-user [id username full-name email phone role active]
+(defn update-user [id username full-name email phone role active workspace-id]
   "Update user (without password)"
   (postgres/execute-sql
    "UPDATE expert_lift.users
@@ -54,10 +56,11 @@
         phone = $4,
         role = $5::expert_lift.user_role,
         active = $6,
+        workspace_id = $7,
         updated_at = CURRENT_TIMESTAMP
-    WHERE id = $7
-    RETURNING id, username, full_name, email, phone, role, active, created_at, updated_at"
-   {:params [username full-name email phone role active id]}))
+    WHERE id = $8
+    RETURNING id, username, full_name, email, phone, role, workspace_id, active, created_at, updated_at"
+   {:params [username full-name email phone role active workspace-id id]}))
 
 (defn update-user-password [id password]
   "Update user password (TODO: add proper hashing)"

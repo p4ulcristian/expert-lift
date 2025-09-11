@@ -81,6 +81,7 @@
               :user/role (str (:role user))
               :user/active (:active user)
               :user/workspace-id (when (:workspace_id user) (str (:workspace_id user)))
+              :user/workspace-name (:workspace_name user)
               :user/created-at (str (:created_at user))
               :user/updated-at (str (:updated_at user))})
            users))
@@ -91,9 +92,9 @@
 (defn create-user
   "Create new user"
   [{:parquery/keys [context request] :as params}]
-  (let [{:user/keys [username full-name password email phone role]} params]
+  (let [{:user/keys [username full-name password email phone role workspace-id]} params]
     (try
-      (let [result (first (user-db/create-user username full-name password email phone role))]
+      (let [result (first (user-db/create-user username full-name password email phone role workspace-id))]
         {:user/id (:id result)
          :user/username (:username result)
          :user/full-name (:full_name result)
@@ -110,9 +111,9 @@
 (defn update-user
   "Update existing user"
   [{:parquery/keys [context request] :as params}]
-  (let [{:user/keys [id username full-name email phone role active]} params]
+  (let [{:user/keys [id username full-name email phone role active workspace-id]} params]
     (try
-      (let [result (first (user-db/update-user id username full-name email phone role active))]
+      (let [result (first (user-db/update-user id username full-name email phone role active workspace-id))]
         {:user/id (:id result)
          :user/username (:username result)
          :user/full-name (:full_name result)

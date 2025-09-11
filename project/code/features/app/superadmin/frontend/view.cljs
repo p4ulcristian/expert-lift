@@ -85,6 +85,20 @@
       [:option {:value "superadmin"} "Super Admin"]]
      [field-error :user/role errors]]))
 
+(defn workspace-select [user errors workspaces]
+  (let [has-error? (contains? errors :user/workspace-id)]
+    [:div {:style {:margin-bottom "1rem"}}
+     [field-label "Workspace" :user/workspace-id has-error?]
+     [:select {:value (or (:user/workspace-id @user) "")
+               :on-change #(swap! user assoc :user/workspace-id (.. % -target -value))
+               :style {:width "100%" :padding "0.5rem" :border-radius "4px"
+                       :border (str "1px solid " (if has-error? "#dc3545" "#ccc"))}}
+      [:option {:value ""} "-- No Workspace --"]
+      (for [workspace workspaces]
+        [:option {:key (:workspace/id workspace) :value (:workspace/id workspace)} 
+         (:workspace/name workspace)])]
+     [field-error :user/workspace-id errors]]))
+
 (defn validation-summary [errors]
   (when (seq errors)
     [:div {:style {:background "#f8d7da" :border "1px solid #f5c6cb" :color "#721c24"
@@ -105,13 +119,14 @@
                      :opacity (if is-valid? 1 0.6)}}
     "Save"]])
 
-(defn modal-form [user is-new? errors is-valid? on-save]
+(defn modal-form [user is-new? errors is-valid? on-save workspaces]
   [:form {:on-submit (fn [e] (.preventDefault e) (when is-valid? (on-save)))}
    [input-field "Username" :user/username user errors {:type "text"}]
    [input-field "Full Name" :user/full-name user errors {:type "text"}]
    [input-field "Email" :user/email user errors {:type "email"}]
    [input-field "Phone" :user/phone user errors {:type "tel"}]
    [role-select user errors]
+   [workspace-select user errors workspaces]
    (when is-new?
      [input-field "Password" :user/password user errors {:type "password"}])
    [validation-summary errors]])
@@ -128,7 +143,7 @@
                   :width "500px" :max-width "90vw"}}
     children]])
 
-(defn user-modal [user modal-open? on-save on-cancel]
+(defn user-modal [user modal-open? on-save on-cancel workspaces]
   (when @modal-open?
     (let [is-new? (not (:user/id @user))
           current-errors (validate-user @user is-new?)
@@ -136,7 +151,7 @@
       [modal-backdrop
        [:<>
         [modal-header is-new?]
-        [modal-form user is-new? current-errors is-valid? on-save]
+        [modal-form user is-new? current-errors is-valid? on-save workspaces]
         [modal-buttons is-valid? on-cancel on-save]]])))
 
 (defn- table-header [on-add]
@@ -173,9 +188,9 @@
    [:td {:style {:padding "0.75rem"}} (:user/email user)]
    [:td {:style {:padding "0.75rem"}} [role-badge (:user/role user)]]
    [:td {:style {:padding "0.75rem"}} 
-    (if (:user/workspace-id user)
+    (if (:user/workspace-name user)
       [:span {:style {:font-size "0.875rem" :color "#666"}} 
-       (str "ID: " (:user/workspace-id user))]
+       (:user/workspace-name user)]
       [:span {:style {:font-size "0.875rem" :color "#999"}} "None"])]
    [:td {:style {:padding "0.75rem"}} [status-badge (:user/active user)]]
    [:td {:style {:padding "0.75rem" :text-align "center"}}
@@ -387,12 +402,15 @@
                                :user/full-name (:user/full-name user)
                                :user/email (:user/email user)
                                :user/phone (:user/phone user)
-                               :user/role (:user/role user)}
+                               :user/role (:user/role user)
+                               :user/workspace-id (when (not (empty? (:user/workspace-id user))) 
+                                                     (:user/workspace-id user))}
                     user-data (if is-new?
                                 (assoc base-data :user/password (:user/password user))
                                 (assoc base-data :user/id (:user/id user) :user/active (:user/active user)))]
                 (save-user user-data is-new?))
-             #(reset! modal-open? false)]
+             #(reset! modal-open? false)
+             @workspaces]
             
             ;; Workspaces Section
             [:div {:style {:margin-top "3rem"}}
