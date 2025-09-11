@@ -68,7 +68,7 @@
       {:success true :workspace/id workspace-id}
       (catch Exception e
         (println "Error deleting workspace:" (.getMessage e))
-        {:success false :error (.getMessage e)}))))))
+        {:success false :error (.getMessage e)}))))
 (defn get-all-users
   "Get all users for admin management"
   [{:parquery/keys [context request] :as params}]
