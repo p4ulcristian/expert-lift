@@ -49,6 +49,11 @@ table "users" {
     default = sql("now()")
   }
   
+  column "workspace_id" {
+    null = true
+    type = uuid
+  }
+
   column "updated_at" {
     null = false
     type = timestamptz
@@ -57,6 +62,13 @@ table "users" {
   
   primary_key {
     columns = [column.id]
+  }
+  
+  foreign_key "workspace_fk" {
+    columns     = [column.workspace_id]
+    ref_columns = [table.workspaces.column.id]
+    on_update   = CASCADE
+    on_delete   = SET_NULL
   }
   
   index "users_username_idx" {

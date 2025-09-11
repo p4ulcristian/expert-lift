@@ -1,6 +1,7 @@
 env "dev" {
   src = [
     "./expert-lift/users.hcl",
+    "./expert-lift/workspaces.hcl",
     "./expert-lift/addresses.hcl", 
     "./expert-lift/elevators.hcl",
     "./expert-lift/worksheets.hcl",

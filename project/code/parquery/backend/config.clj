@@ -4,6 +4,71 @@
    [users.backend.db :as user-db]))
 
 ;; User Management Handlers for Expert Lift
+;; Workspace Management Handlers
+(defn get-all-workspaces
+  "Get all workspaces"
+  [{:parquery/keys [context request] :as params}]
+  (try
+    ;; TODO: Replace with actual database query
+    [{:workspace/id "123e4567-e89b-12d3-a456-426614174000"
+      :workspace/name "Main Office"
+      :workspace/description "Primary workspace for main office operations"
+      :workspace/active true
+      :workspace/created-at "2024-01-15T10:30:00Z"
+      :workspace/updated-at "2024-01-15T10:30:00Z"}
+     {:workspace/id "456e7890-e89b-12d3-a456-426614174001"
+      :workspace/name "Remote Team"
+      :workspace/description "Workspace for remote team members"
+      :workspace/active true
+      :workspace/created-at "2024-01-20T14:15:00Z"
+      :workspace/updated-at "2024-01-20T14:15:00Z"}]
+    (catch Exception e
+      (println "ERROR: get-all-workspaces failed:" (.getMessage e))
+      [])))
+
+(defn create-workspace
+  "Create new workspace"
+  [{:parquery/keys [context request] :as params}]
+  (let [{:workspace/keys [name description]} params]
+    (try
+      ;; TODO: Replace with actual database insert
+      (let [new-workspace {:workspace/id (str (java.util.UUID/randomUUID))
+                          :workspace/name name
+                          :workspace/description description
+                          :workspace/active true
+                          :workspace/created-at (str (java.time.Instant/now))
+                          :workspace/updated-at (str (java.time.Instant/now))}]
+        (assoc new-workspace :success true))
+      (catch Exception e
+        (println "Error creating workspace:" (.getMessage e))
+        {:success false :error (.getMessage e)}))))
+
+(defn update-workspace
+  "Update existing workspace"
+  [{:parquery/keys [context request] :as params}]
+  (let [{:workspace/keys [id name description active]} params]
+    (try
+      ;; TODO: Replace with actual database update
+      (let [updated-workspace {:workspace/id id
+                              :workspace/name name
+                              :workspace/description description
+                              :workspace/active active
+                              :workspace/updated-at (str (java.time.Instant/now))}]
+        (assoc updated-workspace :success true))
+      (catch Exception e
+        (println "Error updating workspace:" (.getMessage e))
+        {:success false :error (.getMessage e)}))))
+
+(defn delete-workspace
+  "Delete workspace"
+  [{:parquery/keys [context request] :as params}]
+  (let [workspace-id (:workspace/id params)]
+    (try
+      ;; TODO: Replace with actual database delete
+      {:success true :workspace/id workspace-id}
+      (catch Exception e
+        (println "Error deleting workspace:" (.getMessage e))
+        {:success false :error (.getMessage e)}))))))
 (defn get-all-users
   "Get all users for admin management"
   [{:parquery/keys [context request] :as params}]
@@ -17,6 +82,7 @@
               :user/phone (:phone user)
               :user/role (str (:role user))
               :user/active (:active user)
+              :user/workspace-id (when (:workspace_id user) (str (:workspace_id user)))
               :user/created-at (str (:created_at user))
               :user/updated-at (str (:updated_at user))})
            users))
@@ -37,6 +103,7 @@
          :user/phone (:phone result)
          :user/role (:role result)
          :user/active (:active result)
+         :user/workspace-id (when (:workspace_id result) (str (:workspace_id result)))
          :success true})
       (catch Exception e
         (println "Error creating user:" (.getMessage e))
@@ -55,6 +122,7 @@
          :user/phone (:phone result)
          :user/role (:role result)
          :user/active (:active result)
+         :user/workspace-id (when (:workspace_id result) (str (:workspace_id result)))
          :success true})
       (catch Exception e
         (println "Error updating user:" (.getMessage e))
@@ -82,8 +150,10 @@
          :user/username (:username user)
          :user/full-name (:full_name user)
          :user/role (:role user)
+         :user/workspace-id (when (:workspace_id user) (str (:workspace_id user)))
          :session-data {:user-id (str (:id user))
-                        :user-roles [(:role user)]}}
+                        :user-roles [(:role user)]
+                        :workspace-id (when (:workspace_id user) (str (:workspace_id user)))}}
         {:success false :error "Invalid username or password"})
       (catch Exception e
         (println "Error during login:" (.getMessage e))
@@ -109,7 +179,8 @@
              :user/email (:email user)
              :user/phone (:phone user)
              :user/role (:role user)
-             :user/active (:active user)}))
+             :user/active (:active user)
+             :user/workspace-id (when (:workspace_id user) (str (:workspace_id user)))}))
         (catch Exception e
           (println "Error fetching current user:" (.getMessage e))
           nil))
@@ -120,6 +191,7 @@
   "Read operations - mapped to handler functions"
   {:user/current #'get-current-user
    :users/get-all #'get-all-users
+   :workspaces/get-all #'get-all-workspaces
    :current-user/basic-data #'get-current-user})
 
 (def write-queries
@@ -128,7 +200,10 @@
    :users/update #'update-user
    :users/delete #'delete-user
    :users/login #'login-user
-   :users/logout #'logout-user})
+   :users/logout #'logout-user
+   :workspaces/create #'create-workspace
+   :workspaces/update #'update-workspace
+   :workspaces/delete #'delete-workspace})
 
 (defn get-query-type
   "Returns query type based on config"

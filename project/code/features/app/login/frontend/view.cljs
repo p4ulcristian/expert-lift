@@ -34,8 +34,14 @@
                                             (if (:success result)
                                               (do
                                                 (println "Login successful for:" (:user/username result))
-                                                (if (= "superadmin" (:user/role result))
+                                                (cond
+                                                  (= "superadmin" (:user/role result))
                                                   (set! (.-location js/window) "/superadmin")
+                                                  
+                                                  (:user/workspace-id result)
+                                                  (set! (.-location js/window) (str "/app/workspace/" (:user/workspace-id result)))
+                                                  
+                                                  :else
                                                   (set! (.-location js/window) "/app")))
                                               (reset! errors {:general (:error result)}))))}))))]
     

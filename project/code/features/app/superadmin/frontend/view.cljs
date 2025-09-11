@@ -29,18 +29,35 @@
       (and is-new? (< (count (str/trim password)) 6))
       (assoc :user/password "Password must be at least 6 characters"))))
 
+(defn validate-workspace
+  "Validates workspace data and returns map of field errors"
+  [workspace]
+  (let [errors {}
+        name (str (:workspace/name workspace))]
+    (cond-> errors
+      (< (count (str/trim name)) 2)
+      (assoc :workspace/name "Workspace name is required"))))
+
 (defn- field-label [label field-key has-error?]
   [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "bold"
                    :color (if has-error? "#dc3545" "inherit")}}
    label (when (#{:user/username :user/full-name :user/password} field-key) " *")])
 
 (defn- field-input [field-key user has-error? attrs]
-  [:input (merge attrs
-                 {:value (str (get @user field-key ""))
-                  :on-change #(swap! user assoc field-key (.. % -target -value))
-                  :style (merge {:width "100%" :padding "0.5rem" :border-radius "4px"
-                                 :border (str "1px solid " (if has-error? "#dc3545" "#ccc"))}
-                                (:style attrs))})])
+  (if (= (:type attrs) "textarea")
+    [:textarea (merge (dissoc attrs :type)
+                      {:value (str (get @user field-key ""))
+                       :on-change #(swap! user assoc field-key (.. % -target -value))
+                       :style (merge {:width "100%" :padding "0.5rem" :border-radius "4px"
+                                      :border (str "1px solid " (if has-error? "#dc3545" "#ccc"))
+                                      :min-height "80px" :resize "vertical"}
+                                     (:style attrs))})]
+    [:input (merge attrs
+                   {:value (str (get @user field-key ""))
+                    :on-change #(swap! user assoc field-key (.. % -target -value))
+                    :style (merge {:width "100%" :padding "0.5rem" :border-radius "4px"
+                                   :border (str "1px solid " (if has-error? "#dc3545" "#ccc"))}
+                                  (:style attrs))})]))
 
 (defn- field-error [field-key errors]
   (when-let [error (get errors field-key)]
@@ -155,6 +172,11 @@
     [:div {:style {:font-size "0.8rem" :color "#666"}} (:user/username user)]]
    [:td {:style {:padding "0.75rem"}} (:user/email user)]
    [:td {:style {:padding "0.75rem"}} [role-badge (:user/role user)]]
+   [:td {:style {:padding "0.75rem"}} 
+    (if (:user/workspace-id user)
+      [:span {:style {:font-size "0.875rem" :color "#666"}} 
+       (str "ID: " (:user/workspace-id user))]
+      [:span {:style {:font-size "0.875rem" :color "#999"}} "None"])]
    [:td {:style {:padding "0.75rem"}} [status-badge (:user/active user)]]
    [:td {:style {:padding "0.75rem" :text-align "center"}}
     [action-button "Edit" "#007bff" #(on-edit user) true]
@@ -169,17 +191,72 @@
       [table-th "Name" nil]
       [table-th "Email" nil]
       [table-th "Role" nil]
+      [table-th "Workspace" nil]
       [table-th "Status" nil]
       [table-th "Actions" "center"]]]
     [:tbody
      (for [user users]
        [user-row user on-edit on-delete])]]])
 
+;; Workspace Components
+(defn workspace-modal-form [workspace errors is-valid? on-save]
+  [:form {:on-submit (fn [e] (.preventDefault e) (when is-valid? (on-save)))}
+   [input-field "Name" :workspace/name workspace errors {:type "text"}]
+   [input-field "Description" :workspace/description workspace errors {:type "textarea" :rows "3"}]
+   [validation-summary errors]])
+
+(defn workspace-modal [workspace modal-open? on-save on-cancel]
+  (when @modal-open?
+    (let [is-new? (not (:workspace/id @workspace))
+          current-errors (validate-workspace @workspace)
+          is-valid? (empty? current-errors)]
+      [modal-backdrop
+       [:<>
+        [:h2 {:style {:margin-bottom "1.5rem"}}
+         (if is-new? "Add New Workspace" "Edit Workspace")]
+        [workspace-modal-form workspace current-errors is-valid? on-save]
+        [modal-buttons is-valid? on-cancel on-save]]])))
+
+(defn workspace-row [workspace on-edit on-delete]
+  [:tr {:key (:workspace/id workspace)
+        :style {:border-bottom "1px solid #eee"}}
+   [:td {:style {:padding "0.75rem"}}
+    [:div (:workspace/name workspace)]
+    [:div {:style {:font-size "0.8rem" :color "#666"}} 
+     (when (:workspace/description workspace) (:workspace/description workspace))]]
+   [:td {:style {:padding "0.75rem"}} [status-badge (:workspace/active workspace)]]
+   [:td {:style {:padding "0.75rem"}} 
+    [:div {:style {:font-size "0.8rem" :color "#999"}}
+     (:workspace/created-at workspace)]]
+   [:td {:style {:padding "0.75rem" :text-align "center"}}
+    [action-button "Edit" "#007bff" #(on-edit workspace) true]
+    [action-button "Delete" "#dc3545" #(on-delete workspace) false]]])
+
+(defn workspace-table [workspaces on-add on-edit on-delete]
+  [:div {:style {:background "white" :border-radius "8px" :padding "1.5rem" :box-shadow "0 2px 4px rgba(0,0,0,0.1)"}}
+   [:div {:style {:display "flex" :justify-content "space-between" :align-items "center" :margin-bottom "1.5rem"}}
+    [:h2 "Workspaces"]
+    [:button {:on-click on-add :style {:padding "0.5rem 1rem" :background "#28a745" :color "white" :border "none" :border-radius "4px" :cursor "pointer"}} "Add Workspace"]]
+   [:table {:style {:width "100%" :border-collapse "collapse"}}
+    [:thead
+     [:tr {:style {:background "#f8f9fa"}}
+      [table-th "Name" nil]
+      [table-th "Status" nil]
+      [table-th "Created" nil]
+      [table-th "Actions" "center"]]]
+    [:tbody
+     (for [workspace workspaces]
+       [workspace-row workspace on-edit on-delete])]]])
+
 (defn view []
   (let [users (r/atom [])
         current-user (r/atom {})
         modal-open? (r/atom false)
         loading? (r/atom true)
+        workspaces (r/atom [])
+        current-workspace (r/atom {})
+        workspace-modal-open? (r/atom false)
+        workspaces-loading? (r/atom true)
         auth-user (r/atom nil)
         auth-loading? (r/atom true)
         
@@ -225,11 +302,45 @@
                               :callback (fn [response]
                                           (if (:success (:users/delete response))
                                             (load-users)
-                                            (js/alert (str "Error: " (:error (:users/delete response))))))})))]
+                                            (js/alert (str "Error: " (:error (:users/delete response))))))})))
+
+        load-workspaces #(do (reset! workspaces-loading? true)
+                             (parquery/send-queries
+                               {:queries {:workspaces/get-all {}}
+                                :parquery/context {}
+                                :callback (fn [response]
+                                            (let [workspaces-data (:workspaces/get-all response)]
+                                              (if (:error workspaces-data)
+                                                (do 
+                                                  (js/console.error "Workspaces query failed:" (:error workspaces-data))
+                                                  (reset! workspaces []))
+                                                (reset! workspaces (or workspaces-data [])))
+                                              (reset! workspaces-loading? false)))}))
+        
+        save-workspace (fn [workspace-data is-new?]
+                         (let [query-key (if is-new? :workspaces/create :workspaces/update)]
+                           (parquery/send-queries
+                             {:queries {query-key workspace-data}
+                              :parquery/context {}
+                              :callback (fn [response]
+                                          (if (:success (get response query-key))
+                                            (do (load-workspaces) (reset! workspace-modal-open? false))
+                                            (js/alert (str "Error: " (:error (get response query-key))))))})))
+        
+        delete-workspace-fn (fn [workspace]
+                              (when (js/confirm (str "Delete workspace " (:workspace/name workspace) "?"))
+                                (parquery/send-queries
+                                  {:queries {:workspaces/delete {:workspace/id (:workspace/id workspace)}}
+                                   :parquery/context {}
+                                   :callback (fn [response]
+                                               (if (:success (:workspaces/delete response))
+                                                 (load-workspaces)
+                                                 (js/alert (str "Error: " (:error (:workspaces/delete response))))))})))]
     
-    ;; Check auth and load users on component mount
+    ;; Check auth and load data on component mount
     (check-auth)
     (load-users)
+    (load-workspaces)
     
 (fn []
       (if @auth-loading?
@@ -281,7 +392,30 @@
                                 (assoc base-data :user/password (:user/password user))
                                 (assoc base-data :user/id (:user/id user) :user/active (:user/active user)))]
                 (save-user user-data is-new?))
-             #(reset! modal-open? false)]]]
+             #(reset! modal-open? false)]
+            
+            ;; Workspaces Section
+            [:div {:style {:margin-top "3rem"}}
+             (if @workspaces-loading?
+               [:div {:style {:text-align "center" :padding "2rem"}}
+                "Loading workspaces..."]
+               [workspace-table @workspaces
+                #(do (reset! current-workspace {}) (reset! workspace-modal-open? true))
+                #(do (reset! current-workspace %) (reset! workspace-modal-open? true))
+                delete-workspace-fn])
+             
+             [workspace-modal current-workspace workspace-modal-open?
+              #(let [is-new? (not (:workspace/id @current-workspace))
+                     workspace @current-workspace
+                     workspace-data {:workspace/name (:workspace/name workspace)
+                                   :workspace/description (:workspace/description workspace)}
+                     workspace-data (if is-new?
+                                      workspace-data
+                                      (assoc workspace-data 
+                                             :workspace/id (:workspace/id workspace)
+                                             :workspace/active (:workspace/active workspace)))]
+                 (save-workspace workspace-data is-new?))
+              #(reset! workspace-modal-open? false)]]]]
           [:div {:style {:min-height "100vh"
                          :display "flex"
                          :align-items "center"
