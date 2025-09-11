@@ -84,16 +84,28 @@
    [:p {:style {:color "#666" :font-size "1.1rem" :line-height "1.6" :max-width "600px" :margin "0 auto"}}
     "Welcome to your workspace! This is where you'll manage your elevator service operations, track maintenance, and collaborate with your team."]])
 
-(defn- feature-card [icon title description]
-  "Individual feature card component"
-  [:div {:style {:border "1px solid #e0e0e0" :border-radius "8px" :padding "2rem" :text-align "center"}}
-   [:div {:style {:font-size "2rem" :margin-bottom "1rem"}} icon]
-   [:h3 {:style {:color "#333" :margin-bottom "0.5rem"}} title]
-   [:p {:style {:color "#666" :font-size "0.9rem"}} description]])
+(defn- feature-card 
+  ([icon title description]
+   [feature-card icon title description nil])
+  ([icon title description link-url]
+   "Individual feature card component"
+   (let [card-content [:div {:style {:border "1px solid #e0e0e0" :border-radius "8px" :padding "2rem" :text-align "center"
+                                     :cursor (when link-url "pointer")
+                                     :transition "box-shadow 0.2s"
+                                     :box-shadow (when link-url "0 2px 4px rgba(0,0,0,0.1)")}}
+                       [:div {:style {:font-size "2rem" :margin-bottom "1rem"}} icon]
+                       [:h3 {:style {:color "#333" :margin-bottom "0.5rem"}} title]
+                       [:p {:style {:color "#666" :font-size "0.9rem"}} description]]]
+     (if link-url
+       [:a {:href link-url
+            :style {:text-decoration "none"}}
+        card-content]
+       card-content))))
 
-(defn- features-grid []
+(defn- features-grid [workspace-id]
   "Grid of feature cards"
   [:div {:style {:display "grid" :grid-template-columns "repeat(auto-fit, minmax(250px, 1fr))" :gap "2rem" :margin-top "3rem"}}
+   [feature-card "🏗️" "Material Templates" "Manage standard materials and supplies" (str "/app/" workspace-id "/material-templates")]
    [feature-card "⚙️" "Maintenance" "Schedule and track elevator maintenance"]
    [feature-card "📋" "Work Orders" "Manage service requests and repairs"]
    [feature-card "👥" "Team" "Collaborate with your service team"]
@@ -115,7 +127,7 @@
     [workspace-header workspace auth-user]
     [:div {:style {:background "white" :border-radius "8px" :padding "3rem" :box-shadow "0 2px 4px rgba(0,0,0,0.1)" :text-align "center"}}
      [welcome-section]
-     [features-grid]
+     [features-grid workspace-id]
      [workspace-footer workspace-id]]]])
 
 (defn- access-denied-screen []

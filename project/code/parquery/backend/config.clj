@@ -2,7 +2,34 @@
   (:require
    [users.backend.resolvers :as users]
    [users.backend.db :as user-db]
-   [workspaces.backend.db :as workspace-db]))
+   [workspaces.backend.db :as workspace-db]
+   [features.app.workspace.material-templates.backend.db :as material-templates-db]))
+
+;; Error handling helpers
+(defn parse-db-error
+  "Convert database error messages to user-friendly messages"
+  [error-message]
+  (cond
+    (and error-message (.contains error-message "users_username_idx"))
+    "Username already exists. Please choose a different username."
+    
+    (and error-message (.contains error-message "users_email_idx"))
+    "Email address already exists. Please use a different email."
+    
+    (and error-message (.contains error-message "unique constraint"))
+    "This value already exists. Please use a different value."
+    
+    :else
+    "An error occurred. Please try again or contact support."))
+
+;; Authorization helpers
+(defn has-admin-role? [request]
+  (let [user-roles (get-in request [:session :user-roles])]
+    (some #{"admin" "superadmin"} user-roles)))
+
+(defn has-superadmin-role? [request]
+  (let [user-roles (get-in request [:session :user-roles])]
+    (some #{"superadmin"} user-roles)))
 
 ;; User Management Handlers for Expert Lift
 ;; Workspace Management Handlers
@@ -22,6 +49,23 @@
     (catch Exception e
       (println "ERROR: get-all-workspaces failed:" (.getMessage e))
       [])))
+
+(defn get-workspace-by-id
+  "Get workspace by ID"
+  [{:parquery/keys [context request] :as params}]
+  (let [workspace-id (:workspace/id params)]
+    (try
+      (let [workspace (first (workspace-db/get-workspace-by-id workspace-id))]
+        (when workspace
+          {:workspace/id (str (:id workspace))
+           :workspace/name (:name workspace)
+           :workspace/description (:description workspace)
+           :workspace/active (:active workspace)
+           :workspace/created-at (str (:created_at workspace))
+           :workspace/updated-at (str (:updated_at workspace))}))
+      (catch Exception e
+        (println "ERROR: get-workspace-by-id failed:" (.getMessage e))
+        nil))))
 
 (defn create-workspace
   "Create new workspace"
@@ -67,6 +111,7 @@
       (catch Exception e
         (println "Error deleting workspace:" (.getMessage e))
         {:success false :error (.getMessage e)}))))
+
 (defn get-all-users
   "Get all users for admin management"
   [{:parquery/keys [context request] :as params}]
@@ -105,8 +150,9 @@
          :user/workspace-id (when (:workspace_id result) (str (:workspace_id result)))
          :success true})
       (catch Exception e
-        (println "Error creating user:" (.getMessage e))
-        {:success false :error (.getMessage e)}))))
+        (let [error-msg (.getMessage e)]
+          (println "Error creating user:" error-msg)
+          {:success false :error (parse-db-error error-msg)})))))
 
 (defn update-user
   "Update existing user"
@@ -185,13 +231,131 @@
           nil))
       nil)))
 
+;; Workspace Material Templates Handlers
+(defn get-workspace-material-templates
+  "Get all active material templates for workspace"
+  [{:parquery/keys [context request] :as params}]
+  (let [workspace-id (:workspace-id context)]
+    (if workspace-id
+      (try
+        (let [templates (material-templates-db/get-material-templates-by-workspace workspace-id)]
+          (mapv (fn [template]
+                 {:material-template/id (str (:id template))
+                  :material-template/name (:name template)
+                  :material-template/unit (:unit template)
+                  :material-template/category (:category template)
+                  :material-template/description (:description template)
+                  :material-template/active (:active template)
+                  :material-template/workspace-id (str (:workspace_id template))
+                  :material-template/created-at (str (:created_at template))
+                  :material-template/updated-at (str (:updated_at template))})
+               templates))
+        (catch Exception e
+          (println "ERROR: get-workspace-material-templates failed:" (.getMessage e))
+          []))
+      (do
+        (println "ERROR: No workspace-id in context")
+        []))))
+
+(defn get-workspace-material-template-by-id
+  "Get material template by ID within workspace"
+  [{:parquery/keys [context request] :as params}]
+  (let [template-id (:material-template/id params)
+        workspace-id (:workspace-id context)]
+    (if (and template-id workspace-id)
+      (try
+        (let [template (first (material-templates-db/get-material-template-by-id template-id workspace-id))]
+          (when template
+            {:material-template/id (str (:id template))
+             :material-template/name (:name template)
+             :material-template/unit (:unit template)
+             :material-template/category (:category template)
+             :material-template/description (:description template)
+             :material-template/active (:active template)
+             :material-template/workspace-id (str (:workspace_id template))
+             :material-template/created-at (str (:created_at template))
+             :material-template/updated-at (str (:updated_at template))}))
+        (catch Exception e
+          (println "ERROR: get-workspace-material-template-by-id failed:" (.getMessage e))
+          nil))
+      nil)))
+
+(defn create-workspace-material-template
+  "Create new material template in workspace (admin+ only)"
+  [{:parquery/keys [context request] :as params}]
+  (if (has-admin-role? request)
+    (let [workspace-id (:workspace-id context)
+          {:material-template/keys [name unit category description]} params]
+      (if workspace-id
+        (try
+          (let [result (first (material-templates-db/create-material-template workspace-id name unit category description))]
+            {:material-template/id (str (:id result))
+             :material-template/name (:name result)
+             :material-template/unit (:unit result)
+             :material-template/category (:category result)
+             :material-template/description (:description result)
+             :material-template/active (:active result)
+             :material-template/workspace-id (str (:workspace_id result))
+             :material-template/created-at (str (:created_at result))
+             :material-template/updated-at (str (:updated_at result))
+             :success true})
+          (catch Exception e
+            (println "Error creating workspace material template:" (.getMessage e))
+            {:success false :error (parse-db-error (.getMessage e))}))
+        {:success false :error "No workspace context"}))
+    {:success false :error "Insufficient permissions"}))
+
+(defn update-workspace-material-template
+  "Update existing material template in workspace (admin+ only)"
+  [{:parquery/keys [context request] :as params}]
+  (if (has-admin-role? request)
+    (let [workspace-id (:workspace-id context)
+          {:material-template/keys [id name unit category description active]} params]
+      (if workspace-id
+        (try
+          (let [result (first (material-templates-db/update-material-template id workspace-id name unit category description active))]
+            {:material-template/id (str (:id result))
+             :material-template/name (:name result)
+             :material-template/unit (:unit result)
+             :material-template/category (:category result)
+             :material-template/description (:description result)
+             :material-template/active (:active result)
+             :material-template/workspace-id (str (:workspace_id result))
+             :material-template/created-at (str (:created_at result))
+             :material-template/updated-at (str (:updated_at result))
+             :success true})
+          (catch Exception e
+            (println "Error updating workspace material template:" (.getMessage e))
+            {:success false :error (parse-db-error (.getMessage e))}))
+        {:success false :error "No workspace context"}))
+    {:success false :error "Insufficient permissions"}))
+
+(defn delete-workspace-material-template
+  "Delete material template from workspace (admin+ only)"
+  [{:parquery/keys [context request] :as params}]
+  (if (has-admin-role? request)
+    (let [workspace-id (:workspace-id context)
+          template-id (:material-template/id params)]
+      (if workspace-id
+        (try
+          (material-templates-db/delete-material-template template-id workspace-id)
+          {:success true :material-template/id template-id}
+          (catch Exception e
+            (println "Error deleting workspace material template:" (.getMessage e))
+            {:success false :error (parse-db-error (.getMessage e))}))
+        {:success false :error "No workspace context"}))
+    {:success false :error "Insufficient permissions"}))
+
 ;; Query mappings to functions
 (def read-queries
   "Read operations - mapped to handler functions"
   {:user/current #'get-current-user
    :users/get-all #'get-all-users
    :workspaces/get-all #'get-all-workspaces
-   :current-user/basic-data #'get-current-user})
+   :workspaces/get-by-id #'get-workspace-by-id
+   :current-user/basic-data #'get-current-user
+   :workspace-material-templates/get-all #'get-workspace-material-templates
+   :workspace-material-templates/get-by-id #'get-workspace-material-template-by-id})
 
 (def write-queries
   "Write operations - mapped to handler functions"  
@@ -202,7 +366,10 @@
    :users/logout #'logout-user
    :workspaces/create #'create-workspace
    :workspaces/update #'update-workspace
-   :workspaces/delete #'delete-workspace})
+   :workspaces/delete #'delete-workspace
+   :workspace-material-templates/create #'create-workspace-material-template
+   :workspace-material-templates/update #'update-workspace-material-template
+   :workspace-material-templates/delete #'delete-workspace-material-template})
 
 (defn get-query-type
   "Returns query type based on config"
