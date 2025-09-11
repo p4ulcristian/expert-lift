@@ -7,7 +7,7 @@
 (defn get-user-by-id [id]
   "Get user by ID"
   (postgres/execute-sql
-   "SELECT id, username, full_name, email, phone, role, active, created_at, updated_at
+   "SELECT id, username, full_name, email, phone, role, active, workspace_id, created_at, updated_at
     FROM expert_lift.users
     WHERE id = $1"
    {:params [id]}))
@@ -15,7 +15,7 @@
 (defn get-user-by-username [username]
   "Get user by username"
   (postgres/execute-sql
-   "SELECT id, username, full_name, password_hash, email, phone, role, active, created_at, updated_at
+   "SELECT id, username, full_name, password_hash, email, phone, role, active, workspace_id, created_at, updated_at
     FROM expert_lift.users
     WHERE username = $1"
    {:params [username]}))
@@ -23,7 +23,7 @@
 (defn get-user-by-email [email]
   "Get user by email"
   (postgres/execute-sql
-   "SELECT id, username, full_name, email, phone, role, active, created_at, updated_at
+   "SELECT id, username, full_name, email, phone, role, active, workspace_id, created_at, updated_at
     FROM expert_lift.users
     WHERE email = $1"
    {:params [email]}))

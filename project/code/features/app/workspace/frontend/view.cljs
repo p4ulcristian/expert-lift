@@ -14,12 +14,17 @@
     {:queries {:user/current {}}
      :parquery/context {}
      :callback (fn [response]
+                 (println "Workspace auth check response:" response)
                  (let [user (:user/current response)]
+                   (println "Current user in workspace:" user)
+                   (println "User workspace-id:" (:user/workspace-id user))
+                   (println "Expected workspace-id:" workspace-id)
                    (reset! auth-user user)
                    (reset! auth-loading? false)
                    (when-not user
                      (set! (.-location js/window) "/login"))
                    (when-not (:user/workspace-id user)
+                     (println "No workspace-id, redirecting to /app")
                      (set! (.-location js/window) "/app"))
                    (when (and (:user/workspace-id user) 
                              (not= (:user/workspace-id user) workspace-id))
