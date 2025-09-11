@@ -1,7 +1,8 @@
 (ns parquery.backend.config
   (:require
    [users.backend.resolvers :as users]
-   [users.backend.db :as user-db]))
+   [users.backend.db :as user-db]
+   [workspaces.backend.db :as workspace-db]))
 
 ;; User Management Handlers for Expert Lift
 ;; Workspace Management Handlers
@@ -9,19 +10,15 @@
   "Get all workspaces"
   [{:parquery/keys [context request] :as params}]
   (try
-    ;; TODO: Replace with actual database query
-    [{:workspace/id "123e4567-e89b-12d3-a456-426614174000"
-      :workspace/name "Main Office"
-      :workspace/description "Primary workspace for main office operations"
-      :workspace/active true
-      :workspace/created-at "2024-01-15T10:30:00Z"
-      :workspace/updated-at "2024-01-15T10:30:00Z"}
-     {:workspace/id "456e7890-e89b-12d3-a456-426614174001"
-      :workspace/name "Remote Team"
-      :workspace/description "Workspace for remote team members"
-      :workspace/active true
-      :workspace/created-at "2024-01-20T14:15:00Z"
-      :workspace/updated-at "2024-01-20T14:15:00Z"}]
+    (let [workspaces (workspace-db/get-all-workspaces)]
+      (mapv (fn [workspace]
+             {:workspace/id (str (:id workspace))
+              :workspace/name (:name workspace)
+              :workspace/description (:description workspace)
+              :workspace/active (:active workspace)
+              :workspace/created-at (str (:created_at workspace))
+              :workspace/updated-at (str (:updated_at workspace))})
+           workspaces))
     (catch Exception e
       (println "ERROR: get-all-workspaces failed:" (.getMessage e))
       [])))
@@ -31,14 +28,14 @@
   [{:parquery/keys [context request] :as params}]
   (let [{:workspace/keys [name description]} params]
     (try
-      ;; TODO: Replace with actual database insert
-      (let [new-workspace {:workspace/id (str (java.util.UUID/randomUUID))
-                          :workspace/name name
-                          :workspace/description description
-                          :workspace/active true
-                          :workspace/created-at (str (java.time.Instant/now))
-                          :workspace/updated-at (str (java.time.Instant/now))}]
-        (assoc new-workspace :success true))
+      (let [result (first (workspace-db/create-workspace name description))]
+        {:workspace/id (str (:id result))
+         :workspace/name (:name result)
+         :workspace/description (:description result)
+         :workspace/active (:active result)
+         :workspace/created-at (str (:created_at result))
+         :workspace/updated-at (str (:updated_at result))
+         :success true})
       (catch Exception e
         (println "Error creating workspace:" (.getMessage e))
         {:success false :error (.getMessage e)}))))
@@ -48,13 +45,14 @@
   [{:parquery/keys [context request] :as params}]
   (let [{:workspace/keys [id name description active]} params]
     (try
-      ;; TODO: Replace with actual database update
-      (let [updated-workspace {:workspace/id id
-                              :workspace/name name
-                              :workspace/description description
-                              :workspace/active active
-                              :workspace/updated-at (str (java.time.Instant/now))}]
-        (assoc updated-workspace :success true))
+      (let [result (first (workspace-db/update-workspace id name description active))]
+        {:workspace/id (str (:id result))
+         :workspace/name (:name result)
+         :workspace/description (:description result)
+         :workspace/active (:active result)
+         :workspace/created-at (str (:created_at result))
+         :workspace/updated-at (str (:updated_at result))
+         :success true})
       (catch Exception e
         (println "Error updating workspace:" (.getMessage e))
         {:success false :error (.getMessage e)}))))
@@ -64,7 +62,7 @@
   [{:parquery/keys [context request] :as params}]
   (let [workspace-id (:workspace/id params)]
     (try
-      ;; TODO: Replace with actual database delete
+      (workspace-db/delete-workspace workspace-id)
       {:success true :workspace/id workspace-id}
       (catch Exception e
         (println "Error deleting workspace:" (.getMessage e))
