@@ -157,7 +157,7 @@
 (defn get-bucket-name [user-roles is-superadmin]
   (println "is-superadmin" is-superadmin)
   (cond
-    is-superadmin "ironrainbow"             ;; Superadmin has access to all buckets
+    is-superadmin "expertlift"              ;; Superadmin has access to all buckets
     (is-coating-partner? user-roles) "demo" ;; Coating partners have access to the demo bucket, other roles have no access
     :else false))
 

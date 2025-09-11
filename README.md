@@ -111,17 +111,17 @@ cd database-schema
 
 ```bash
 # Development mode
-export IRONRAINBOW_DEV="true"
+export EXPERTLIFT_DEV="true"
 
 # Server configuration
-export IRONRAINBOW_PORT="3002"
-export IRONRAINBOW_DOMAIN="your-domain.com"
+export EXPERTLIFT_PORT="3002"
+export EXPERTLIFT_DOMAIN="your-domain.com"
 
 # Database
-export IRONRAINBOW_DB_URL="postgresql://username:password@localhost:5432/expert_lift"
+export EXPERTLIFT_DB_URL="postgresql://username:password@localhost:5432/expert_lift"
 
 # File storage
-export IRONRAINBOW_MINIO_URL="http://localhost:9000"
+export EXPERTLIFT_MINIO_URL="http://localhost:9000"
 ```
 
 ## Project Structure

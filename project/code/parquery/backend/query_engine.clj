@@ -38,14 +38,18 @@
 
 (defn execute-query
   "Executes a single query by calling its handler function"
-  [fn-key fn-params]
+  [fn-key fn-params session-atom]
   (let [handler (config/get-query-handler fn-key)
         result (if handler
                  (try
                    (let [raw-result (handler fn-params)
                          sanitized-result (sanitize-for-json raw-result)
                          validated-result (spec/validate query-result-schema sanitized-result (str "query result for " fn-key))]
-                     validated-result)
+                     ;; Check for session data in the result and update session if present
+                     (when-let [session-data (:session-data validated-result)]
+                       (swap! session-atom merge session-data))
+                     ;; Return result without session-data key
+                     (dissoc validated-result :session-data))
                    (catch Exception e
                      {:error (.getMessage e)
                       :query fn-key}))
@@ -55,7 +59,7 @@
 
 (defn process-queries
   "Processes all queries, handling read and write queries appropriately"
-  [queries-map context request]
+  [queries-map context request session-atom]
   (let [query-pairs (seq queries-map)
         grouped (group-by #(config/get-query-type (first %)) query-pairs)
         ;; _ (println "Grouped queries:" grouped) ;; Debugging line
@@ -73,7 +77,7 @@
                           (into {} 
                                 (map (fn [[fn-key fn-params]]
                                        (let [merged-params (merge-params [fn-key fn-params])
-                                             result-map (execute-query fn-key merged-params)
+                                             result-map (execute-query fn-key merged-params session-atom)
                                              [result-key result] (first (seq result-map))]
                                          [result-key result]))
                                      queries)))
@@ -91,11 +95,14 @@
     (let [params (spec/validate query-request-schema (:transit-params request) "parquery request")
           queries (:queries params []) 
           context (:context params {})
-          raw-results (process-queries queries context request)
-          results (spec/validate final-response-schema raw-results "parquery final response")]
+          session-atom (atom (:session request))
+          raw-results (process-queries queries context request session-atom)
+          results (spec/validate final-response-schema raw-results "parquery final response")
+          updated-session @session-atom]
       {:status 200
        :headers {"Content-Type" "application/json"}
-       :body (json/generate-string results)})
+       :body (json/generate-string results)
+       :session updated-session})
       (catch Exception e
         (let [error-data (ex-data e)]
           {:status 400

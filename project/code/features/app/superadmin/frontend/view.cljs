@@ -180,7 +180,20 @@
         current-user (r/atom {})
         modal-open? (r/atom false)
         loading? (r/atom true)
+        auth-user (r/atom nil)
+        auth-loading? (r/atom true)
         
+        check-auth #(do (reset! auth-loading? true)
+                         (parquery/send-queries
+                           {:queries {:user/current {}}
+                            :parquery/context {}
+                            :callback (fn [response]
+                                        (let [user (:user/current response)]
+                                          (reset! auth-user user)
+                                          (reset! auth-loading? false)
+                                          (when (not= "superadmin" (:user/role user))
+                                            (set! (.-location js/window) "/login"))))}))
+
         load-users #(do (reset! loading? true)
                          (parquery/send-queries
                            {:queries {:users/get-all {}}
@@ -209,37 +222,69 @@
                                             (load-users)
                                             (js/alert (str "Error: " (:error (:users/delete response))))))})))]
     
-    ;; Load users on component mount
+    ;; Check auth and load users on component mount
+    (check-auth)
     (load-users)
     
-    (fn []
-      [:div {:style {:min-height "100vh"
-                     :background "#f5f5f5"
-                     :padding "2rem"}}
-       [:div {:style {:max-width "1200px"
-                      :margin "0 auto"}}
-        [:h1 {:style {:color "#333"
-                      :margin-bottom "2rem"}}
-         "Super Admin - User Management"]
-        
-        (if @loading?
-          [:div {:style {:text-align "center" :padding "2rem"}}
-           "Loading users..."]
-          [user-table @users
-           #(do (reset! current-user {:user/role "employee"}) (reset! modal-open? true))
-           #(do (reset! current-user %) (reset! modal-open? true))
-           delete-user-fn])
-        
-        [user-modal current-user modal-open?
-         #(let [is-new? (not (:user/id @current-user))
-                user @current-user
-                base-data {:user/username (:user/username user)
-                           :user/full-name (:user/full-name user)
-                           :user/email (:user/email user)
-                           :user/phone (:user/phone user)
-                           :user/role (:user/role user)}
-                user-data (if is-new?
-                            (assoc base-data :user/password (:user/password user))
-                            (assoc base-data :user/id (:user/id user) :user/active (:user/active user)))]
-            (save-user user-data is-new?))
-         #(reset! modal-open? false)]]])))
+(fn []
+      (if @auth-loading?
+        [:div {:style {:min-height "100vh"
+                       :display "flex"
+                       :align-items "center"
+                       :justify-content "center"
+                       :background "#f5f5f5"}}
+         [:div {:style {:text-align "center"}}
+          "Checking authentication..."]]
+        (if (and @auth-user (= "superadmin" (:user/role @auth-user)))
+          [:div {:style {:min-height "100vh"
+                         :background "#f5f5f5"
+                         :padding "2rem"}}
+           [:div {:style {:max-width "1200px"
+                          :margin "0 auto"}}
+            [:div {:style {:display "flex" :justify-content "space-between" :align-items "center" :margin-bottom "2rem"}}
+             [:h1 {:style {:color "#333" :margin "0"}}
+              "Super Admin - User Management"]
+             [:div {:style {:display "flex" :gap "1rem" :align-items "center"}}
+              [:span {:style {:color "#666"}}
+               (str "Welcome, " (:user/full-name @auth-user))]
+              [:button {:on-click #(parquery/send-queries
+                                                  {:queries {:users/logout {}}
+                                                   :parquery/context {}
+                                                   :callback (fn [response]
+                                                               (when (:success (:users/logout response))
+                                                                 (set! (.-location js/window) "/login")))})
+                        :style {:padding "0.5rem 1rem" :background "#dc3545" :color "white" :border "none" :border-radius "4px" :cursor "pointer"}}
+               "Logout"]]]
+            
+            (if @loading?
+              [:div {:style {:text-align "center" :padding "2rem"}}
+               "Loading users..."]
+              [user-table @users
+               #(do (reset! current-user {:user/role "employee"}) (reset! modal-open? true))
+               #(do (reset! current-user %) (reset! modal-open? true))
+               delete-user-fn])
+            
+            [user-modal current-user modal-open?
+             #(let [is-new? (not (:user/id @current-user))
+                    user @current-user
+                    base-data {:user/username (:user/username user)
+                               :user/full-name (:user/full-name user)
+                               :user/email (:user/email user)
+                               :user/phone (:user/phone user)
+                               :user/role (:user/role user)}
+                    user-data (if is-new?
+                                (assoc base-data :user/password (:user/password user))
+                                (assoc base-data :user/id (:user/id user) :user/active (:user/active user)))]
+                (save-user user-data is-new?))
+             #(reset! modal-open? false)]]]
+          [:div {:style {:min-height "100vh"
+                         :display "flex"
+                         :align-items "center"
+                         :justify-content "center"
+                         :background "#f5f5f5"}}
+           [:div {:style {:text-align "center"}}
+            [:h2 "Access Denied"]
+            [:p "You need superadmin privileges to access this page."]
+            [:button {:on-click #(set! (.-location js/window) "/login")
+                      :style {:padding "0.5rem 1rem" :background "#007bff" :color "white" :border "none" :border-radius "4px" :cursor "pointer"}}
+             "Go to Login"]]])))))

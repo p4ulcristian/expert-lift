@@ -71,6 +71,30 @@
         (println "Error deleting user:" (.getMessage e))
         {:success false :error (.getMessage e)}))))
 
+(defn login-user
+  "Authenticate user with username/password and create session"
+  [{:parquery/keys [context request] :as params}]
+  (let [{:user/keys [username password]} params]
+    (try
+      (if-let [user (user-db/verify-password username password)]
+        {:success true
+         :user/id (:id user)
+         :user/username (:username user)
+         :user/full-name (:full_name user)
+         :user/role (:role user)
+         :session-data {:user-id (str (:id user))
+                        :user-roles [(:role user)]}}
+        {:success false :error "Invalid username or password"})
+      (catch Exception e
+        (println "Error during login:" (.getMessage e))
+        {:success false :error "Login failed"}))))
+
+(defn logout-user
+  "Clear user session"
+  [{:parquery/keys [context request] :as params}]
+  {:success true
+   :session-data nil})
+
 (defn get-current-user
   "Get current logged-in user data"
   [{:parquery/keys [context request] :as params}]
@@ -102,7 +126,9 @@
   "Write operations - mapped to handler functions"  
   {:users/create #'create-user
    :users/update #'update-user
-   :users/delete #'delete-user})
+   :users/delete #'delete-user
+   :users/login #'login-user
+   :users/logout #'logout-user})
 
 (defn get-query-type
   "Returns query type based on config"

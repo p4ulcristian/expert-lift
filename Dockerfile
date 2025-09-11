@@ -58,4 +58,4 @@ FROM      openjdk:23-slim
 COPY      --from=compiler /root                  /root/
 WORKDIR   /root/
 # JAR is already built, just run it
-CMD       ["java", "-jar", "ironrainbow.jar"]
+CMD       ["java", "-jar", "expert-lift.jar"]

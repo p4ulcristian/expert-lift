@@ -13,7 +13,7 @@ target
 .nrepl-port
 .env
 .calva
-ironrainbow.jar
+expert-lift.jar
 *.md5
 resources/public/js/core/labs.js
 resources/public/js/core/manifest.edn

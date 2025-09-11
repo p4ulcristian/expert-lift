@@ -862,7 +862,7 @@
   gap: 20px;
   flex-grow: 1;
   height: calc(100vh - 117px);
-  /* Ironrainbow checkout header is 76px and margin is 40px total */
+  /* Expert Lift checkout header is 76px and margin is 40px total */
 
 
   &::-webkit-scrollbar {

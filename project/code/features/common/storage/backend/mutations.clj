@@ -95,7 +95,7 @@
 ;; -----------------------------------------------------------------------------
 ;; ---- Delete Item ----
 
-;; (file-storage/remove-object {:bucket    "ironrainbow"
+;; (file-storage/remove-object {:bucket    "expertlift"
 ;;                              :file-name (str (:id file) "." (storage.utils/file->extenstion file))})
 
 (defn delete-item-f [_env {:keys [item-id] :as _mutation-props}]

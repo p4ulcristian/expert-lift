@@ -76,7 +76,7 @@ WEBPACK_PID=$!
   # Start Chrome Dev with debugging using persistent isolated development profile
   /Applications/Google\ Chrome\ Dev.app/Contents/MacOS/Google\ Chrome\ Dev \
     --remote-debugging-port=9222 \
-    --user-data-dir="$HOME/.ironrainbow-dev/chrome-userdata" \
+    --user-data-dir="$HOME/.expert-lift-dev/chrome-userdata" \
     --no-first-run \
     --no-default-browser-check \
     --disable-features=VizDisplayCompositor \
