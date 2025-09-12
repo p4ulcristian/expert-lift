@@ -70,7 +70,9 @@
        [:tr
         (for [header headers]
           ^{:key (:key header)}
-          [:th {:style (merge (table-header-style) (:style header))} (:label header)])]]
+          [:th {:style (merge (table-header-style) (:style header))} (:label header)])
+        (when actions
+          [:th {:style (merge (table-header-style) {:text-align "center"})} "Actions"])]]
       [:tbody
        (for [row rows]
          ^{:key (:id row)}
