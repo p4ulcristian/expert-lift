@@ -44,6 +44,11 @@
  (fn [db [_ file]]
    (assoc-in db [:settings :selected-file] file)))
 
+(rf/reg-event-db
+ :settings/set-preview-url
+ (fn [db [_ url]]
+   (assoc-in db [:settings :preview-url] url)))
+
 ;; Re-frame Subscriptions
 (rf/reg-sub
  :settings/data
@@ -64,6 +69,11 @@
  :settings/selected-file
  (fn [db _]
    (get-in db [:settings :selected-file])))
+
+(rf/reg-sub
+ :settings/preview-url
+ (fn [db _]
+   (get-in db [:settings :preview-url])))
 
 (defn- get-workspace-id
   "Get workspace ID from router parameters"
@@ -142,7 +152,8 @@
   "Display upload status and file selection"
   []
   (let [uploading? @(rf/subscribe [:settings/uploading?])
-        selected-file @(rf/subscribe [:settings/selected-file])]
+        selected-file @(rf/subscribe [:settings/selected-file])
+        preview-url @(rf/subscribe [:settings/preview-url])]
     (cond
       uploading?
       [:div {:style {:color "#9ca3af" :font-size "0.875rem" :margin-bottom "0.5rem"}}
@@ -150,6 +161,17 @@
       
       selected-file
       [:div
+       ;; Image preview
+       (when preview-url
+         [:div {:style {:margin-bottom "1rem"}}
+          [:img {:src preview-url
+                 :alt "Logo preview"
+                 :style {:max-width "200px"
+                         :max-height "150px"
+                         :border-radius "8px"
+                         :box-shadow "0 2px 4px rgba(0,0,0,0.1)"
+                         :display "block"
+                         :margin "0 auto"}}]])
        [:div {:style {:color "#10b981" :font-size "0.875rem" :margin-bottom "0.5rem"}}
         (str "Selected: " (.-name selected-file))]
        [:div {:style {:color "#6b7280" :font-size "0.75rem"}}
@@ -216,7 +238,8 @@
         (println "Logo uploaded:" (:filename response)))
       (when (:workspace-name-updated response)
         (println "Workspace name updated"))
-      (rf/dispatch [:settings/set-selected-file nil]))
+      (rf/dispatch [:settings/set-selected-file nil])
+      (rf/dispatch [:settings/set-preview-url nil]))
     (println "Error saving settings:" (:error response))))
 
 (defn- handle-save-click
