@@ -1,0 +1,70 @@
+(ns features.app.settings.backend.handlers
+  "HTTP handlers for settings file uploads"
+  (:require [ring.util.response :as response]
+            [clojure.java.io :as io]
+            [clojure.string :as str]
+            [workspaces.backend.db :as workspace-db]))
+
+(defn upload-logo
+  "Handle workspace logo upload and settings update via multipart form"
+  [request]
+  (try
+    (let [workspace-id (get-in request [:path-params :workspace-id])
+          multipart-params (:multipart-params request)
+          file-param (get multipart-params "file")
+          workspace-name (get multipart-params "workspaceName")]
+      
+      (when workspace-id
+        (let [results (atom {:success true})]
+          
+          ;; Update workspace name if provided
+          (when (and workspace-name (not (str/blank? workspace-name)))
+            (try
+              (let [current-workspace (first (workspace-db/get-workspace-by-id (java.util.UUID/fromString workspace-id)))]
+                (when current-workspace
+                  (workspace-db/update-workspace 
+                   (java.util.UUID/fromString workspace-id)
+                   workspace-name
+                   (:description current-workspace)
+                   (:active current-workspace))
+                  (swap! results assoc :workspace-name-updated true)
+                  (println "Workspace name updated to:" workspace-name)))
+              (catch Exception e
+                (println "Error updating workspace name:" (.getMessage e))
+                (swap! results assoc :workspace-name-error (.getMessage e)))))
+          
+          ;; Upload file if provided
+          (when file-param
+            (try
+              (let [temp-file (:tempfile file-param)
+                    original-filename (:filename file-param)
+                    file-extension (when original-filename
+                                     (last (str/split original-filename #"\.")))
+                    new-filename (str workspace-id "." (str/lower-case file-extension))
+                    upload-dir (io/file "uploads/logos")
+                    target-file (io/file upload-dir new-filename)]
+                
+                ;; Create directory if it doesn't exist
+                (.mkdirs upload-dir)
+                
+                ;; Copy uploaded file to target location
+                (io/copy temp-file target-file)
+                
+                (swap! results assoc 
+                       :file-uploaded true
+                       :filename new-filename
+                       :path (.getPath target-file))
+                (println "Logo uploaded successfully:" (.getPath target-file)))
+              (catch Exception e
+                (println "Error uploading file:" (.getMessage e))
+                (swap! results assoc :file-error (.getMessage e)))))
+          
+          (-> (response/response @results)
+              (response/content-type "application/json")))))
+    
+    (catch Exception e
+      (println "Error in upload-logo handler:" (.getMessage e))
+      (-> (response/response {:success false
+                              :error (.getMessage e)})
+          (response/status 500)
+          (response/content-type "application/json")))))

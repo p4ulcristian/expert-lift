@@ -9,6 +9,62 @@
             [ui.enhanced-button :as enhanced-button]
             [ui.page-header :as page-header]))
 
+;; Re-frame Events
+(rf/reg-event-db
+ :settings/load-start
+ (fn [db _]
+   (assoc-in db [:settings :loading?] true)))
+
+(rf/reg-event-db
+ :settings/load-success
+ (fn [db [_ settings-data]]
+   (-> db
+       (assoc-in [:settings :data] settings-data)
+       (assoc-in [:settings :loading?] false))))
+
+(rf/reg-event-db
+ :settings/load-error
+ (fn [db [_ error]]
+   (-> db
+       (assoc-in [:settings :error] error)
+       (assoc-in [:settings :loading?] false))))
+
+(rf/reg-event-db
+ :settings/update-field
+ (fn [db [_ path value]]
+   (assoc-in db (concat [:settings :data] path) value)))
+
+(rf/reg-event-db
+ :settings/set-uploading
+ (fn [db [_ uploading?]]
+   (assoc-in db [:settings :uploading?] uploading?)))
+
+(rf/reg-event-db
+ :settings/set-selected-file
+ (fn [db [_ file]]
+   (assoc-in db [:settings :selected-file] file)))
+
+;; Re-frame Subscriptions
+(rf/reg-sub
+ :settings/data
+ (fn [db _]
+   (get-in db [:settings :data])))
+
+(rf/reg-sub
+ :settings/loading?
+ (fn [db _]
+   (get-in db [:settings :loading?] false)))
+
+(rf/reg-sub
+ :settings/uploading?
+ (fn [db _]
+   (get-in db [:settings :uploading?] false)))
+
+(rf/reg-sub
+ :settings/selected-file
+ (fn [db _]
+   (get-in db [:settings :selected-file])))
+
 (defn- get-workspace-id
   "Get workspace ID from router parameters"
   []
@@ -18,11 +74,15 @@
 
 (defn- load-settings
   "Load workspace settings"
-  [workspace-id callback]
+  [workspace-id]
+  (rf/dispatch [:settings/load-start])
   (parquery/send-queries
    {:queries {:workspace-settings/get {}}
     :parquery/context {:workspace-id workspace-id}
-    :callback callback}))
+    :callback (fn [response]
+                (if-let [settings-data (:workspace-settings/get response)]
+                  (rf/dispatch [:settings/load-success settings-data])
+                  (rf/dispatch [:settings/load-error "No settings data received"])))}))
 
 (defn- save-settings
   "Save workspace settings"
@@ -32,90 +92,186 @@
     :parquery/context {:workspace-id workspace-id}
     :callback callback}))
 
+(defn- submit-settings
+  "Submit settings via multipart form (both workspace name and optional file)"
+  [workspace-id workspace-name file callback]
+  (let [form-data (js/FormData.)
+        upload-url (str "/app/" workspace-id "/settings/upload-logo")]
+    
+    ;; Add workspace name to form data
+    (.append form-data "workspaceName" workspace-name)
+    
+    ;; Add file to form data if provided
+    (when file
+      (.append form-data "file" file))
+    
+    ;; Send multipart request
+    (-> (js/fetch upload-url
+                  #js {:method "POST"
+                       :body form-data})
+        (.then (fn [response]
+                 (.json response)))
+        (.then (fn [data]
+                 (callback (js->clj data :keywordize-keys true))))
+        (.catch (fn [error]
+                  (println "Upload error:" error)
+                  (callback {:success false :error (str error)}))))))
+
+(defn- settings-page-header
+  "Page header for settings page using consistent UI component"
+  []
+  [page-header/page-header
+   {:title "Settings"
+    :description "Configure your workspace settings and company details"}])
+
+(defn- handle-file-select
+  "Handle file selection for logo upload"
+  [e]
+  (let [file (-> e .-target .-files (aget 0))]
+    (rf/dispatch [:settings/set-selected-file file])
+    (when file
+      (println "Selected file:" (.-name file)))))
+
+(defn- upload-status-display
+  "Display upload status and file selection"
+  []
+  (let [uploading? @(rf/subscribe [:settings/uploading?])
+        selected-file @(rf/subscribe [:settings/selected-file])]
+    (cond
+      uploading?
+      [:div {:style {:color "#9ca3af" :font-size "0.875rem" :margin-bottom "0.5rem"}}
+       "Uploading..."]
+      
+      selected-file
+      [:div
+       [:div {:style {:color "#10b981" :font-size "0.875rem" :margin-bottom "0.5rem"}}
+        (str "Selected: " (.-name selected-file))]
+       [:div {:style {:color "#6b7280" :font-size "0.75rem"}}
+        "Click to select a different file"]]
+      
+      :else
+      [:div
+       [:div {:style {:color "#9ca3af" :font-size "0.875rem" :margin-bottom "0.5rem"}}
+        "Click to upload logo"]
+       [:div {:style {:color "#6b7280" :font-size "0.75rem"}}
+        "Supported formats: JPG, PNG, GIF (Max 5MB)"]])))
+
+(defn- logo-upload-section
+  "Company logo upload section"
+  []
+  (let [uploading? @(rf/subscribe [:settings/uploading?])]
+    [:div {:style {:margin-bottom "2.5rem" :padding "1.5rem" :border "1px solid #e5e7eb" :border-radius "12px" :background "#f9fafb"}}
+     [:h4 {:style {:font-size "1.125rem" :font-weight "600" :margin-bottom "1rem" :color "#374151"}}
+      "Company Logo"]
+     [:p {:style {:color "#6b7280" :margin-bottom "1rem" :font-size "0.875rem"}}
+      "Upload your company logo to personalize your workspace"]
+     [:div {:style {:border "2px dashed #d1d5db" :border-radius "8px" :padding "2rem" :text-align "center" :background "#ffffff"}}
+      [:input {:type "file"
+               :id "logo-upload"
+               :accept "image/*"
+               :style {:display "none"}
+               :on-change handle-file-select}]
+      [:label {:for "logo-upload"
+               :style {:cursor (if uploading? "not-allowed" "pointer") 
+                       :color (if uploading? "#9ca3af" "#3b82f6") 
+                       :font-weight "500"}}
+       [upload-status-display]]]]))
+
+(defn- workspace-name-input
+  "Workspace name input field"
+  []
+  (let [settings @(rf/subscribe [:settings/data])]
+    [:div {:style {:margin-bottom "2.5rem"}}
+     [:label {:style {:display "block" :font-weight "600" :margin-bottom "0.75rem" :color "#374151" :font-size "1rem"}}
+      "Workspace Name"]
+     [:input {:type "text"
+              :value (get-in settings [:settings/general :workspace/name] "")
+              :placeholder "Enter your company or workspace name"
+              :style {:width "100%" 
+                      :padding "0.875rem 1rem" 
+                      :border "1px solid #d1d5db" 
+                      :border-radius "8px"
+                      :font-size "1rem"
+                      :line-height "1.5"
+                      :transition "border-color 0.2s, box-shadow 0.2s"
+                      :outline "none"}
+              :on-change #(rf/dispatch [:settings/update-field [:settings/general :workspace/name] (.. % -target -value)])
+              :on-focus #(set! (.. % -target -style -border-color) "#3b82f6")
+              :on-blur #(set! (.. % -target -style -border-color) "#d1d5db")}]]))
+
+(defn- handle-save-response
+  "Handle save response"
+  [response]
+  (rf/dispatch [:settings/set-uploading false])
+  (if (:success response)
+    (do
+      (println "Settings saved successfully!")
+      (when (:file-uploaded response)
+        (println "Logo uploaded:" (:filename response)))
+      (when (:workspace-name-updated response)
+        (println "Workspace name updated"))
+      (rf/dispatch [:settings/set-selected-file nil]))
+    (println "Error saving settings:" (:error response))))
+
+(defn- handle-save-click
+  "Handle save button click"
+  [workspace-id]
+  (let [settings @(rf/subscribe [:settings/data])
+        selected-file @(rf/subscribe [:settings/selected-file])
+        workspace-name (get-in settings [:settings/general :workspace/name])]
+    (rf/dispatch [:settings/set-uploading true])
+    (submit-settings workspace-id workspace-name selected-file handle-save-response)))
+
+(defn- save-button
+  "Save settings button"
+  [workspace-id]
+  (let [loading? @(rf/subscribe [:settings/loading?])
+        uploading? @(rf/subscribe [:settings/uploading?])]
+    [:div.form-actions {:style {:margin-top "2rem"}}
+     [enhanced-button/enhanced-button
+      {:type "primary"
+       :disabled (or loading? uploading?)
+       :on-click #(handle-save-click workspace-id)}
+      (if (or loading? uploading?) "Saving..." "Save Settings")]]))
+
+(defn- settings-form-content
+  "Main settings form content"
+  [workspace-id]
+  [:div {:style {:max-width "600px"}}
+   [logo-upload-section]
+   [workspace-name-input]
+   [save-button workspace-id]])
+
 (defn settings-form
   "Settings form component"
   [workspace-id]
-  (let [settings (r/atom nil)
-        loading? (r/atom false)]
-    
-    ;; Load settings on mount
-    (zero-react/use-effect
-     {:mount (fn []
-               (reset! loading? true)
-               (load-settings workspace-id
-                              (fn [response]
-                                (reset! settings (:workspace-settings/get response))
-                                (reset! loading? false))))
-      :params #js [workspace-id]})
-    
-    [:div.settings-form {:style {:padding "2rem"}}
-     (if @loading?
-       [:div "Loading settings..."]
-       (when @settings
-         [:div
-          [:div {:style {:margin-bottom "3rem"}}
-           [:h3 {:style {:font-size "1.5rem" :font-weight "600" :margin-bottom "1rem" :color "#1f2937"}}
-            "Company Settings"]
-           [:p {:style {:color "#6b7280" :margin-bottom "2rem"}}
-            "Configure your company logo and workspace details"]]
-          
-          [:div {:style {:max-width "600px"}}
-           ;; Company Logo Section
-           [:div {:style {:margin-bottom "2.5rem" :padding "1.5rem" :border "1px solid #e5e7eb" :border-radius "12px" :background "#f9fafb"}}
-            [:h4 {:style {:font-size "1.125rem" :font-weight "600" :margin-bottom "1rem" :color "#374151"}}
-             "Company Logo"]
-            [:p {:style {:color "#6b7280" :margin-bottom "1rem" :font-size "0.875rem"}}
-             "Upload your company logo to personalize your workspace"]
-            [:div {:style {:border "2px dashed #d1d5db" :border-radius "8px" :padding "2rem" :text-align "center" :background "#ffffff"}}
-             [:div {:style {:color "#9ca3af" :font-size "0.875rem"}}
-              "Logo upload coming soon..."]]]
-           
-           ;; Workspace Name Section
-           [:div {:style {:margin-bottom "2.5rem"}}
-            [:label {:style {:display "block" :font-weight "600" :margin-bottom "0.75rem" :color "#374151" :font-size "1rem"}}
-             "Workspace Name"]
-            [:input {:type "text"
-                     :value (get-in @settings [:settings/general :workspace/name] "")
-                     :placeholder "Enter your company or workspace name"
-                     :style {:width "100%" 
-                             :padding "0.875rem 1rem" 
-                             :border "1px solid #d1d5db" 
-                             :border-radius "8px"
-                             :font-size "1rem"
-                             :line-height "1.5"
-                             :transition "border-color 0.2s, box-shadow 0.2s"
-                             :outline "none"}
-                     :on-change #(swap! settings assoc-in [:settings/general :workspace/name] (.. % -target -value))
-                     :on-focus #(set! (.. % -target -style -border-color) "#3b82f6")
-                     :on-blur #(set! (.. % -target -style -border-color) "#d1d5db")}]]
-           
-           [:div.form-actions {:style {:margin-top "2rem"}}
-            [enhanced-button/enhanced-button
-             {:type "primary"
-              :on-click (fn []
-                        (save-settings workspace-id @settings
-                                     (fn [response]
-                                       (if (:success response)
-                                         (println "Settings saved successfully!")
-                                         (println "Error saving settings")))))}
-             "Save Settings"]]]]))]))
+  (zero-react/use-effect
+   {:mount (fn []
+             (println "DEBUG: Loading settings for workspace-id:" workspace-id)
+             (load-settings workspace-id))
+    :params #js [workspace-id]})
+  
+  (let [settings @(rf/subscribe [:settings/data])
+        loading? @(rf/subscribe [:settings/loading?])]
+    [:div.settings-form
+     [settings-page-header]
+     (do 
+       (println "DEBUG: settings value:" settings)
+       (println "DEBUG: loading?" loading?)
+       (println "DEBUG: settings exists?" (boolean settings))
+       (cond
+         loading?
+         [:div "Loading settings..."]
+         
+         settings
+         [:div [settings-form-content workspace-id]]
+         
+         :else
+         [:div "No settings found"]))]))
 
 (defn settings-page
   "Main settings page component"
   []
-  [:div {:style {:padding "2rem"}}
-   [:h1 "Settings"]
-   [:p "Configure your workspace settings"]
-   
-   [:div {:style {:max-width "600px" :margin-top "2rem"}}
-    [:h3 "Company Logo"]
-    [:div {:style {:border "2px dashed #ccc" :padding "2rem" :text-align "center" :margin-bottom "2rem"}}
-     "Logo upload coming soon..."]
-    
-    [:h3 "Workspace Name"]
-    [:input {:type "text" 
-             :placeholder "Enter workspace name"
-             :style {:width "100%" :padding "0.75rem" :border "1px solid #ccc" :border-radius "4px"}}]
-    
-    [:button {:style {:margin-top "1rem" :padding "0.75rem 2rem" :background "#007bff" :color "white" :border "none" :border-radius "4px"}}
-     "Save Settings"]]])
+  (let [workspace-id (get-workspace-id)]
+    [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
+     [settings-form workspace-id]]))
