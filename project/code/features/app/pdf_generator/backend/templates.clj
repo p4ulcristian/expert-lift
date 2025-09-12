@@ -1,7 +1,52 @@
 (ns features.app.pdf-generator.backend.templates
   "PDF templates based on Expert Lift work report forms"
   (:require
-   [hiccup.core :as hiccup]))
+   [hiccup.core :as hiccup]
+   [clojure.java.io :as io])
+  (:import
+   [java.util Base64]
+   [java.io ByteArrayOutputStream]))
+
+(defn encode-image-to-base64
+  "Convert image file to base64 data URI for embedding in PDF"
+  [image-path]
+  (try
+    (let [image-file (io/file image-path)]
+      (when (.exists image-file)
+        (with-open [input-stream (io/input-stream image-file)
+                    output-stream (ByteArrayOutputStream.)]
+          (io/copy input-stream output-stream)
+          (let [image-bytes (.toByteArray output-stream)
+                base64-string (.encodeToString (Base64/getEncoder) image-bytes)
+                mime-type (cond
+                           (.endsWith image-path ".png") "image/png"
+                           (.endsWith image-path ".jpg") "image/jpeg" 
+                           (.endsWith image-path ".jpeg") "image/jpeg"
+                           :else "image/png")]
+            (str "data:" mime-type ";base64," base64-string)))))
+    (catch Exception e
+      (println "Warning: Could not load logo image:" (.getMessage e))
+      nil)))
+
+(defn parse-time
+  "Parse time string like '08:30' into hours and minutes"
+  [time-str]
+  (when time-str
+    (let [parts (clojure.string/split time-str #":")]
+      (when (= 2 (count parts))
+        {:hours (first parts)
+         :minutes (second parts)}))))
+
+(defn format-time-fields
+  "Format time into separate hour and minute fields"
+  [time-str label]
+  (let [{:keys [hours minutes]} (parse-time time-str)]
+    [:div
+     [:label (str label ": ")]
+     [:span {:style "border-bottom: 1px solid #000; padding: 0 15px; display: inline-block; min-width: 30px; text-align: center;"} (or hours "")]
+     [:span " óra "]
+     [:span {:style "border-bottom: 1px solid #000; padding: 0 15px; display: inline-block; min-width: 30px; text-align: center;"} (or minutes "")]
+     [:span " perc"]]))
 
 (defn work-report-template
   "Work report template matching Expert Lift KFT format from screenshot"
@@ -24,31 +69,32 @@
      "
      body { 
        font-family: 'Helvetica', Arial, sans-serif; 
-       margin: 40px; 
-       font-size: 12px; 
-       line-height: 1.4;
+       margin: 20px; 
+       font-size: 11px; 
+       line-height: 1.2;
      }
      .header { 
-       margin-bottom: 30px; 
+       margin-bottom: 20px; 
+       position: relative;
+       height: 100px;
        overflow: hidden;
      }
-     .header .logo { 
-       float: left; 
-     }
      .header .title { 
-       float: right; 
+       float: left;
+       font-size: 28px; 
+       font-weight: bold;
+       line-height: 40px;
+       margin: 0;
+       letter-spacing: 2px;
+       margin-top: 10px;
      }
-     .logo { 
-       font-weight: bold; 
-       color: #d32f2f; 
-     }
-     .title { 
-       font-size: 24px; 
-       font-weight: bold; 
-       text-align: center; 
+     .header .logo { 
+       float: right;
+       width: 100px;
+       height: 100px;
      }
      .form-row { 
-       margin-bottom: 15px; 
+       margin-bottom: 8px; 
        overflow: hidden;
      }
      .form-row label { 
@@ -64,7 +110,7 @@
        width: 300px;
      }
      .checkbox-row { 
-       margin: 20px 0; 
+       margin: 10px 0; 
        overflow: hidden;
      }
      .checkbox-item { 
@@ -76,13 +122,25 @@
        margin-right: 0;
      }
      .checkbox { 
-       width: 15px; 
-       height: 15px; 
-       border: 1px solid #000; 
+       width: 18px; 
+       height: 18px; 
+       border: 2px solid #333; 
        display: inline-block; 
+       margin-left: 8px;
+       vertical-align: middle;
+       position: relative;
+       background: white;
+       text-align: center;
+       line-height: 14px;
+       font-size: 12px;
+       font-weight: bold;
+     }
+     .checkbox-label {
+       vertical-align: middle;
+       margin-right: 8px;
      }
      .time-row { 
-       margin: 20px 0; 
+       margin: 10px 0; 
        overflow: hidden;
      }
      .time-row div {
@@ -94,10 +152,10 @@
        margin-right: 0;
      }
      .work-type-section {
-       margin: 20px 0;
+       margin: 10px 0;
      }
      .work-type-row {
-       margin: 10px 0;
+       margin: 5px 0;
        overflow: hidden;
      }
      .work-type-item {
@@ -111,12 +169,12 @@
      .materials-table { 
        width: 100%; 
        border-collapse: collapse; 
-       margin: 20px 0; 
+       margin: 10px 0; 
      }
      .materials-table th, 
      .materials-table td { 
        border: 1px solid #000; 
-       padding: 8px; 
+       padding: 4px; 
        text-align: left; 
      }
      .materials-table th { 
@@ -124,10 +182,10 @@
        font-weight: bold; 
      }
      .materials-table tr { 
-       height: 30px; 
+       height: 20px; 
      }
      .signature-section { 
-       margin-top: 40px; 
+       margin-top: 20px; 
        overflow: hidden;
      }
      .signature-box { 
@@ -154,19 +212,16 @@
        margin: 5px 0; 
      }
      .disclaimer { 
-       font-size: 10px; 
+       font-size: 9px; 
        text-align: center; 
-       margin-top: 30px; 
-       font-style: italic; 
+       margin-top: 15px; 
      }
      "]]
    [:body
     [:div.header
-     [:div.logo 
-      [:div "X"]
-      [:div "EXPERT"]
-      [:div "LIFT KFT."]]
-     [:div.title "MUNKALAP"]]
+     [:div.title "MUNKALAP"]
+     (when-let [logo-data (encode-image-to-base64 "project/resources/public/logo/expert.png")]
+       [:img.logo {:src logo-data}])]
     
     [:div.form-row
      [:label "Intézmény neve:"]
@@ -178,43 +233,33 @@
     
     [:div.checkbox-row
      [:div.checkbox-item
-      [:label "Normál:"]
-      [:div.checkbox (when (= work-type "normal") "✓")]]
+      [:span.checkbox-label "Normál:"]
+      [:div.checkbox (when (= work-type "normal") "X")]]
      [:div.checkbox-item
-      [:label "Éjszaka:"]
-      [:div.checkbox (when (= work-type "night") "✓")]]
+      [:span.checkbox-label "Éjszaka:"]
+      [:div.checkbox (when (= work-type "night") "X")]]
      [:div.checkbox-item
-      [:label "Hétvége vagy ünnepnap:"]
-      [:div.checkbox (when (= work-type "weekend") "✓")]]]
+      [:span.checkbox-label "Hétvége vagy ünnepnap:"]
+      [:div.checkbox (when (= work-type "weekend") "X")]]]
     
     [:div
      [:label {:style "font-weight: bold; margin-bottom: 10px; display: block;"} "Felvonó jelzése:"]]
     
     [:div.time-row
-     [:div
-      [:label "Érkezés: "]
-      [:span {:style "border-bottom: 1px solid #000; padding: 0 20px;"} (or arrival-time "")]
-      [:span " óra "]
-      [:span {:style "border-bottom: 1px solid #000; padding: 0 20px;"} ""]
-      [:span " perc"]]
-     [:div
-      [:label "Távozás: "]
-      [:span {:style "border-bottom: 1px solid #000; padding: 0 20px;"} (or departure-time "")]
-      [:span " óra "]
-      [:span {:style "border-bottom: 1px solid #000; padding: 0 20px;"} ""]
-      [:span " perc"]]]
+     (format-time-fields arrival-time "Érkezés")
+     (format-time-fields departure-time "Távozás")]
     
     [:div.work-type-section
      [:label {:style "font-weight: bold; display: block; margin-bottom: 10px;"} "Munka típusa:"]
      [:div.work-type-row
       [:div.work-type-item
-       [:label "Javítás:"]
+       [:span.checkbox-label "Javítás:"]
        [:div.checkbox ""]]
       [:div.work-type-item
-       [:label "Karbantartás:"]
+       [:span.checkbox-label "Karbantartás:"]
        [:div.checkbox ""]]
       [:div.work-type-item
-       [:label "Egyéb:"]
+       [:span.checkbox-label "Egyéb:"]
        [:div.checkbox ""]]]]
     
     [:div
@@ -226,13 +271,13 @@
     [:table.materials-table
      [:thead
       [:tr
-       [:th "Anyagfelhasználás"]
+       [:th {:colspan "2"} "Anyagfelhasználás"]]
+      [:tr  
        [:th "megnevezés"]
        [:th "m"]]]
      [:tbody
-      (for [i (range 6)]
+      (for [i (range 4)]
         [:tr
-         [:td ""]
          [:td ""]
          [:td ""]])]]
     

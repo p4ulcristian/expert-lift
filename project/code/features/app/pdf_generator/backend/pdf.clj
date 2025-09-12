@@ -13,10 +13,12 @@
   (let [output-stream (ByteArrayOutputStream.)
         builder (PdfRendererBuilder.)
         ; Use DejaVu Sans which has excellent Unicode support including Hungarian
-        font-path "/System/Library/Fonts/Helvetica.ttc"]
+        font-path "/System/Library/Fonts/Helvetica.ttc"
+        ; Set base URI to project resources for relative paths
+        base-uri "file://project/resources/"]
     (try
       (-> builder
-          (.withHtmlContent html-content "")
+          (.withHtmlContent html-content base-uri)
           ; Add font that supports Hungarian characters
           (cond-> 
             (.exists (java.io.File. font-path))
