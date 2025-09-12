@@ -25,6 +25,7 @@
   "Execute ParQuery to load team members with pagination"
   [workspace-id params]
   (println "DEBUG load-teams-query called with params:" params)
+  (println "DEBUG workspace-id:" workspace-id)
   (rf/dispatch [:teams/set-loading true])
   (parquery/send-queries
    {:queries {:workspace-teams/get-paginated params}
