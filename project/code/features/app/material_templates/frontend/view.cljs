@@ -215,14 +215,14 @@
     (fn [template-data is-new? on-save on-cancel]
       (reset! template template-data)
       [modal/modal {:on-close on-cancel :close-on-backdrop? true}
-       [modal/modal-header
+       ^{:key "header"} [modal/modal-header
         {:title (if is-new? "Add New Material Template" "Edit Material Template")
          :subtitle (if is-new? 
                      "Create a new material template for your workspace"
                      "Update the details of this material template")}]
-       [form-fields template @errors]
-       [active-checkbox template is-new?]
-       [modal/modal-footer
+       ^{:key "form"} [form-fields template @errors]
+       ^{:key "checkbox"} [active-checkbox template is-new?]
+       ^{:key "footer"} [modal/modal-footer
         [enhanced-button/enhanced-button
          {:variant :secondary
           :on-click on-cancel
