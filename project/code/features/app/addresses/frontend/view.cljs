@@ -397,8 +397,7 @@
      (fn [] (reset! modal-address nil))]))
 
 (defn view []
-  (let [authenticated? (r/atom nil)  ; nil = checking, true = authenticated, false = not authenticated
-        workspace-id (get-workspace-id)
+  (let [workspace-id (get-workspace-id)
         addresses (r/atom [])
         loading? (r/atom false)
         modal-address (r/atom nil)
@@ -415,37 +414,13 @@
                          (delete-address-query address-id workspace-id (fn [] (load-addresses {}))))]
     
     (fn []
-      ;; Call useEffect hook inside the render function
+      ;; Load addresses on component mount (authentication handled by backend)
       (zero-react/use-effect
-        {:mount (fn [] 
-                  ;; Check authentication first
-                  (parquery/send-queries
-                   {:queries {:user/current {}}
-                    :parquery/context {}
-                    :callback (fn [response]
-                               (let [user (:user/current response)]
-                                 (if (and user (:user/id user))
-                                   (do 
-                                     (reset! authenticated? true)
-                                     ;; Load initial addresses after authentication is confirmed
-                                     (when (empty? (:addresses @addresses [])) (load-addresses {})))
-                                   (reset! authenticated? false))))}))
+        {:mount (fn [] (load-addresses {}))
          :params #js[]})
       
-      (cond
-        (nil? @authenticated?)
-        [:div {:style {:padding "2rem" :text-align "center"}}
-         [:div "Checking authentication..."]]
-        
-        (false? @authenticated?)
-        (do 
-          (println "User not authenticated, redirecting to login")
-          (set! (.-location js/window) "/login")
-          [:div])
-        
-        :else
-        [:div {:style {:min-height "100vh" :background "#f9fafb"}}
-         [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
-          [addresses-page-header modal-address modal-is-new?]
-          [addresses-content addresses loading? modal-address modal-is-new? delete-address load-addresses]
-          [modal-when-open modal-address modal-is-new? save-address]]]))))
+      [:div {:style {:min-height "100vh" :background "#f9fafb"}}
+       [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
+        [addresses-page-header modal-address modal-is-new?]
+        [addresses-content addresses loading? modal-address modal-is-new? delete-address load-addresses]
+        [modal-when-open modal-address modal-is-new? save-address]]])))

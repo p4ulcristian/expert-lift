@@ -283,8 +283,7 @@
                                         (let [user (:user/current response)]
                                           (reset! auth-user user)
                                           (reset! auth-loading? false)
-                                          (when (not= "superadmin" (:user/role user))
-                                            (set! (.-location js/window) "/login"))))}))
+))}))
 
         load-users #(do (reset! loading? true)
                          (parquery/send-queries
@@ -380,8 +379,7 @@
                                                   {:queries {:users/logout {}}
                                                    :parquery/context {}
                                                    :callback (fn [response]
-                                                               (when (:success (:users/logout response))
-                                                                 (set! (.-location js/window) "/login")))})
+                                                               (:success (:users/logout response)))})
                         :style {:padding "0.5rem 1rem" :background "#dc3545" :color "white" :border "none" :border-radius "4px" :cursor "pointer"}}
                "Logout"]]]
             
@@ -440,6 +438,4 @@
            [:div {:style {:text-align "center"}}
             [:h2 "Access Denied"]
             [:p "You need superadmin privileges to access this page."]
-            [:button {:on-click #(set! (.-location js/window) "/login")
-                      :style {:padding "0.5rem 1rem" :background "#007bff" :color "white" :border "none" :border-radius "4px" :cursor "pointer"}}
-             "Go to Login"]]])))))
+            [:div {:style {:color "#666"}} "Access denied."]]])))))

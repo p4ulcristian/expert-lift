@@ -36,9 +36,13 @@
                  (println "DEBUG: ParQuery result structure:" result)
                  (println "DEBUG: Teams array:" (:users result))
                  (println "DEBUG: About to dispatch with result:" result)
-                 (let [event-vector [:teams/set-data result]]
-                   (println "DEBUG: Event vector to dispatch:" event-vector)
-                   (rf/dispatch event-vector))))}))
+                 (println "DEBUG: Result type:" (type result))
+                 (let [event-keyword :teams/load-success
+                       event-vec [event-keyword result]]
+                   (println "DEBUG: Event keyword:" event-keyword)
+                   (println "DEBUG: Constructed event vector:" event-vec)
+                   (println "DEBUG: Event vector length:" (count event-vec))
+                   (rf/dispatch event-vec))))}))
 
 (defn- get-query-type
   "Get appropriate query type for save operation"
@@ -157,12 +161,11 @@
     (assoc-in db [:teams :loading?] loading?)))
 
 (rf/reg-event-db
-  :teams/set-data
-  (fn [db [_ data]]
-    (println "DEBUG: teams/set-data event called")
-    (println "DEBUG: event-id: :teams/set-data")
-    (println "DEBUG: data argument:" data)
-    (println "DEBUG: full event vector:" [:teams/set-data data])
+  :teams/load-success
+  (fn [db [data]]
+    (println "DEBUG: teams/load-success event called")
+    (println "DEBUG: data received (after trim-v):" data)
+    (println "DEBUG: data type:" (type data))
     (println "DEBUG: current teams state before update:" (get-in db [:teams]))
     (let [updated-db (-> db
                          (assoc-in [:teams :data] data)
@@ -359,7 +362,7 @@
               {:key :user/role :label "Role" :render role-render :sortable? true}
               {:key :user/active :label "Status" :render status-render :sortable? true}
               {:key :user/phone :label "Phone" :render contact-render :sortable? false}]
-    :data-source @teams
+    :data-source (:users @teams)
     :loading? @loading?
     :empty-message "No team members found"
     :id-key :user/id
@@ -367,7 +370,6 @@
     :show-search? true
     :show-pagination? true
     :query-fn query-fn
-    :on-data-change (fn [result] (reset! teams result))
     :actions [{:key :edit :label "Edit" :variant :primary :on-click on-edit}
               {:key :delete :label "Delete" :variant :danger 
                :on-click (fn [row] 

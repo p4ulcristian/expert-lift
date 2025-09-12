@@ -531,8 +531,7 @@
     db))
 
 (defn view []
-  (let [authenticated? @(rf/subscribe [:worksheets/authenticated?])
-        worksheets-data @(rf/subscribe [:worksheets/data])
+  (let [worksheets-data @(rf/subscribe [:worksheets/data])
         loading? @(rf/subscribe [:worksheets/loading?])
         modal-worksheet @(rf/subscribe [:worksheets/modal-worksheet])
         modal-is-new? @(rf/subscribe [:worksheets/modal-is-new?])
@@ -554,24 +553,12 @@
     ;; Initialize authentication check on mount
     (zero-react/use-effect
       {:mount (fn []
-                (rf/dispatch [:worksheets/check-authentication]))
+                (rf/dispatch [:worksheets/load-data {}]))
        :params #js[]})
     
-    (cond
-      (nil? authenticated?)
-      [:div {:style {:padding "2rem" :text-align "center"}}
-       [:div "Checking authentication..."]]
-      
-      (false? authenticated?)
-      (do 
-        (println "User not authenticated, redirecting to login")
-        (set! (.-location js/window) "/login")
-        [:div])
-      
-      :else
-      [:div {:style {:min-height "100vh" :background "#f9fafb"}}
-       [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
-        ;; Page header with modal controls
+    [:div {:style {:min-height "100vh" :background "#f9fafb"}}
+     [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
+      ;; Page header with modal controls
         [page-header/page-header
          {:title "Worksheets"
           :description "Manage worksheets for this workspace"
@@ -616,4 +603,4 @@
         ;; Modal when open
         (when modal-worksheet
           [worksheet-modal modal-worksheet modal-is-new? save-worksheet
-           (fn [] (rf/dispatch [:worksheets/close-modal]))])]])))
+           (fn [] (rf/dispatch [:worksheets/close-modal]))])]]))

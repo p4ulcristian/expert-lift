@@ -29,8 +29,7 @@
   (parquery/send-queries
     {:queries {:users/logout {}}
      :callback (fn [response]
-                 (when (:success (:users/logout response))
-                   (set! (.-location js/window) "/login")))}))
+                 (:success (:users/logout response)))}))
 
 (defn handle-language-toggle [current-language]
   "Toggle language between en and hu"

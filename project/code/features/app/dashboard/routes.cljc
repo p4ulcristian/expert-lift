@@ -4,9 +4,4 @@
 
 (def app-path "/app")
 
-(def routes
-  #?(:cljs [{:path app-path
-             :view #'dashboard/view
-             :title "Dashboard"}]
-     :clj  [{:path app-path
-             :get #'backend-view/response}]))
+(def routes [])

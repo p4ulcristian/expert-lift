@@ -21,14 +21,7 @@
                    (println "Expected workspace-id:" workspace-id)
                    (reset! auth-user user)
                    (reset! auth-loading? false)
-                   (when-not user
-                     (set! (.-location js/window) "/login"))
-                   (when-not (:user/workspace-id user)
-                     (println "No workspace-id, redirecting to /app")
-                     (set! (.-location js/window) "/app"))
-                   (when (and (:user/workspace-id user) 
-                             (not= (:user/workspace-id user) workspace-id))
-                     (set! (.-location js/window) (str "/app/" (:user/workspace-id user))))))}))
+))}))
 
 (defn- load-workspace-data [workspace workspace-loading? workspace-id]
   "Load workspace information from the server"
@@ -48,8 +41,7 @@
     {:queries {:users/logout {}}
      :parquery/context {}
      :callback (fn [response]
-                 (when (:success (:users/logout response))
-                   (set! (.-location js/window) "/login")))}))
+                 (:success (:users/logout response)))}))
 
 (defn- loading-screen []
   "Loading state component"
