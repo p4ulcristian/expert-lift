@@ -135,12 +135,15 @@
   "Base properties for input fields"
   [field-key has-error? attrs]
   (let [is-time-field? (#{:worksheet/arrival-time :worksheet/departure-time} field-key)
-        form-data (or @(rf/subscribe [:worksheets/modal-form-data]) {})
+        form-data-sub @(rf/subscribe [:worksheets/modal-form-data])
+        form-data (or form-data-sub {})
         field-value (get form-data field-key "")
         display-value (if (and is-time-field? (= (:type attrs) "datetime-local"))
                         (format-datetime-for-input field-value)
-                        (str field-value))
-        base-change-handler (fn [e] 
+                        (str field-value))]
+    (when (nil? form-data-sub)
+      (println "WARNING: form-data subscription returned nil for field:" field-key))
+    (let [base-change-handler (fn [e] 
                              (let [value (.. e -target -value)]
                                (rf/dispatch [:worksheets/update-modal-form-field field-key value])
                                (when is-time-field?
@@ -170,7 +173,7 @@
                    {:focus {:border-color (if has-error? "#dc3545" "#3b82f6")
                            :box-shadow (if has-error? 
                                          "0 0 0 3px rgba(220, 53, 69, 0.1)"
-                                         "0 0 0 3px rgba(59, 130, 246, 0.1)")}})}))
+                                         "0 0 0 3px rgba(59, 130, 246, 0.1)")}})})))
 
 (defn- render-textarea
   "Render textarea input"
@@ -216,7 +219,9 @@
 (defn- form-fields
   "All form input fields"
   []
-  (let [errors (or @(rf/subscribe [:worksheets/modal-form-errors]) {})]
+  (let [errors-sub @(rf/subscribe [:worksheets/modal-form-errors])
+        errors (or errors-sub {})]
+    (println "form-fields called, errors-sub:" errors-sub "errors:" errors)
     [:div
      [form-field "Serial Number" :worksheet/serial-number errors
       {:type "text" :placeholder "Auto-generated" :disabled true}]
@@ -293,7 +298,43 @@
        :subtitle (if is-new? 
                    (tr/tr :worksheets/modal-add-subtitle)
                    (tr/tr :worksheets/modal-edit-subtitle))}]
-     [form-fields]
+     (let [errors @(rf/subscribe [:worksheets/modal-form-errors])]
+       [:div {:style {:padding "20px"}}
+        [:div (str "Errors: " errors)]
+        [:div "Testing all fields except address:"]
+        [form-field "Serial Number" :worksheet/serial-number errors
+         {:type "text" :placeholder "Auto-generated" :disabled true}]
+        [form-field "Creation Date" :worksheet/creation-date errors
+         {:type "date"}]
+        ;; Temporary simple address field (address search disabled due to compatibility issue)
+        [:div {:style {:margin-bottom "1.5rem"}}
+         [field-label "Address" :worksheet/address-id (contains? errors :worksheet/address-id)]
+         [:div {:style {:padding "10px" :background "#f0f8ff" :border "1px solid #ccc" :border-radius "4px"}}
+          [:div {:style {:font-size "0.875rem" :margin-bottom "5px"}}
+           "Address: " (or (:worksheet/address-name @(rf/subscribe [:worksheets/modal-form-data])) "No address selected")]
+          [:div {:style {:font-size "0.75rem" :color "#666"}}
+           "Note: Address search temporarily disabled - will be fixed in next update"]]
+         (when-let [error (:worksheet/address-id errors)]
+           [:div {:style {:color "#dc3545" :font-size "0.875rem" :margin-top "0.25rem"}}
+            error])]
+        [form-field "Work Type" :worksheet/work-type errors
+         {:type "select" :options [["repair" "Repair"] ["maintenance" "Maintenance"] ["other" "Other"]]}]
+        [form-field "Service Type" :worksheet/service-type errors
+         {:type "select" :options [["normal" "Normal"] ["night" "Night"] ["weekend" "Weekend"] ["holiday" "Holiday"]]}]
+        [form-field "Work Description" :worksheet/work-description errors
+         {:type "textarea" :placeholder "Describe the work to be performed..." :rows 4}]
+        [form-field "Status" :worksheet/status errors
+         {:type "select" :options [["draft" "Draft"] ["in_progress" "In Progress"] ["completed" "Completed"] ["cancelled" "Cancelled"]]}]
+        [form-field "Arrival Time" :worksheet/arrival-time errors
+         {:type "datetime-local"}]
+        [form-field "Departure Time" :worksheet/departure-time errors
+         {:type "datetime-local"}]
+        [form-field "Work Duration (Hours)" :worksheet/work-duration-hours errors
+         {:type "number" :step "1" :placeholder "Auto-calculated from arrival/departure" :disabled true}]
+        [:div {:style {:margin-bottom "1.5rem" :font-size "0.75rem" :color "#6b7280"}}
+         "💡 Work duration is automatically calculated from arrival and departure times (rounded up to nearest full hour)"]
+        [form-field "Notes" :worksheet/notes errors
+         {:type "textarea" :placeholder "Optional notes..." :rows 3}]])
      [modal/modal-footer
       [enhanced-button/enhanced-button
        {:variant :secondary
@@ -319,11 +360,8 @@
 (defn- worksheet-serial-render
   "Custom render function for worksheet serial number column"
   [serial-number row]
-  [:div 
-   [:div {:style {:font-weight "600" :color "#111827" :font-size "0.875rem"}}
-    serial-number]
-   [:div {:style {:color "#6b7280" :font-size "0.75rem" :margin-top "0.25rem"}}
-    (str "Created: " (:worksheet/creation-date row))]])
+  [:div {:style {:font-weight "600" :color "#111827" :font-size "0.875rem"}}
+   serial-number])
 
 (defn- work-type-render
   "Custom render function for work type column with service type"
@@ -483,7 +521,7 @@
 (rf/reg-sub
   :worksheets/modal-form-field
   (fn [db [_ field-key]]
-    (get-in db [:worksheets :modal-form-data field-key])))
+    (get-in db [:worksheets :modal-form-data field-key] nil)))
 
 (rf/reg-event-db
   :worksheets/clear-modal-form
@@ -551,9 +589,8 @@
         
         ;; Worksheets table
         [data-table/server-side-data-table
-         {:headers [{:key :worksheet/serial-number :label (tr/tr :worksheets/table-header-serial) :render worksheet-serial-render :sortable? true}
+         {:headers [{:key :worksheet/serial-number :label (tr/tr :worksheets/table-header-serial) :render worksheet-serial-render :sortable? true :style {:width "200px" :min-width "200px"} :cell-style {:width "200px" :min-width "200px"}}
                     {:key :worksheet/work-type :label (tr/tr :worksheets/table-header-work-type) :render work-type-render :sortable? true}
-                    {:key :worksheet/status :label (tr/tr :worksheets/table-header-status) :render status-render :sortable? true}
                     {:key :worksheet/address-name :label (tr/tr :worksheets/table-header-address) :render address-render :sortable? true}
                     {:key :worksheet/assigned-to-name :label (tr/tr :worksheets/table-header-assigned-to) :render assigned-to-render :sortable? true}]
           :data-source @worksheets-data
