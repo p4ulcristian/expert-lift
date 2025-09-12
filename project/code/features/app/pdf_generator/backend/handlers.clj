@@ -113,6 +113,8 @@
      :materials-used [] ; TODO: Add materials when available
      :notes (or (:notes worksheet) "")
      :date (str (:creation_date worksheet))
+     :technician-signature (:maintainer_signature worksheet)
+     :client-signature (:customer_signature worksheet)
      :workspace-logo-path (get-workspace-logo-path workspace-id)}))
 
 (defn generate-worksheet-pdf

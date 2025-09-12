@@ -300,10 +300,14 @@
       [:div.signature-line ""]
       [:div "Dátum"]]
      [:div.signature-box
-      [:div.signature-line ""]
+      (if client-signature
+        [:img {:src client-signature :style "width: 150px; height: 60px; border: 2px solid #000; object-fit: contain; background: #f9f9f9;"}]
+        [:div.signature-line ""])
       [:div "Átvevő aláírása"]]
      [:div.signature-box
-      [:div.signature-line ""]
+      (if technician-signature
+        [:img {:src technician-signature :style "width: 150px; height: 60px; border: 2px solid #000; object-fit: contain; background: #f9f9f9;"}]
+        [:div.signature-line ""])
       [:div "Szerelő aláírása"]]]
     
     [:div.disclaimer
