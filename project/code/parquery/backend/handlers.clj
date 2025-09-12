@@ -1,11 +1,11 @@
 (ns parquery.backend.handlers
-  (:require [parquery.backend.view :as view]
-            [parquery.backend.query-engine :as query-engine]))
+  (:require [parquery.backend.query-engine :as query-engine]))
 
 (defn parquery-get-handler
-  "Delegates GET requests to view"
+  "Handles GET requests"
   [request]
-  (view/render-html request))
+  {:status 404
+   :body "Not found"})
 
 (defn parquery-post-handler
   "Delegates POST requests to query engine"
