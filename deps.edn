@@ -16,10 +16,10 @@
          
          
          com.draines/postal                           {:mvn/version "2.0.5"}
-         com.openhtmltopdf/openhtmltopdf-core         {:mvn/version "1.0.10"}
-         com.openhtmltopdf/openhtmltopdf-pdfbox       {:mvn/version "1.0.10"}
-         com.openhtmltopdf/openhtmltopdf-rtl-support  {:mvn/version "1.0.10"}
-         com.openhtmltopdf/openhtmltopdf-svg-support  {:mvn/version "1.0.10"}
+         io.github.openhtmltopdf/openhtmltopdf-core         {:mvn/version "1.1.31"}
+         io.github.openhtmltopdf/openhtmltopdf-pdfbox       {:mvn/version "1.1.31"}
+         io.github.openhtmltopdf/openhtmltopdf-rtl-support  {:mvn/version "1.1.31"}
+         io.github.openhtmltopdf/openhtmltopdf-svg-support  {:mvn/version "1.1.31"}
          org.clojars.paul-simple-code/reagent-hickory {:mvn/version "0.3.7-no-escape-string"}
          org.jsoup/jsoup                              {:mvn/version "1.14.3"}
 
