@@ -391,7 +391,9 @@
         sort-config (:sort table-state)
         pagination (:pagination table-state)
         
-        rows (:addresses data-source [])
+        rows (or (:worksheets data-source) 
+                 (:addresses data-source)
+                 [])
         server-pagination (:pagination data-source)
         total-count (:total-count server-pagination 0)]
     

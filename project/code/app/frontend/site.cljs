@@ -3,7 +3,8 @@
    [features.app.zero.frontend.zero :as main]
    [reagent.core :as reagent.core]
    [reagent.dom.client  :as reagent.dom.client]
-   [router.frontend.zero :as router]))
+   [router.frontend.zero :as router]
+   [zero.frontend.re-frame-viewer.view :as re-frame-viewer]))
 
 (def functional-compiler
   (reagent.core/create-compiler {:function-components true}))
@@ -20,4 +21,5 @@
   (reagent.dom.client/render root [#'main/view]))
 
 (defn start-app!  []
+  (re-frame-viewer/init!)
   (render-app!))

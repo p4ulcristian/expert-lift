@@ -3,7 +3,7 @@
             [clojure.string :as str]
             [parquery.frontend.request :as parquery]
             [router.frontend.zero :as router]
-            [zero.frontend.re-frame]
+            [zero.frontend.re-frame :as rf]
             [zero.frontend.react :as zero-react]
             [ui.modal :as modal]
             [ui.form-field :as form-field]
@@ -23,17 +23,18 @@
 
 (defn- load-worksheets-query
   "Execute ParQuery to load worksheets with pagination"
-  [workspace-id loading? worksheets params]
+  [workspace-id params]
   (println "DEBUG load-worksheets-query called with params:" params)
-  (reset! loading? true)
+  (rf/dispatch [:worksheets/set-loading true])
   (parquery/send-queries
    {:queries {:workspace-worksheets/get-paginated params}
     :parquery/context {:workspace-id workspace-id}
     :callback (fn [response]
                (println "DEBUG load-worksheets-query response:" response)
-               (reset! loading? false)
                (let [result (:workspace-worksheets/get-paginated response)]
-                 (reset! worksheets result)))}))
+                 (println "DEBUG: ParQuery result structure:" result)
+                 (println "DEBUG: Worksheets array:" (:worksheets result))
+                 (rf/dispatch [:worksheets/set-data result])))}))
 
 (defn- get-query-type
   "Get appropriate query type for save operation"
@@ -337,117 +338,169 @@
      [:span {:style {:color "#9ca3af" :font-style "italic" :font-size "0.75rem"}}
       "Unassigned"])])
 
-(defn worksheets-table
-  "Worksheets table using server-side data-table component with search, sorting, and pagination"
-  [worksheets loading? on-edit on-delete query-fn]
-  [data-table/server-side-data-table
-   {:headers [{:key :worksheet/serial-number :label "Serial Number" :render worksheet-serial-render :sortable? true}
-              {:key :worksheet/work-type :label "Work Type" :render work-type-render :sortable? true}
-              {:key :worksheet/status :label "Status" :render status-render :sortable? true}
-              {:key :worksheet/address-name :label "Address" :render address-render :sortable? true}
-              {:key :worksheet/assigned-to-name :label "Assigned To" :render assigned-to-render :sortable? true}]
-    :data-source (:worksheets @worksheets [])
-    :loading? @loading?
-    :empty-message "No worksheets found"
-    :id-key :worksheet/id
-    :table-id :worksheets-table
-    :show-search? true
-    :show-pagination? true
-    :query-fn query-fn
-    :on-data-change (fn [result] (reset! worksheets result))
-    :actions [{:key :edit :label "Edit" :variant :primary :on-click on-edit}
-              {:key :delete :label "Delete" :variant :danger 
-               :on-click (fn [row] 
-                          (when (js/confirm "Are you sure you want to delete this worksheet?")
-                            (on-delete (:worksheet/id row))))}]}])
 
-(defn- worksheets-page-header
-  "Page header with title and add button using new UI component"
-  [modal-worksheet modal-is-new?]
-  [page-header/page-header
-   {:title "Worksheets"
-    :description "Manage worksheets for this workspace"
-    :action-button [enhanced-button/enhanced-button
-                    {:variant :success
-                     :on-click (fn [] 
-                                (reset! modal-worksheet {:worksheet/status "draft"
-                                                        :worksheet/work-type ""
-                                                        :worksheet/service-type ""
-                                                        :worksheet/creation-date (.toISOString (js/Date.))})
-                                (reset! modal-is-new? true))
-                     :text "+ Add New Worksheet"}]}])
 
-(defn- worksheets-content
-  "Main content area with server-side data table"
-  [worksheets loading? modal-worksheet modal-is-new? delete-worksheet query-fn]
-  [worksheets-table 
-   worksheets 
-   loading?
-   (fn [worksheet]
-     (reset! modal-worksheet worksheet)
-     (reset! modal-is-new? false))
-   delete-worksheet
-   query-fn])
+;; Re-frame events and subscriptions
+(rf/reg-sub
+  :worksheets/data
+  (fn [db _]
+    (get-in db [:worksheets :data] {:worksheets [] :pagination {}})))
 
-(defn- modal-when-open
-  "Render modal when worksheet is selected"
-  [modal-worksheet modal-is-new? save-worksheet]
-  (when @modal-worksheet
-    [worksheet-modal @modal-worksheet @modal-is-new? save-worksheet
-     (fn [] (reset! modal-worksheet nil))]))
+(rf/reg-sub
+  :worksheets/loading?
+  (fn [db _]
+    (get-in db [:worksheets :loading?] false)))
+
+(rf/reg-sub
+  :worksheets/modal-worksheet
+  (fn [db _]
+    (get-in db [:worksheets :modal-worksheet] nil)))
+
+(rf/reg-sub
+  :worksheets/modal-is-new?
+  (fn [db _]
+    (get-in db [:worksheets :modal-is-new?] false)))
+
+(rf/reg-sub
+  :worksheets/authenticated?
+  (fn [db _]
+    (get-in db [:worksheets :authenticated?] nil)))
+
+(rf/reg-event-db
+  :worksheets/set-loading
+  (fn [db [loading?]]
+    (assoc-in db [:worksheets :loading?] loading?)))
+
+(rf/reg-event-db
+  :worksheets/set-data
+  (fn [db [data]]
+    (-> db
+        (assoc-in [:worksheets :data] data)
+        (assoc-in [:worksheets :loading?] false))))
+
+(rf/reg-event-db
+  :worksheets/set-modal-worksheet
+  (fn [db [worksheet]]
+    (assoc-in db [:worksheets :modal-worksheet] worksheet)))
+
+(rf/reg-event-db
+  :worksheets/set-modal-is-new
+  (fn [db [is-new?]]
+    (assoc-in db [:worksheets :modal-is-new?] is-new?)))
+
+(rf/reg-event-db
+  :worksheets/set-authenticated
+  (fn [db [authenticated?]]
+    (assoc-in db [:worksheets :authenticated?] authenticated?)))
+
+(rf/reg-event-db
+  :worksheets/close-modal
+  (fn [db _]
+    (assoc-in db [:worksheets :modal-worksheet] nil)))
+
+;; Event to load worksheets
+(rf/reg-event-db
+  :worksheets/load-data
+  (fn [db [params]]
+    (let [workspace-id (get-workspace-id)]
+      (load-worksheets-query workspace-id (or params {}))
+      db)))
+
+;; Event to handle authentication check
+(rf/reg-event-db
+  :worksheets/check-authentication
+  (fn [db _]
+    (parquery/send-queries
+     {:queries {:user/current {}}
+      :parquery/context {}
+      :callback (fn [response]
+                 (let [user (:user/current response)]
+                   (if (and user (:user/id user))
+                     (do 
+                       (rf/dispatch [:worksheets/set-authenticated true])
+                       (when (empty? (:worksheets (get-in db [:worksheets :data]) []))
+                         (rf/dispatch [:worksheets/load-data {}])))
+                     (rf/dispatch [:worksheets/set-authenticated false]))))})
+    db))
 
 (defn view []
-  (let [authenticated? (r/atom nil)  ; nil = checking, true = authenticated, false = not authenticated
+  (let [authenticated? @(rf/subscribe [:worksheets/authenticated?])
+        worksheets-data @(rf/subscribe [:worksheets/data])
+        loading? @(rf/subscribe [:worksheets/loading?])
+        modal-worksheet @(rf/subscribe [:worksheets/modal-worksheet])
+        modal-is-new? @(rf/subscribe [:worksheets/modal-is-new?])
+        
         workspace-id (get-workspace-id)
-        worksheets (r/atom [])
-        loading? (r/atom false)
-        modal-worksheet (r/atom nil)
-        modal-is-new? (r/atom false)
         
         load-worksheets (fn [params]
-                        (load-worksheets-query workspace-id loading? worksheets (or params {})))
+                        (rf/dispatch [:worksheets/load-data params]))
         
         save-worksheet (fn [worksheet callback]
-                       (save-worksheet-query worksheet workspace-id modal-is-new? 
-                                          callback modal-worksheet (fn [] (load-worksheets {}))))
+                       (save-worksheet-query worksheet workspace-id (r/atom modal-is-new?) 
+                                          callback (r/atom modal-worksheet) (fn [] (load-worksheets {}))))
         
         delete-worksheet (fn [worksheet-id]
                          (delete-worksheet-query worksheet-id workspace-id (fn [] (load-worksheets {}))))]
     
-    (fn []
-      ;; Call useEffect hook inside the render function
-      (zero-react/use-effect
-        {:mount (fn [] 
-                  ;; Check authentication first
-                  (parquery/send-queries
-                   {:queries {:user/current {}}
-                    :parquery/context {}
-                    :callback (fn [response]
-                               (let [user (:user/current response)]
-                                 (if (and user (:user/id user))
-                                   (do 
-                                     (reset! authenticated? true)
-                                     ;; Load initial worksheets after authentication is confirmed  
-                                     (when (or (empty? @worksheets) 
-                                              (empty? (:worksheets @worksheets []))) 
-                                       (load-worksheets {})))
-                                   (reset! authenticated? false))))}))
-         :params #js[]})
+    ;; Initialize authentication check on mount
+    (zero-react/use-effect
+      {:mount (fn []
+                (rf/dispatch [:worksheets/check-authentication]))
+       :params #js[]})
+    
+    (cond
+      (nil? authenticated?)
+      [:div {:style {:padding "2rem" :text-align "center"}}
+       [:div "Checking authentication..."]]
       
-      (cond
-        (nil? @authenticated?)
-        [:div {:style {:padding "2rem" :text-align "center"}}
-         [:div "Checking authentication..."]]
+      (false? authenticated?)
+      (do 
+        (println "User not authenticated, redirecting to login")
+        (set! (.-location js/window) "/login")
+        [:div])
+      
+      :else
+      [:div {:style {:min-height "100vh" :background "#f9fafb"}}
+       [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
+        ;; Page header with modal controls
+        [page-header/page-header
+         {:title "Worksheets"
+          :description "Manage worksheets for this workspace"
+          :action-button [enhanced-button/enhanced-button
+                          {:variant :success
+                           :on-click (fn [] 
+                                      (rf/dispatch [:worksheets/set-modal-worksheet {:worksheet/status "draft"
+                                                                                    :worksheet/work-type ""
+                                                                                    :worksheet/service-type ""
+                                                                                    :worksheet/creation-date (.toISOString (js/Date.))}])
+                                      (rf/dispatch [:worksheets/set-modal-is-new true]))
+                           :text "+ Add New Worksheet"}]}]
         
-        (false? @authenticated?)
-        (do 
-          (println "User not authenticated, redirecting to login")
-          (set! (.-location js/window) "/login")
-          [:div])
+        ;; Worksheets table
+        [data-table/server-side-data-table
+         {:headers [{:key :worksheet/serial-number :label "Serial Number" :render worksheet-serial-render :sortable? true}
+                    {:key :worksheet/work-type :label "Work Type" :render work-type-render :sortable? true}
+                    {:key :worksheet/status :label "Status" :render status-render :sortable? true}
+                    {:key :worksheet/address-name :label "Address" :render address-render :sortable? true}
+                    {:key :worksheet/assigned-to-name :label "Assigned To" :render assigned-to-render :sortable? true}]
+          :data-source worksheets-data
+          :loading? loading?
+          :empty-message "No worksheets found"
+          :id-key :worksheet/id
+          :table-id :worksheets-table
+          :show-search? true
+          :show-pagination? true
+          :query-fn load-worksheets
+          :actions [{:key :edit :label "Edit" :variant :primary 
+                     :on-click (fn [worksheet]
+                                (rf/dispatch [:worksheets/set-modal-worksheet worksheet])
+                                (rf/dispatch [:worksheets/set-modal-is-new false]))}
+                    {:key :delete :label "Delete" :variant :danger 
+                     :on-click (fn [row] 
+                                (when (js/confirm "Are you sure you want to delete this worksheet?")
+                                  (delete-worksheet (:worksheet/id row))))}]}]
         
-        :else
-        [:div {:style {:min-height "100vh" :background "#f9fafb"}}
-         [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
-          [worksheets-page-header modal-worksheet modal-is-new?]
-          [worksheets-content worksheets loading? modal-worksheet modal-is-new? delete-worksheet load-worksheets]
-          [modal-when-open modal-worksheet modal-is-new? save-worksheet]]]))))
+        ;; Modal when open
+        (when modal-worksheet
+          [worksheet-modal modal-worksheet modal-is-new? save-worksheet
+           (fn [] (rf/dispatch [:worksheets/close-modal]))])]])))
