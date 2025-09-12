@@ -13,12 +13,12 @@
 
 (rf/reg-event-db
   :ui/address-search-set-state
-  (fn [db [component-id state]]
+  (fn [db [_ component-id state]]
     (assoc-in db [:ui :address-search component-id] state)))
 
 (rf/reg-event-db
   :ui/address-search-update
-  (fn [db [component-id key value]]
+  (fn [db [_ component-id key value]]
     (assoc-in db [:ui :address-search component-id key] value)))
 
 ;; Debounced search function
@@ -50,47 +50,34 @@
 (defn address-search-dropdown
   "Searchable address dropdown component"
   [{:keys [component-id workspace-id value on-select placeholder disabled]}]
-  (let [state @(rf/subscribe [:ui/address-search component-id])
-        search-term (or (:search-term state) "")
-        addresses (or (:addresses state) [])
-        loading? (or (:loading? state) false)
-        show-dropdown? (or (:show-dropdown? state) false)
-        selected-address (:selected-address state)]
-    
-    ;; Initialize state if not exists
-    (react/useEffect
-      (fn []
-        (when (not state)
-          (rf/dispatch [:ui/address-search-set-state component-id
-                        {:search-term ""
-                         :addresses []
-                         :loading? false
-                         :show-dropdown? false
-                         :selected-address value}]))
-        nil)
-      #js [])
-    
-    ;; Update selected address when value prop changes
-    (react/useEffect
-      (fn []
-        (when (and value (not= value selected-address))
-          (rf/dispatch [:ui/address-search-update component-id :selected-address value]))
-        nil)
-      #js [value])
-    
-    ;; Search effect
-    (react/useEffect
-      (fn []
-        (when (and workspace-id (seq search-term) (>= (count search-term) 1))
-          (rf/dispatch [:ui/address-search-update component-id :loading? true])
-          (debounced-search-addresses 
-            search-term 
-            workspace-id
-            (fn [results]
-              (rf/dispatch [:ui/address-search-update component-id :addresses results])
-              (rf/dispatch [:ui/address-search-update component-id :loading? false]))))
-        nil)
-      #js [search-term workspace-id])
+  ;; Initialize state on first render
+  (when-not @(rf/subscribe [:ui/address-search component-id])
+    (rf/dispatch [:ui/address-search-set-state component-id
+                  {:search-term ""
+                   :addresses []
+                   :loading? false
+                   :show-dropdown? false
+                   :selected-address (or value {})}]))
+  
+  (fn [{:keys [component-id workspace-id value on-select placeholder disabled]}]
+    (let [state @(rf/subscribe [:ui/address-search component-id])
+          search-term (or (:search-term state) "")
+          addresses (or (:addresses state) [])
+          loading? (or (:loading? state) false)
+          show-dropdown? (or (:show-dropdown? state) false)
+          selected-address (or (:selected-address state) value)]
+      
+      (println "DEBUG: address-search component rendering:")
+      (println "  component-id:" component-id)
+      (println "  workspace-id:" workspace-id)
+      (println "  value:" value)
+      (println "  state:" state)
+      (println "  search-term:" search-term)
+      (println "  selected-address:" selected-address)
+      
+      ;; Update selected address when value prop changes
+      (when (and value (not= value selected-address))
+        (rf/dispatch [:ui/address-search-update component-id :selected-address value]))
     
     [:div {:class "address-search-container" :style {:position "relative" :width "100%"}}
      
@@ -102,7 +89,18 @@
               :on-change (fn [e]
                            (let [new-term (-> e .-target .-value)]
                              (rf/dispatch [:ui/address-search-update component-id :search-term new-term])
-                             (rf/dispatch [:ui/address-search-update component-id :show-dropdown? (seq new-term)])))
+                             (rf/dispatch [:ui/address-search-update component-id :show-dropdown? (seq new-term)])
+                             ;; Trigger search if conditions are met
+                             (when (and workspace-id 
+                                       (seq new-term) 
+                                       (>= (count new-term) 1))
+                               (rf/dispatch [:ui/address-search-update component-id :loading? true])
+                               (debounced-search-addresses 
+                                 new-term 
+                                 workspace-id
+                                 (fn [results]
+                                   (rf/dispatch [:ui/address-search-update component-id :addresses results])
+                                   (rf/dispatch [:ui/address-search-update component-id :loading? false]))))))
               :on-focus (fn [_]
                           (rf/dispatch [:ui/address-search-update component-id :show-dropdown? true]))
               :on-blur (fn [_]
@@ -175,4 +173,4 @@
                          :border-bottom "1px solid #eee"}}
            [:div {:style {:font-weight "500"}} (:address/name address)]
            [:div {:style {:font-size "12px" :color "#666"}} 
-            (str (:address/address-line1 address) ", " (:address/city address))]]) ])]))
+            (str (:address/address-line1 address) ", " (:address/city address))]]) ])])))

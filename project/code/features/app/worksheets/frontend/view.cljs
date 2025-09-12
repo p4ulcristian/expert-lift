@@ -194,12 +194,42 @@
      ^{:key value}
      [:option {:value value} label])])
 
+(defn- render-address-select
+  "Render address dropdown that loads addresses from workspace"
+  [field-key has-error? attrs]
+  (let [workspace-id (:workspace-id attrs)
+        addresses (r/atom [])
+        loading? (r/atom false)]
+    
+    ;; Load addresses when component mounts
+    (when workspace-id
+      (reset! loading? true)
+      (parquery/send-queries
+        {:queries {:workspace-addresses/get-all {:workspace-id workspace-id}}
+         :parquery/context {:workspace-id workspace-id}
+         :callback (fn [response]
+                     (reset! loading? false)
+                     (let [addr-list (:workspace-addresses/get-all response [])]
+                       (println "DEBUG: Loaded addresses:" (count addr-list))
+                       (reset! addresses addr-list)))}))
+    
+    (fn [field-key has-error? attrs]
+      [:select (merge (input-base-props field-key has-error? attrs) 
+                      (dissoc attrs :workspace-id :current-value))
+       [:option {:value ""} 
+        (if @loading? "Loading addresses..." "Select address...")]
+       (for [address @addresses]
+         ^{:key (:address/id address)}
+         [:option {:value (:address/id address)} 
+          (:address/name address)])])))
+
 (defn- field-input
   "Render appropriate input type"
   [field-key has-error? attrs]
   (cond
     (= (:type attrs) "textarea") (render-textarea field-key has-error? attrs)
     (= (:type attrs) "select") (render-select field-key has-error? attrs (:options attrs))
+    (= (:type attrs) "address-select") [render-address-select field-key has-error? attrs]
     :else (render-text-input field-key has-error? attrs)))
 
 (defn- field-error [error-msg]
@@ -228,21 +258,7 @@
      [form-field "Creation Date" :worksheet/creation-date errors
       {:type "date"}]
      
-     ;; Address search field
-     [:div {:style {:margin-bottom "1.5rem"}}
-      [field-label "Address" :worksheet/address-id (contains? errors :worksheet/address-id)]
-      [address-search/address-search-dropdown
-       {:component-id :worksheet-form-address
-        :workspace-id (get-workspace-id)
-        :value (or @(rf/subscribe [:worksheets/modal-form-field :worksheet/address]) {})
-        :on-select (fn [address]
-                     (rf/dispatch [:worksheets/modal-form-set-field :worksheet/address address])
-                     (rf/dispatch [:worksheets/modal-form-set-field :worksheet/address-id (:address/id address)]))
-        :placeholder "Type to search addresses..."
-        :disabled false}]
-      (when-let [error (:worksheet/address-id errors)]
-        [:div {:style {:color "#dc3545" :font-size "0.875rem" :margin-top "0.25rem"}}
-         error])]
+     ;; Address search field - using the working version below in modal-form-content
          
      [form-field "Work Type" :worksheet/work-type errors
       {:type "select" :options [["repair" "Repair"] ["maintenance" "Maintenance"] ["other" "Other"]]}]
@@ -306,17 +322,13 @@
          {:type "text" :placeholder "Auto-generated" :disabled true}]
         [form-field "Creation Date" :worksheet/creation-date errors
          {:type "date"}]
-        ;; Temporary simple address field (address search disabled due to compatibility issue)
-        [:div {:style {:margin-bottom "1.5rem"}}
-         [field-label "Address" :worksheet/address-id (contains? errors :worksheet/address-id)]
-         [:div {:style {:padding "10px" :background "#f0f8ff" :border "1px solid #ccc" :border-radius "4px"}}
-          [:div {:style {:font-size "0.875rem" :margin-bottom "5px"}}
-           "Address: " (or (:worksheet/address-name @(rf/subscribe [:worksheets/modal-form-data])) "No address selected")]
-          [:div {:style {:font-size "0.75rem" :color "#666"}}
-           "Note: Address search temporarily disabled - will be fixed in next update"]]
-         (when-let [error (:worksheet/address-id errors)]
-           [:div {:style {:color "#dc3545" :font-size "0.875rem" :margin-top "0.25rem"}}
-            error])]
+        ;; Simple address dropdown field
+        (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
+              workspace-id (get-workspace-id)]
+          [form-field "Address" :worksheet/address-id errors
+           {:type "address-select"
+            :workspace-id workspace-id
+            :current-value (:worksheet/address-id form-data)}])
         [form-field "Work Type" :worksheet/work-type errors
          {:type "select" :options [["repair" "Repair"] ["maintenance" "Maintenance"] ["other" "Other"]]}]
         [form-field "Service Type" :worksheet/service-type errors
