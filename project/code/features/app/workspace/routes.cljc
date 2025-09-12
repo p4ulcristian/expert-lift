@@ -1,6 +1,6 @@
 (ns features.app.workspace.routes
   #?(:cljs (:require [features.app.workspace.frontend.view :as workspace]
-                     [features.app.workspace.material-templates.frontend.view :as material-templates]))
+                     [features.app.material-templates.frontend.view :as material-templates]))
   #?(:clj  (:require [features.app.zero.backend.view :as backend-view])))
 
 (def workspace-path "/app/:workspace-id")

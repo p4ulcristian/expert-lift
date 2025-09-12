@@ -1,4 +1,4 @@
-(ns features.app.workspace.material-templates.frontend.view
+(ns features.app.material-templates.frontend.view
   (:require [reagent.core :as r]
             [clojure.string :as str]
             [parquery.frontend.request :as parquery]

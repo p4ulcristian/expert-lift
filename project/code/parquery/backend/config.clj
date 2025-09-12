@@ -3,7 +3,7 @@
    [users.backend.resolvers :as users]
    [users.backend.db :as user-db]
    [workspaces.backend.db :as workspace-db]
-   [features.app.workspace.material-templates.backend.db :as material-templates-db]))
+   [features.app.material-templates.backend.db :as material-templates-db]))
 
 ;; Error handling helpers
 (defn parse-db-error

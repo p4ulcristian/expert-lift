@@ -1,4 +1,4 @@
-(ns features.app.workspace.material-templates.backend.db
+(ns features.app.material-templates.backend.db
   (:require [zero.backend.state.postgres :as postgres]))
 
 (defn get-material-templates-by-workspace
