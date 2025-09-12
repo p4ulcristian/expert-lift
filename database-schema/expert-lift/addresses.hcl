@@ -65,9 +65,21 @@ table "addresses" {
     type = timestamptz
     default = sql("now()")
   }
+
+  column "workspace_id" {
+    null = false
+    type = uuid
+  }
   
   primary_key {
     columns = [column.id]
+  }
+
+  foreign_key "addresses_workspace_fk" {
+    columns     = [column.workspace_id]
+    ref_columns = [table.workspaces.column.id]
+    on_update   = CASCADE
+    on_delete   = CASCADE
   }
   
   index "addresses_name_idx" {

@@ -3,7 +3,8 @@
    [users.backend.resolvers :as users]
    [users.backend.db :as user-db]
    [workspaces.backend.db :as workspace-db]
-   [features.app.material-templates.backend.db :as material-templates-db]))
+   [features.app.material-templates.backend.db :as material-templates-db]
+   [features.app.addresses.backend.db :as addresses-db]))
 
 ;; Error handling helpers
 (defn parse-db-error
@@ -377,6 +378,156 @@
         {:success false :error "No workspace context"}))
     {:success false :error "Insufficient permissions"}))
 
+;; Workspace Addresses Handlers
+(defn get-workspace-addresses
+  "Get all addresses for workspace"
+  [{:parquery/keys [context request] :as params}]
+  (let [workspace-id (:workspace-id context)]
+    (if workspace-id
+      (try
+        (let [addresses (addresses-db/get-addresses-by-workspace workspace-id)]
+          (mapv (fn [address]
+                 {:address/id (str (:id address))
+                  :address/name (:name address)
+                  :address/address-line1 (:address_line1 address)
+                  :address/address-line2 (:address_line2 address)
+                  :address/city (:city address)
+                  :address/postal-code (:postal_code address)
+                  :address/country (:country address)
+                  :address/contact-person (:contact_person address)
+                  :address/contact-phone (:contact_phone address)
+                  :address/contact-email (:contact_email address)
+                  :address/workspace-id (str (:workspace_id address))
+                  :address/created-at (str (:created_at address))
+                  :address/updated-at (str (:updated_at address))})
+               addresses))
+        (catch Exception e
+          (println "ERROR: get-workspace-addresses failed:" (.getMessage e))
+          []))
+      (do
+        (println "ERROR: No workspace-id in context")
+        []))))
+
+(defn get-workspace-address-by-id
+  "Get single address by ID within workspace"
+  [{:parquery/keys [context request] :as params}]
+  (let [workspace-id (:workspace-id context)
+        address-id (:address/id params)]
+    (if (and address-id workspace-id)
+      (try
+        (let [address (first (addresses-db/get-address-by-id address-id workspace-id))]
+          (when address
+            {:address/id (str (:id address))
+             :address/name (:name address)
+             :address/address-line1 (:address_line1 address)
+             :address/address-line2 (:address_line2 address)
+             :address/city (:city address)
+             :address/postal-code (:postal_code address)
+             :address/country (:country address)
+             :address/contact-person (:contact_person address)
+             :address/contact-phone (:contact_phone address)
+             :address/contact-email (:contact_email address)
+             :address/workspace-id (str (:workspace_id address))
+             :address/created-at (str (:created_at address))
+             :address/updated-at (str (:updated_at address))}))
+        (catch Exception e
+          (println "ERROR: get-workspace-address-by-id failed:" (.getMessage e))
+          nil))
+      nil)))
+
+(defn create-workspace-address
+  "Create new address in workspace (admin+ only)"
+  [{:parquery/keys [context request] :as params}]
+  (if (has-admin-role? request)
+    (let [workspace-id (:workspace-id context)
+          name (:address/name params)
+          address-line1 (:address/address-line1 params)
+          address-line2 (:address/address-line2 params)
+          city (:address/city params)
+          postal-code (:address/postal-code params)
+          country (:address/country params)
+          contact-person (:address/contact-person params)
+          contact-phone (:address/contact-phone params)
+          contact-email (:address/contact-email params)]
+      (if workspace-id
+        (try
+          (println "DEBUG: Attempting to create address with workspace-id:" workspace-id)
+          (let [result (first (addresses-db/create-address workspace-id name address-line1 address-line2 city postal-code country contact-person contact-phone contact-email))]
+            (println "DEBUG: Address created successfully:" result)
+            {:address/id (str (:id result))
+             :address/name (:name result)
+             :address/address-line1 (:address_line1 result)
+             :address/address-line2 (:address_line2 result)
+             :address/city (:city result)
+             :address/postal-code (:postal_code result)
+             :address/country (:country result)
+             :address/contact-person (:contact_person result)
+             :address/contact-phone (:contact_phone result)
+             :address/contact-email (:contact_email result)
+             :address/workspace-id (str (:workspace_id result))
+             :address/created-at (str (:created_at result))
+             :address/updated-at (str (:updated_at result))
+             :success true})
+          (catch Exception e
+            (println "Error creating workspace address:" (.getMessage e))
+            {:success false :error (parse-db-error (.getMessage e))}))
+        {:success false :error "No workspace context"}))
+    {:success false :error "Insufficient permissions"}))
+
+(defn update-workspace-address
+  "Update existing address in workspace (admin+ only)"
+  [{:parquery/keys [context request] :as params}]
+  (if (has-admin-role? request)
+    (let [workspace-id (:workspace-id context)
+          id (:address/id params)
+          name (:address/name params)
+          address-line1 (:address/address-line1 params)
+          address-line2 (:address/address-line2 params)
+          city (:address/city params)
+          postal-code (:address/postal-code params)
+          country (:address/country params)
+          contact-person (:address/contact-person params)
+          contact-phone (:address/contact-phone params)
+          contact-email (:address/contact-email params)]
+      (if workspace-id
+        (try
+          (let [result (first (addresses-db/update-address id workspace-id name address-line1 address-line2 city postal-code country contact-person contact-phone contact-email))]
+            {:address/id (str (:id result))
+             :address/name (:name result)
+             :address/address-line1 (:address_line1 result)
+             :address/address-line2 (:address_line2 result)
+             :address/city (:city result)
+             :address/postal-code (:postal_code result)
+             :address/country (:country result)
+             :address/contact-person (:contact_person result)
+             :address/contact-phone (:contact_phone result)
+             :address/contact-email (:contact_email result)
+             :address/workspace-id (str (:workspace_id result))
+             :address/created-at (str (:created_at result))
+             :address/updated-at (str (:updated_at result))
+             :success true})
+          (catch Exception e
+            (println "Error updating workspace address:" (.getMessage e))
+            {:success false :error (parse-db-error (.getMessage e))}))
+        {:success false :error "No workspace context"}))
+    {:success false :error "Insufficient permissions"}))
+
+(defn delete-workspace-address
+  "Delete address from workspace (admin+ only)"
+  [{:parquery/keys [context request] :as params}]
+  (if (has-admin-role? request)
+    (let [workspace-id (:workspace-id context)
+          address-id (:address/id params)]
+      (if workspace-id
+        (try
+          (addresses-db/delete-address address-id workspace-id)
+          {:success true :address/id address-id}
+          (catch Exception e
+            (println "Error deleting workspace address:" (.getMessage e))
+            {:success false :error (parse-db-error (.getMessage e))}))
+        {:success false :error "No workspace context"}))
+    {:success false :error "Insufficient permissions"}))
+
 ;; Query mappings to functions
 (def read-queries
   "Read operations - mapped to handler functions"
@@ -386,7 +537,9 @@
    :workspaces/get-by-id #'get-workspace-by-id
    :current-user/basic-data #'get-current-user
    :workspace-material-templates/get-all #'get-workspace-material-templates
-   :workspace-material-templates/get-by-id #'get-workspace-material-template-by-id})
+   :workspace-material-templates/get-by-id #'get-workspace-material-template-by-id
+   :workspace-addresses/get-all #'get-workspace-addresses
+   :workspace-addresses/get-by-id #'get-workspace-address-by-id})
 
 (def write-queries
   "Write operations - mapped to handler functions"  
@@ -400,7 +553,10 @@
    :workspaces/delete #'delete-workspace
    :workspace-material-templates/create #'create-workspace-material-template
    :workspace-material-templates/update #'update-workspace-material-template
-   :workspace-material-templates/delete #'delete-workspace-material-template})
+   :workspace-material-templates/delete #'delete-workspace-material-template
+   :workspace-addresses/create #'create-workspace-address
+   :workspace-addresses/update #'update-workspace-address
+   :workspace-addresses/delete #'delete-workspace-address})
 
 (defn get-query-type
   "Returns query type based on config"
