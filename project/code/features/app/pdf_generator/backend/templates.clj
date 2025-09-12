@@ -62,7 +62,8 @@
            notes
            date
            technician-signature
-           client-signature]}]
+           client-signature
+           workspace-logo-path]}]
   [:html
    [:head
     [:meta {:charset "UTF-8"}]
@@ -222,8 +223,9 @@
    [:body
     [:div.header
      [:div.title "MUNKALAP"]
-     (when-let [logo-data (encode-image-to-base64 "project/resources/public/logo/logo.png")]
-       [:img.logo {:src logo-data}])]
+     (let [logo-path (or workspace-logo-path "project/resources/public/logo/logo.png")]
+       (when-let [logo-data (encode-image-to-base64 logo-path)]
+         [:img.logo {:src logo-data}]))]
     
     [:div.form-row
      [:label "Intézmény neve:"]

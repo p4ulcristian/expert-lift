@@ -3,6 +3,7 @@
   (:require
    [features.app.pdf-generator.backend.pdf :as pdf]
    [features.app.worksheets.backend.db :as worksheets-db]
+   [features.app.settings.backend.db :as settings-db]
    [malli.core :as m]))
 
 (def work-report-schema
@@ -26,10 +27,31 @@
                    {:data data
                     :errors (m/explain work-report-schema data)}))))
 
+(defn- get-workspace-logo-path
+  "Get workspace logo file path if it exists"
+  [workspace-id]
+  (try
+    (let [upload-base-dir (or (System/getenv "EXPERT_LIFT_UPLOAD_DIR") "uploads")
+          extensions ["jpg" "jpeg" "png" "gif"]]
+      (loop [exts extensions]
+        (if (empty? exts)
+          nil
+          (let [ext (first exts)
+                file-path (str upload-base-dir "/logos/" workspace-id "." ext)
+                logo-file (java.io.File. file-path)]
+            (if (.exists logo-file)
+              file-path
+              (recur (rest exts)))))))
+    (catch Exception e
+      (println "Error checking workspace logo:" (.getMessage e))
+      nil)))
+
 (defn generate-work-report
   "Generate work report PDF"
   [{:parquery/keys [context request] :as params}]
-  (let [work-report-data (dissoc params :parquery/context :parquery/request)]
+  (let [workspace-id (:workspace-id context)
+        work-report-data (-> (dissoc params :parquery/context :parquery/request)
+                           (assoc :workspace-logo-path (get-workspace-logo-path workspace-id)))]
     (validate-work-report-data work-report-data)
     (pdf/generate-work-report-pdf work-report-data)))
 
@@ -70,7 +92,7 @@
 
 (defn- worksheet-to-work-report-data
   "Convert worksheet database record to work report format for PDF generation"
-  [worksheet]
+  [worksheet workspace-id]
   (let [work-type-mapping {"repair" "normal"
                           "maintenance" "normal" 
                           "other" "normal"}
@@ -90,7 +112,8 @@
      :work-description (or (:work_description worksheet) "")
      :materials-used [] ; TODO: Add materials when available
      :notes (or (:notes worksheet) "")
-     :date (str (:creation_date worksheet))}))
+     :date (str (:creation_date worksheet))
+     :workspace-logo-path (get-workspace-logo-path workspace-id)}))
 
 (defn generate-worksheet-pdf
   "Generate PDF for worksheet"
@@ -107,7 +130,7 @@
             (println "DEBUG: arrival_time value:" (:arrival_time worksheet) "type:" (type (:arrival_time worksheet)))
             (println "DEBUG: departure_time value:" (:departure_time worksheet) "type:" (type (:departure_time worksheet)))
             (println "DEBUG: work_duration_hours:" (:work_duration_hours worksheet))
-            (let [work-report-data (worksheet-to-work-report-data worksheet)]
+            (let [work-report-data (worksheet-to-work-report-data worksheet workspace-id)]
               (println "DEBUG: work-report-data for PDF:" work-report-data)
               (pdf/generate-work-report-pdf work-report-data)))
           (throw (ex-info "Worksheet not found" {:worksheet-id worksheet-id :workspace-id workspace-id}))))
