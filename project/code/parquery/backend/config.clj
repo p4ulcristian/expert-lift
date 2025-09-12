@@ -701,7 +701,9 @@
           assigned-to-user-id (:worksheet/assigned-to-user-id params)
           arrival-time (:worksheet/arrival-time params)
           departure-time (:worksheet/departure-time params)
-          work-duration-hours (:worksheet/work-duration-hours params)]
+          work-duration-hours (:worksheet/work-duration-hours params)
+          maintainer-signature (:worksheet/maintainer-signature params)
+          customer-signature (:worksheet/customer-signature params)]
       (if workspace-id
         (try
           (println "DEBUG: Attempting to create worksheet with workspace-id:" workspace-id)
@@ -709,7 +711,8 @@
                                                              work-type service-type work-description
                                                              nil notes status address-id elevator-id 
                                                              user-id assigned-to-user-id
-                                                             arrival-time departure-time work-duration-hours))]
+                                                             arrival-time departure-time work-duration-hours
+                                                             maintainer-signature customer-signature))]
             (println "DEBUG: Worksheet created successfully:" result)
             {:worksheet/id (str (:id result))
              :worksheet/serial-number (:serial_number result)
@@ -747,14 +750,17 @@
           assigned-to-user-id (:worksheet/assigned-to-user-id params)
           arrival-time (:worksheet/arrival-time params)
           departure-time (:worksheet/departure-time params)
-          work-duration-hours (:worksheet/work-duration-hours params)]
+          work-duration-hours (:worksheet/work-duration-hours params)
+          maintainer-signature (:worksheet/maintainer-signature params)
+          customer-signature (:worksheet/customer-signature params)]
       (if workspace-id
         (try
           (let [result (first (worksheets-db/update-worksheet id workspace-id serial-number creation-date 
                                                              work-type service-type work-description
                                                              nil notes status address-id elevator-id 
                                                              assigned-to-user-id
-                                                             arrival-time departure-time work-duration-hours))]
+                                                             arrival-time departure-time work-duration-hours
+                                                             maintainer-signature customer-signature))]
             {:worksheet/id (str (:id result))
              :worksheet/serial-number (:serial_number result)
              :worksheet/creation-date (str (:creation_date result))

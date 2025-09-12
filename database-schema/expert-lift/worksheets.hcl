@@ -71,10 +71,16 @@ table "worksheets" {
     type = varchar(500)
   }
   
-  column "signature_data" {
+  column "maintainer_signature" {
     null = true
     type = text
-    comment = "Digital signature data"
+    comment = "Base64 encoded maintainer signature data URL"
+  }
+  
+  column "customer_signature" {
+    null = true
+    type = text
+    comment = "Base64 encoded customer signature data URL"
   }
   
   column "created_by_user_id" {

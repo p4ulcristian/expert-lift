@@ -138,24 +138,26 @@
   "Create new worksheet in workspace"
   [workspace-id serial-number creation-date work-type service-type work-description 
    material-usage notes status address-id elevator-id created-by-user-id assigned-to-user-id 
-   arrival-time departure-time work-duration-hours]
+   arrival-time departure-time work-duration-hours maintainer-signature customer-signature]
   (let [calculated-duration (or (calculate-work-duration arrival-time departure-time) work-duration-hours)]
     (postgres/execute-sql 
      "INSERT INTO expert_lift.worksheets 
       (serial_number, creation_date, work_type, service_type, work_description, 
        material_usage, notes, status, address_id, elevator_id, created_by_user_id, 
-       assigned_to_user_id, arrival_time, departure_time, work_duration_hours) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) 
+       assigned_to_user_id, arrival_time, departure_time, work_duration_hours, 
+       maintainer_signature, customer_signature) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) 
       RETURNING *"
      {:params [serial-number creation-date work-type service-type work-description
                material-usage notes status address-id elevator-id created-by-user-id
-               assigned-to-user-id arrival-time departure-time calculated-duration]})))
+               assigned-to-user-id arrival-time departure-time calculated-duration
+               maintainer-signature customer-signature]})))
 
 (defn update-worksheet
   "Update existing worksheet (within workspace)"
   [worksheet-id workspace-id serial-number creation-date work-type service-type work-description 
    material-usage notes status address-id elevator-id assigned-to-user-id 
-   arrival-time departure-time work-duration-hours]
+   arrival-time departure-time work-duration-hours maintainer-signature customer-signature]
   (let [calculated-duration (or (calculate-work-duration arrival-time departure-time) work-duration-hours)]
     (postgres/execute-sql 
      "UPDATE expert_lift.worksheets w
@@ -163,13 +165,14 @@
           work_description = $5, material_usage = $6, notes = $7, status = $8, 
           address_id = $9, elevator_id = $10, assigned_to_user_id = $11, 
           arrival_time = $12, departure_time = $13, work_duration_hours = $14, 
-          updated_at = NOW()
+          maintainer_signature = $15, customer_signature = $16, updated_at = NOW()
       FROM expert_lift.addresses a
-      WHERE w.id = $15 AND w.address_id = a.id AND a.workspace_id = $16
+      WHERE w.id = $17 AND w.address_id = a.id AND a.workspace_id = $18
       RETURNING w.*"
      {:params [serial-number creation-date work-type service-type work-description
                material-usage notes status address-id elevator-id assigned-to-user-id
-               arrival-time departure-time calculated-duration worksheet-id workspace-id]})))
+               arrival-time departure-time calculated-duration maintainer-signature 
+               customer-signature worksheet-id workspace-id]})))
 
 (defn delete-worksheet
   "Delete worksheet (within workspace)"
