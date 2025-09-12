@@ -158,7 +158,6 @@
                                (update-duration-if-needed worksheet)))]
     {:value (str (get @worksheet field-key ""))
      :on-change base-change-handler
-     :disabled (:disabled attrs)
      :style (merge {:width "100%"
                     :padding "0.75rem 1rem"
                     :border (if has-error? "2px solid #dc3545" "1px solid #d1d5db")
