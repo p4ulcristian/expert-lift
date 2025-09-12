@@ -132,14 +132,6 @@
         (println "Error calculating duration:" e)
         nil))))
 
-(defn- update-duration-if-needed
-  "Update work duration when arrival or departure times change"
-  [worksheet]
-  (let [arrival (:worksheet/arrival-time @worksheet)
-        departure (:worksheet/departure-time @worksheet)
-        calculated-duration (calculate-work-duration arrival departure)]
-    (when calculated-duration
-      (swap! worksheet assoc :worksheet/work-duration-hours calculated-duration))))
 
 (defn- field-label [label field-key has-error?]
   [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600"
@@ -151,13 +143,21 @@
 
 (defn- input-base-props
   "Base properties for input fields"
-  [field-key worksheet has-error? attrs]
+  [field-key has-error? attrs]
   (let [is-time-field? (#{:worksheet/arrival-time :worksheet/departure-time} field-key)
+        form-data @(rf/subscribe [:worksheets/modal-form-data])
         base-change-handler (fn [e] 
-                             (swap! worksheet assoc field-key (.. e -target -value))
-                             (when is-time-field?
-                               (update-duration-if-needed worksheet)))]
-    {:value (str (get @worksheet field-key ""))
+                             (let [value (.. e -target -value)]
+                               (rf/dispatch [:worksheets/update-modal-form-field field-key value])
+                               (when is-time-field?
+                                 ;; Auto-calculate duration for time fields
+                                 (let [updated-data (assoc form-data field-key value)
+                                       arrival (:worksheet/arrival-time updated-data)
+                                       departure (:worksheet/departure-time updated-data)
+                                       calculated-duration (calculate-work-duration arrival departure)]
+                                   (when calculated-duration
+                                     (rf/dispatch [:worksheets/update-modal-form-field :worksheet/work-duration-hours calculated-duration]))))))]
+    {:value (str (get form-data field-key ""))
      :on-change base-change-handler
      :style (merge {:width "100%"
                     :padding "0.75rem 1rem"
@@ -180,18 +180,18 @@
 
 (defn- render-textarea
   "Render textarea input"
-  [field-key worksheet has-error? attrs]
-  [:textarea (merge (input-base-props field-key worksheet has-error? attrs) (dissoc attrs :type))])
+  [field-key has-error? attrs]
+  [:textarea (merge (input-base-props field-key has-error? attrs) (dissoc attrs :type))])
 
 (defn- render-text-input
   "Render text input"
-  [field-key worksheet has-error? attrs]
-  [:input (merge (input-base-props field-key worksheet has-error? attrs) attrs)])
+  [field-key has-error? attrs]
+  [:input (merge (input-base-props field-key has-error? attrs) attrs)])
 
 (defn- render-select
   "Render select input"
-  [field-key worksheet has-error? attrs options]
-  [:select (merge (input-base-props field-key worksheet has-error? attrs) (dissoc attrs :options))
+  [field-key has-error? attrs options]
+  [:select (merge (input-base-props field-key has-error? attrs) (dissoc attrs :options))
    [:option {:value ""} "Select..."]
    (for [[value label] options]
      ^{:key value}
@@ -199,11 +199,11 @@
 
 (defn- field-input
   "Render appropriate input type"
-  [field-key worksheet has-error? attrs]
+  [field-key has-error? attrs]
   (cond
-    (= (:type attrs) "textarea") (render-textarea field-key worksheet has-error? attrs)
-    (= (:type attrs) "select") (render-select field-key worksheet has-error? attrs (:options attrs))
-    :else (render-text-input field-key worksheet has-error? attrs)))
+    (= (:type attrs) "textarea") (render-textarea field-key has-error? attrs)
+    (= (:type attrs) "select") (render-select field-key has-error? attrs (:options attrs))
+    :else (render-text-input field-key has-error? attrs)))
 
 (defn- field-error [error-msg]
   (when error-msg
@@ -212,77 +212,90 @@
 
 (defn- form-field
   "Complete form field with label, input and error"
-  [label field-key worksheet errors attrs]
+  [label field-key errors attrs]
   (let [has-error? (contains? errors field-key)]
     [:div {:style {:margin-bottom "1.5rem"}}
      [field-label label field-key has-error?]
-     [field-input field-key worksheet has-error? attrs]
+     [field-input field-key has-error? attrs]
      [field-error (get errors field-key)]]))
 
 (defn- form-fields
   "All form input fields"
-  [worksheet errors]
-  [:div
-   [form-field "Serial Number" :worksheet/serial-number worksheet errors
-    {:type "text" :placeholder "e.g. 2024-01-15/001"}]
-   [form-field "Creation Date" :worksheet/creation-date worksheet errors
-    {:type "date"}]
-   [form-field "Work Type" :worksheet/work-type worksheet errors
-    {:type "select" :options [["repair" "Repair"] ["maintenance" "Maintenance"] ["other" "Other"]]}]
-   [form-field "Service Type" :worksheet/service-type worksheet errors
-    {:type "select" :options [["normal" "Normal"] ["night" "Night"] ["weekend" "Weekend"] ["holiday" "Holiday"]]}]
-   [form-field "Work Description" :worksheet/work-description worksheet errors
-    {:type "textarea" :placeholder "Describe the work to be performed..." :rows 4}]
-   [form-field "Status" :worksheet/status worksheet errors
-    {:type "select" :options [["draft" "Draft"] ["in_progress" "In Progress"] ["completed" "Completed"] ["cancelled" "Cancelled"]]}]
-   [form-field "Arrival Time" :worksheet/arrival-time worksheet errors
-    {:type "datetime-local"}]
-   [form-field "Departure Time" :worksheet/departure-time worksheet errors
-    {:type "datetime-local"}]
-   [form-field "Work Duration (Hours)" :worksheet/work-duration-hours worksheet errors
-    {:type "number" :step "0.25" :placeholder "Auto-calculated from arrival/departure" :disabled true}]
-   [:div {:style {:margin-bottom "1.5rem" :font-size "0.75rem" :color "#6b7280"}}
-    "💡 Work duration is automatically calculated from arrival and departure times (rounded up to nearest quarter hour)"]
-   [form-field "Notes" :worksheet/notes worksheet errors
-    {:type "textarea" :placeholder "Optional notes..." :rows 3}]])
+  []
+  (let [errors @(rf/subscribe [:worksheets/modal-form-errors])]
+    [:div
+     [form-field "Serial Number" :worksheet/serial-number errors
+      {:type "text" :placeholder "e.g. 2024-01-15/001"}]
+     [form-field "Creation Date" :worksheet/creation-date errors
+      {:type "date"}]
+     [form-field "Work Type" :worksheet/work-type errors
+      {:type "select" :options [["repair" "Repair"] ["maintenance" "Maintenance"] ["other" "Other"]]}]
+     [form-field "Service Type" :worksheet/service-type errors
+      {:type "select" :options [["normal" "Normal"] ["night" "Night"] ["weekend" "Weekend"] ["holiday" "Holiday"]]}]
+     [form-field "Work Description" :worksheet/work-description errors
+      {:type "textarea" :placeholder "Describe the work to be performed..." :rows 4}]
+     [form-field "Status" :worksheet/status errors
+      {:type "select" :options [["draft" "Draft"] ["in_progress" "In Progress"] ["completed" "Completed"] ["cancelled" "Cancelled"]]}]
+     [form-field "Arrival Time" :worksheet/arrival-time errors
+      {:type "datetime-local"}]
+     [form-field "Departure Time" :worksheet/departure-time errors
+      {:type "datetime-local"}]
+     [form-field "Work Duration (Hours)" :worksheet/work-duration-hours errors
+      {:type "number" :step "0.25" :placeholder "Auto-calculated from arrival/departure" :disabled true}]
+     [:div {:style {:margin-bottom "1.5rem" :font-size "0.75rem" :color "#6b7280"}}
+      "💡 Work duration is automatically calculated from arrival and departure times (rounded up to nearest quarter hour)"]
+     [form-field "Notes" :worksheet/notes errors
+      {:type "textarea" :placeholder "Optional notes..." :rows 3}]]))
 
 (defn- handle-save-click
   "Handle save button click with validation"
-  [worksheet loading? errors on-save]
-  (let [validation-errors (validate-worksheet @worksheet)]
+  [on-save]
+  (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
+        validation-errors (validate-worksheet form-data)]
     (if (empty? validation-errors)
-      (do (reset! loading? true)
-          (reset! errors {})
-          (on-save @worksheet (fn [] (reset! loading? false))))
-      (reset! errors validation-errors))))
+      (do (rf/dispatch [:worksheets/set-modal-form-loading true])
+          (rf/dispatch [:worksheets/set-modal-form-errors {}])
+          (on-save form-data (fn [] (rf/dispatch [:worksheets/set-modal-form-loading false]))))
+      (rf/dispatch [:worksheets/set-modal-form-errors validation-errors]))))
 
 (defn worksheet-modal
   "Modal for creating/editing worksheets using new UI components"
   [worksheet-data is-new? on-save on-cancel]
-  (let [loading? (r/atom false)
-        errors (r/atom {})
-        worksheet (r/atom worksheet-data)]
-    (fn [worksheet-data is-new? on-save on-cancel]
-      (reset! worksheet worksheet-data)
-      ;; Calculate duration when modal opens with existing data
-      (update-duration-if-needed worksheet)
-      [modal/modal {:on-close on-cancel :close-on-backdrop? true}
-       ^{:key "header"} [modal/modal-header
-        {:title (if is-new? "Add New Worksheet" "Edit Worksheet")
-         :subtitle (if is-new? 
-                     "Create a new worksheet for your workspace"
-                     "Update the details of this worksheet")}]
-       ^{:key "form"} [form-fields worksheet @errors]
-       ^{:key "footer"} [modal/modal-footer
-        ^{:key "cancel"} [enhanced-button/enhanced-button
-         {:variant :secondary
-          :on-click on-cancel
-          :text "Cancel"}]
-        ^{:key "save"} [enhanced-button/enhanced-button
-         {:variant :primary
-          :loading? @loading?
-          :on-click #(handle-save-click worksheet loading? errors on-save)
-          :text (if @loading? "Saving..." "Save Worksheet")}]]])))
+  (let [loading? @(rf/subscribe [:worksheets/modal-form-loading?])]
+    ;; Initialize form data when modal opens
+    (zero-react/use-effect
+      {:mount (fn []
+                (rf/dispatch [:worksheets/set-modal-form-data worksheet-data])
+                ;; Calculate duration for existing data
+                (let [arrival (:worksheet/arrival-time worksheet-data)
+                      departure (:worksheet/departure-time worksheet-data)
+                      calculated-duration (calculate-work-duration arrival departure)]
+                  (when calculated-duration
+                    (rf/dispatch [:worksheets/update-modal-form-field :worksheet/work-duration-hours calculated-duration]))))
+       :params #js [worksheet-data]})
+    
+    [modal/modal {:on-close (fn []
+                             (rf/dispatch [:worksheets/clear-modal-form])
+                             (on-cancel)) 
+                  :close-on-backdrop? true}
+     ^{:key "header"} [modal/modal-header
+      {:title (if is-new? "Add New Worksheet" "Edit Worksheet")
+       :subtitle (if is-new? 
+                   "Create a new worksheet for your workspace"
+                   "Update the details of this worksheet")}]
+     ^{:key "form"} [form-fields]
+     ^{:key "footer"} [modal/modal-footer
+      ^{:key "cancel"} [enhanced-button/enhanced-button
+       {:variant :secondary
+        :on-click (fn []
+                   (rf/dispatch [:worksheets/clear-modal-form])
+                   (on-cancel))
+        :text "Cancel"}]
+      ^{:key "save"} [enhanced-button/enhanced-button
+       {:variant :primary
+        :loading? loading?
+        :on-click #(handle-save-click on-save)
+        :text (if loading? "Saving..." "Save Worksheet")}]]]))
 
 (defn- worksheet-serial-render
   "Custom render function for worksheet serial number column"
@@ -397,6 +410,50 @@
   :worksheets/close-modal
   (fn [db _]
     (assoc-in db [:worksheets :modal-worksheet] nil)))
+
+;; Modal form state management
+(rf/reg-sub
+  :worksheets/modal-form-data
+  (fn [db _]
+    (get-in db [:worksheets :modal-form-data] {})))
+
+(rf/reg-sub
+  :worksheets/modal-form-errors
+  (fn [db _]
+    (get-in db [:worksheets :modal-form-errors] {})))
+
+(rf/reg-sub
+  :worksheets/modal-form-loading?
+  (fn [db _]
+    (get-in db [:worksheets :modal-form-loading?] false)))
+
+(rf/reg-event-db
+  :worksheets/set-modal-form-data
+  (fn [db [data]]
+    (assoc-in db [:worksheets :modal-form-data] data)))
+
+(rf/reg-event-db
+  :worksheets/update-modal-form-field
+  (fn [db [field-key value]]
+    (assoc-in db [:worksheets :modal-form-data field-key] value)))
+
+(rf/reg-event-db
+  :worksheets/set-modal-form-errors
+  (fn [db [errors]]
+    (assoc-in db [:worksheets :modal-form-errors] errors)))
+
+(rf/reg-event-db
+  :worksheets/set-modal-form-loading
+  (fn [db [loading?]]
+    (assoc-in db [:worksheets :modal-form-loading?] loading?)))
+
+(rf/reg-event-db
+  :worksheets/clear-modal-form
+  (fn [db _]
+    (-> db
+        (assoc-in [:worksheets :modal-form-data] {})
+        (assoc-in [:worksheets :modal-form-errors] {})
+        (assoc-in [:worksheets :modal-form-loading?] false))))
 
 ;; Event to load worksheets
 (rf/reg-event-db
