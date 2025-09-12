@@ -49,7 +49,8 @@
                     file-extension (when original-filename
                                      (last (str/split original-filename #"\.")))
                     new-filename (str workspace-id "." (str/lower-case file-extension))
-                    upload-dir (io/file "uploads/logos")
+                    upload-base-dir (or (System/getenv "EXPERT_LIFT_UPLOAD_DIR") "uploads")
+                    upload-dir (io/file upload-base-dir "logos")
                     target-file (io/file upload-dir new-filename)]
                 
                 ;; Create directory if it doesn't exist
@@ -82,7 +83,8 @@
   [request]
   (try
     (let [filename (get-in request [:path-params :filename])
-          file-path (str "uploads/logos/" filename)
+          upload-base-dir (or (System/getenv "EXPERT_LIFT_UPLOAD_DIR") "uploads")
+          file-path (str upload-base-dir "/logos/" filename)
           file (io/file file-path)]
       (if (.exists file)
         (-> (response/response file)

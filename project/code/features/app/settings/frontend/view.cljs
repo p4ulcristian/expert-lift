@@ -248,7 +248,7 @@
 
 (defn- handle-save-response
   "Handle save response"
-  [response]
+  [workspace-id response]
   (rf/dispatch [:settings/set-uploading false])
   (if (:success response)
     (do
@@ -258,7 +258,9 @@
       (when (:workspace-name-updated response)
         (println "Workspace name updated"))
       (rf/dispatch [:settings/set-selected-file nil])
-      (rf/dispatch [:settings/set-preview-url nil]))
+      (rf/dispatch [:settings/set-preview-url nil])
+      ;; Reload settings to show updated logo
+      (load-settings workspace-id))
     (println "Error saving settings:" (:error response))))
 
 (defn- handle-save-click
@@ -268,7 +270,8 @@
         selected-file @(rf/subscribe [:settings/selected-file])
         workspace-name (get-in settings [:settings/general :workspace/name])]
     (rf/dispatch [:settings/set-uploading true])
-    (submit-settings workspace-id workspace-name selected-file handle-save-response)))
+    (submit-settings workspace-id workspace-name selected-file 
+                     (partial handle-save-response workspace-id))))
 
 (defn- save-button
   "Save settings button"

@@ -13,14 +13,17 @@
       (try
         (let [workspace (first (workspace-db/get-workspace-by-id (java.util.UUID/fromString workspace-id)))
               ;; Check for multiple image formats
+              upload-base-dir (or (System/getenv "EXPERT_LIFT_UPLOAD_DIR") "uploads")
               extensions ["jpg" "jpeg" "png" "gif"]
               logo-info (loop [exts extensions]
                          (if (empty? exts)
                            {:exists? false :path nil}
                            (let [ext (first exts)
-                                 file-path (str "uploads/logos/" workspace-id "." ext)
-                                 logo-file (java.io.File. file-path)]
-                             (if (.exists logo-file)
+                                 file-path (str upload-base-dir "/logos/" workspace-id "." ext)
+                                 logo-file (java.io.File. file-path)
+                                 exists? (.exists logo-file)]
+                             (println "DEBUG: Checking file:" file-path "exists:" exists?)
+                             (if exists?
                                {:exists? true :path (str "/uploads/logos/" workspace-id "." ext)}
                                (recur (rest exts))))))
               logo-exists? (:exists? logo-info)
@@ -83,7 +86,8 @@
     (when (and workspace-id file-data file-extension)
       (try
         ;; Create uploads directory if it doesn't exist
-        (let [upload-dir "uploads/logos"
+        (let [upload-base-dir (or (System/getenv "EXPERT_LIFT_UPLOAD_DIR") "uploads")
+              upload-dir (str upload-base-dir "/logos")
               filename (str workspace-id "." file-extension)
               file-path (str upload-dir "/" filename)]
           ;; TODO: Implement actual file saving to filesystem
