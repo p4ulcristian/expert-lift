@@ -181,17 +181,17 @@
 (defn- render-textarea
   "Render textarea input"
   [field-key worksheet has-error? attrs]
-  [:textarea (merge (dissoc attrs :type) (input-base-props field-key worksheet has-error? attrs))])
+  [:textarea (merge (input-base-props field-key worksheet has-error? attrs) (dissoc attrs :type))])
 
 (defn- render-text-input
   "Render text input"
   [field-key worksheet has-error? attrs]
-  [:input (merge attrs (input-base-props field-key worksheet has-error? attrs))])
+  [:input (merge (input-base-props field-key worksheet has-error? attrs) attrs)])
 
 (defn- render-select
   "Render select input"
   [field-key worksheet has-error? attrs options]
-  [:select (merge (dissoc attrs :options) (input-base-props field-key worksheet has-error? attrs))
+  [:select (merge (input-base-props field-key worksheet has-error? attrs) (dissoc attrs :options))
    [:option {:value ""} "Select..."]
    (for [[value label] options]
      ^{:key value}
