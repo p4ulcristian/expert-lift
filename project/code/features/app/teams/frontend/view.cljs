@@ -202,9 +202,8 @@
     {:type "tel" :placeholder "Optional: Phone number"}]
    [form-field "Role" :user/role team errors
     {:type "select" 
-     :options [{:value "user" :label "User"}
-               {:value "admin" :label "Admin"}
-               {:value "superadmin" :label "Super Admin"}]}]
+     :options [{:value "employee" :label "Employee"}
+               {:value "admin" :label "Admin"}]}]
    (when @is-new?
      [form-field "Password" :user/password team errors
       {:type "password" :placeholder "Minimum 6 characters"}])
@@ -268,7 +267,7 @@
                   :background (case role
                                 "superadmin" "#dc2626"
                                 "admin" "#ea580c" 
-                                "user" "#059669"
+                                "employee" "#059669"
                                 "#6b7280")
                   :color "white"
                   :border-radius "12px" :font-size "0.75rem" :font-weight "500"}}
@@ -323,7 +322,7 @@
     :action-button [enhanced-button/enhanced-button
                     {:variant :success
                      :on-click (fn [] 
-                                (reset! modal-team {:user/role "user"
+                                (reset! modal-team {:user/role "employee"
                                                    :user/active true})
                                 (reset! modal-is-new? true))
                      :text "+ Add New Team Member"}]}])
