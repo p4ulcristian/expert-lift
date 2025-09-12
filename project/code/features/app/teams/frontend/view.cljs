@@ -191,13 +191,11 @@
 
 (rf/reg-event-db
   :teams/open-modal
-  (fn [db event-vec]
-    (println "DEBUG: teams/open-modal - full event vector:" event-vec)
-    (let [[_ team is-new?] event-vec]
-      (println "DEBUG: teams/open-modal - team:" team "is-new?:" is-new?)
-      (-> db
-          (assoc-in [:teams :modal-team] team)
-          (assoc-in [:teams :modal-is-new?] is-new?)))))
+  (fn [db [_ team is-new?]]
+    (println "DEBUG: teams/open-modal - team:" team "is-new?:" is-new?)
+    (-> db
+        (assoc-in [:teams :modal-team] team)
+        (assoc-in [:teams :modal-is-new?] is-new?))))
 
 (rf/reg-event-db
   :teams/close-modal
@@ -442,7 +440,9 @@
    loading?
    (fn [team]
      (println "DEBUG: Edit button clicked for team:" team)
-     (rf/dispatch [:teams/open-modal team false]))
+     (let [event-vec [:teams/open-modal team false]]
+       (println "DEBUG: About to dispatch event:" event-vec)
+       (rf/dispatch event-vec)))
    delete-team
    query-fn])
 
