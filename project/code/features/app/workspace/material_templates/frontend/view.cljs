@@ -245,55 +245,69 @@
         [modal-buttons template loading? errors on-save on-cancel]]])))
 
 (defn- table-header-style []
-  {:padding "0.75rem" :text-align "left" :border "1px solid #dee2e6"})
+  {:padding "1rem 1.25rem" :text-align "left" :font-weight "600" 
+   :font-size "0.75rem" :letter-spacing "0.05em" :text-transform "uppercase"
+   :color "#374151" :background "#f9fafb" :border-bottom "1px solid #e5e7eb"})
 
 (defn- table-cell-style []
-  {:padding "0.75rem" :border "1px solid #dee2e6"})
+  {:padding "1rem 1.25rem" :border-bottom "1px solid #f3f4f6" :vertical-align "top"})
 
 (defn- template-name-cell [template]
   [:td {:style (table-cell-style)}
-   [:div [:strong (:material-template/name template)]
+   [:div 
+    [:div {:style {:font-weight "600" :color "#111827" :font-size "0.875rem"}}
+     (:material-template/name template)]
     (when (:material-template/description template)
-      [:div {:style {:color "#6c757d" :font-size "0.875rem"}}
+      [:div {:style {:color "#6b7280" :font-size "0.75rem" :margin-top "0.25rem" :line-height "1.4"}}
        (:material-template/description template)])]])
 
 (defn material-template-table
   "Table displaying material templates"
   [templates on-edit on-delete]
-  [:div
+  [:div {:style {:background "white" :border-radius "12px" :overflow "hidden"
+                 :box-shadow "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)"
+                 :border "1px solid #e5e7eb"}}
    [:table {:style {:width "100%" :border-collapse "collapse"}}
     [:thead
-     [:tr {:style {:background "#f8f9fa"}}
-      [:th {:style {:padding "0.75rem" :text-align "left" :border "1px solid #dee2e6"}} "Name"]
-      [:th {:style {:padding "0.75rem" :text-align "left" :border "1px solid #dee2e6"}} "Unit"]
-      [:th {:style {:padding "0.75rem" :text-align "left" :border "1px solid #dee2e6"}} "Category"]
-      [:th {:style {:padding "0.75rem" :text-align "left" :border "1px solid #dee2e6"}} "Active"]
-      [:th {:style {:padding "0.75rem" :text-align "center" :border "1px solid #dee2e6"}} "Actions"]]]
+     [:tr
+      [:th {:style (table-header-style)} "Material"]
+      [:th {:style (table-header-style)} "Unit"]
+      [:th {:style (table-header-style)} "Category"]
+      [:th {:style (table-header-style)} "Status"]
+      [:th {:style (merge (table-header-style) {:text-align "center"})} "Actions"]]]
     [:tbody
      (for [template templates]
        ^{:key (:material-template/id template)}
-       [:tr
+       [:tr {:style {:transition "background-color 0.15s ease-in-out"
+                     :hover {:background "#f9fafb"}}}
         [template-name-cell template]
-        [:td {:style {:padding "0.75rem" :border "1px solid #dee2e6"}}
+        [:td {:style (merge (table-cell-style) {:color "#374151" :font-weight "500" :font-size "0.875rem"})}
          (:material-template/unit template)]
-        [:td {:style {:padding "0.75rem" :border "1px solid #dee2e6"}}
-         (or (:material-template/category template) "-")]
-        [:td {:style {:padding "0.75rem" :border "1px solid #dee2e6"}}
-         (if (:material-template/active template) "Yes" "No")]
-        [:td {:style {:padding "0.75rem" :border "1px solid #dee2e6" :text-align "center"}}
-         [:button {:type "button"
-                   :on-click #(on-edit template)
-                   :style {:padding "0.25rem 0.5rem" :margin-right "0.5rem"
-                           :background "#ffc107" :color "black" :border "none"
-                           :border-radius "4px" :cursor "pointer"}}
-          "Edit"]
-         [:button {:type "button"
-                   :on-click (fn [] (when (js/confirm "Are you sure you want to delete this template?")
-                                     (on-delete (:material-template/id template))))
-                   :style {:padding "0.25rem 0.5rem"
-                           :background "#dc3545" :color "white" :border "none"
-                           :border-radius "4px" :cursor "pointer"}}
-          "Delete"]]])]]])
+        [:td {:style (merge (table-cell-style) {:color "#6b7280" :font-size "0.875rem"})}
+         (or (:material-template/category template) 
+             [:span {:style {:color "#9ca3af" :font-style "italic"}} "No category"])]
+        [:td {:style (table-cell-style)}
+         [:span {:style {:padding "0.25rem 0.75rem" :border-radius "9999px" :font-size "0.75rem" :font-weight "500"
+                         :background (if (:material-template/active template) "#dcfce7" "#fee2e2")
+                         :color (if (:material-template/active template) "#166534" "#dc2626")}}
+          (if (:material-template/active template) "Active" "Inactive")]]
+        [:td {:style (merge (table-cell-style) {:text-align "center"})}
+         [:div {:style {:display "flex" :gap "0.5rem" :justify-content "center"}}
+          [:button {:type "button"
+                    :on-click #(on-edit template)
+                    :style {:padding "0.5rem 0.75rem" :background "#f3f4f6" :color "#374151"
+                            :border "1px solid #d1d5db" :border-radius "6px" :cursor "pointer"
+                            :font-size "0.75rem" :font-weight "500" :transition "all 0.15s ease-in-out"
+                            :hover {:background "#e5e7eb" :border-color "#9ca3af"}}}
+           "Edit"]
+          [:button {:type "button"
+                    :on-click (fn [] (when (js/confirm "Are you sure you want to delete this template?")
+                                      (on-delete (:material-template/id template))))
+                    :style {:padding "0.5rem 0.75rem" :background "#fef2f2" :color "#dc2626"
+                            :border "1px solid #fecaca" :border-radius "6px" :cursor "pointer"
+                            :font-size "0.75rem" :font-weight "500" :transition "all 0.15s ease-in-out"
+                            :hover {:background "#fee2e2" :border-color "#fca5a5"}}}
+           "Delete"]]]])]]])
 
 (defn- page-header [modal-template modal-is-new?]
   "Page header with title and add button"
@@ -318,12 +332,26 @@
 (defn- templates-content [templates loading? modal-template modal-is-new? delete-template]
   "Main content area with loading or table"
   (if @loading?
-    [:div "Loading..."]
-    [material-template-table @templates
-     (fn [template]
-       (reset! modal-template template)
-       (reset! modal-is-new? false))
-     delete-template]))
+    [:div {:style {:display "flex" :justify-content "center" :align-items "center" 
+                   :padding "4rem" :background "white" :border-radius "12px"
+                   :box-shadow "0 1px 3px 0 rgba(0, 0, 0, 0.1)"}}
+     [:div {:style {:text-align "center"}}
+      [:div {:style {:width "40px" :height "40px" :border "4px solid #f3f4f6" 
+                     :border-top "4px solid #3b82f6" :border-radius "50%"
+                     :animation "spin 1s linear infinite" :margin "0 auto 1rem"}}]
+      [:div {:style {:color "#6b7280" :font-weight "500"}} "Loading templates..."]]]
+    (if (empty? @templates)
+      [:div {:style {:text-align "center" :padding "4rem" :background "white" 
+                     :border-radius "12px" :box-shadow "0 1px 3px 0 rgba(0, 0, 0, 0.1)"}}
+       [:div {:style {:color "#9ca3af" :font-size "1.125rem" :font-weight "500"}}
+        "No material templates found"]
+       [:div {:style {:color "#6b7280" :font-size "0.875rem" :margin-top "0.5rem"}}
+        "Create your first material template to get started"]]
+      [material-template-table @templates
+       (fn [template]
+         (reset! modal-template template)
+         (reset! modal-is-new? false))
+       delete-template])))
 
 (defn- modal-when-open [modal-template modal-is-new? save-template]
   "Render modal when template is selected"
@@ -380,7 +408,8 @@
           [:div])
         
         :else
-        [:div {:style {:padding "2rem"}}
-         [page-header modal-template modal-is-new?]
-         [templates-content templates loading? modal-template modal-is-new? delete-template]
-         [modal-when-open modal-template modal-is-new? save-template]]))))
+        [:div {:style {:min-height "100vh" :background "#f9fafb"}}
+         [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
+          [page-header modal-template modal-is-new?]
+          [templates-content templates loading? modal-template modal-is-new? delete-template]
+          [modal-when-open modal-template modal-is-new? save-template]]]))))
