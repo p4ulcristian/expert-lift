@@ -14,11 +14,21 @@
                   :margin "0 auto"
                   :padding "2rem"
                   :text-align "center"}}
-    [:h1 {:style {:font-size "3rem"
-                  :font-weight "bold"
-                  :color "#fff"
-                  :margin-bottom "2rem"}}
-     "🏢 Expert Lift"]
+    [:div {:style {:display "flex"
+                   :align-items "center"
+                   :justify-content "center"
+                   :margin-bottom "2rem"
+                   :gap "1rem"}}
+     [:img {:src "/logo/logo.png" 
+            :alt "ElevaThor Logo"
+            :style {:width "80px"
+                    :height "80px"
+                    :object-fit "contain"}}]
+     [:h1 {:style {:font-size "3rem"
+                   :font-weight "bold"
+                   :color "#fff"
+                   :margin "0"}}
+      "ElevaThor"]]
     [:p {:style {:font-size "1.5rem"
                  :color "#ecf0f1"
                  :margin-bottom "3rem"

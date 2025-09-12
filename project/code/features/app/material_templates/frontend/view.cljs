@@ -18,16 +18,6 @@
         workspace-id (get-in router-state [:parameters :path :workspace-id])]
     workspace-id))
 
-(defn- load-templates-query
-  "Execute ParQuery to load material templates with pagination"
-  [workspace-id params]
-  (rf/dispatch [:material-templates/set-loading true])
-  (parquery/send-queries
-   {:queries {:workspace-material-templates/get-paginated (or params {})}
-    :parquery/context {:workspace-id workspace-id}
-    :callback (fn [response]
-               (let [result (:workspace-material-templates/get-paginated response)]
-                 (rf/dispatch [:material-templates/load-success result])))}))
 
 (defn- get-query-type
   "Get appropriate query type for save operation"
@@ -247,8 +237,12 @@
       [:span {:style {:color "#9ca3af" :font-style "italic"}} "No category"]))
 
 (defn material-templates-table
-  "Material templates table using server-side data-table component with search, sorting, and pagination"
+  "Material templates table using server-side data-table component with search, sorting, and pagination"  
   [templates-data loading? on-edit on-delete query-fn]
+  (println "DEBUG: material-templates-table called")
+  (println "DEBUG: templates-data:" templates-data)
+  (println "DEBUG: loading?:" loading?)
+  (println "DEBUG: query-fn:" query-fn)
   [data-table/server-side-data-table
    {:headers [{:key :material-template/name :label "Material" :render template-name-render :sortable? true}
               {:key :material-template/unit :label "Unit" :sortable? true
@@ -287,10 +281,10 @@
 
 (defn- templates-content
   "Main content area with server-side data table"
-  [templates-data loading? modal-template modal-is-new? delete-template query-fn]
+  [templates-data-atom loading?-atom modal-template modal-is-new? delete-template query-fn]
   [material-templates-table 
-   templates-data
-   loading?
+   @templates-data-atom
+   @loading?-atom
    (fn [template]
      (reset! modal-template template)
      (reset! modal-is-new? false))
@@ -308,7 +302,13 @@
 (rf/reg-sub
   :material-templates/data
   (fn [db _]
-    (get-in db [:material-templates :data] {:material-templates [] :pagination {}})))
+    (let [raw-data (get-in db [:material-templates :data])
+          _ (println "DEBUG: subscription raw-data:" raw-data)]
+      (if (and raw-data (:material-templates raw-data))
+        ;; If we have the old structure, use it as is
+        raw-data
+        ;; Otherwise return default structure
+        {:material-templates [] :pagination {}}))))
 
 (rf/reg-sub
   :material-templates/loading?
@@ -327,22 +327,33 @@
         (assoc-in [:material-templates :data] data)
         (assoc-in [:material-templates :loading?] false))))
 
-(rf/reg-event-db
-  :material-templates/load-data
-  (fn [db [_ params]]
-    (let [workspace-id (get-workspace-id)]
-      (load-templates-query workspace-id (or params {}))
-      db)))
 
 (defn view []
   (let [workspace-id (get-workspace-id)
-        templates-data (rf/subscribe [:material-templates/data])
-        loading? (rf/subscribe [:material-templates/loading?])
+        loading? (r/atom false)
         modal-template (r/atom nil)
         modal-is-new? (r/atom false)
         
+        templates-data-atom (r/atom {:material-templates [] :pagination {}})
+        
         load-templates (fn [params]
-                         (rf/dispatch [:material-templates/load-data params]))
+                         (println "DEBUG: load-templates called with params:" params)
+                         (println "DEBUG: workspace-id:" workspace-id)
+                         (reset! loading? true)
+                         (parquery/send-queries
+                          {:queries {:workspace-material-templates/get-paginated (or params {})}
+                           :parquery/context {:workspace-id workspace-id}
+                           :callback (fn [response]
+                                      (println "DEBUG: load-templates response:" response)
+                                      (reset! loading? false)
+                                      (let [result (:workspace-material-templates/get-paginated response)
+                                            formatted-result {:material-templates (:material-templates result)
+                                                            :pagination {:total-count (:total-count result)
+                                                                       :page (:page result) 
+                                                                       :page-size (:page-size result)
+                                                                       :total-pages (:total-pages result)}}]
+                                        (println "DEBUG: formatted result:" formatted-result)
+                                        (reset! templates-data-atom formatted-result)))}))
         
         save-template (fn [template callback]
                         (save-template-query template workspace-id modal-is-new? 
@@ -351,13 +362,16 @@
         delete-template (fn [template-id]
                           (delete-template-query template-id workspace-id (fn [] (load-templates {}))))]
     
-    ;; Load templates on component mount
+    
+    ;; Initial load
     (zero-react/use-effect
-      {:mount (fn [] (load-templates {}))
-       :params #js[]})
+      {:mount (fn []
+                (println "DEBUG: Initial load triggered")
+                (load-templates {}))
+       :params #js []})
     
     [:div {:style {:min-height "100vh" :background "#f9fafb"}}
-     [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
+     [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}} 
       [templates-page-header modal-template modal-is-new?]
-      [templates-content templates-data loading? modal-template modal-is-new? delete-template load-templates]
+      [templates-content templates-data-atom loading? modal-template modal-is-new? delete-template load-templates]
       [modal-when-open modal-template modal-is-new? save-template]]]))

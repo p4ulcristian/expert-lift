@@ -373,7 +373,13 @@
                    (:teams data-source)
                    []))
         server-pagination (:pagination data-source)
-        total-count (:total-count server-pagination 0)]
+        total-count (:total-count server-pagination 0)
+        _ (println "DEBUG server-side-data-table:")
+        _ (println "  data-source keys:" (keys data-source))
+        _ (println "  data-key:" data-key)
+        _ (println "  rows count:" (count rows))
+        _ (println "  server-pagination:" server-pagination)
+        _ (println "  total-count:" total-count)]
     
     ;; Normalize values to prevent unnecessary re-renders
     (let [normalized-search (or search-term "")

@@ -26,7 +26,8 @@
 (defn view []
   (let [router-data (:data @router/state)
         current-path (:path @router/state)
-        show-header? (not= current-path "/login")]
+        show-header? (and (not= current-path "/login") 
+                          (not= current-path "/"))]
     [:div
      (when show-header?
        [header/view])
