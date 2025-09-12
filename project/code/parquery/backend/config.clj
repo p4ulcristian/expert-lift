@@ -429,6 +429,61 @@
         (println "ERROR: No workspace-id in context")
         []))))
 
+(defn get-workspace-addresses-paginated
+  "Get addresses with server-side filtering, sorting, and pagination"
+  [{:parquery/keys [context request] :as params}]
+  (let [workspace-id (:workspace-id context)
+        search (:search params)
+        sort-by (:sort-by params) 
+        sort-direction (:sort-direction params)
+        page (:page params 0)
+        page-size (:page-size params 10)]
+    (println "DEBUG get-workspace-addresses-paginated:")
+    (println "  workspace-id:" workspace-id)
+    (println "  search:" search)
+    (println "  sort-by:" sort-by)
+    (println "  sort-direction:" sort-direction) 
+    (println "  page:" page)
+    (println "  page-size:" page-size)
+    (if workspace-id
+      (try
+        (let [result (addresses-db/get-addresses-paginated workspace-id
+                                                          {:search search
+                                                           :sort-by sort-by
+                                                           :sort-direction sort-direction
+                                                           :page page
+                                                           :page-size page-size})
+              addresses (:addresses result)
+              formatted-addresses (mapv (fn [address]
+                                         {:address/id (str (:id address))
+                                          :address/name (:name address)
+                                          :address/address-line1 (:address_line1 address)
+                                          :address/address-line2 (:address_line2 address)
+                                          :address/city (:city address)
+                                          :address/postal-code (:postal_code address)
+                                          :address/country (:country address)
+                                          :address/contact-person (:contact_person address)
+                                          :address/contact-phone (:contact_phone address)
+                                          :address/contact-email (:contact_email address)
+                                          :address/elevators (parse-elevators-json (:elevators_json address))
+                                          :address/workspace-id (str (:workspace_id address))
+                                          :address/created-at (str (:created_at address))
+                                          :address/updated-at (str (:updated_at address))})
+                                       addresses)]
+          {:addresses formatted-addresses
+           :pagination {:total-count (:total-count result)
+                        :page (:page result)
+                        :page-size (:page-size result)
+                        :total-pages (:total-pages result)}})
+        (catch Exception e
+          (println "ERROR: get-workspace-addresses-paginated failed:" (.getMessage e))
+          {:addresses []
+           :pagination {:total-count 0 :page 0 :page-size page-size :total-pages 0}}))
+      (do
+        (println "ERROR: No workspace-id in context")
+        {:addresses []
+         :pagination {:total-count 0 :page 0 :page-size page-size :total-pages 0}}))))
+
 (defn get-workspace-address-by-id
   "Get single address by ID within workspace"
   [{:parquery/keys [context request] :as params}]
@@ -567,6 +622,7 @@
    :workspace-material-templates/get-all #'get-workspace-material-templates
    :workspace-material-templates/get-by-id #'get-workspace-material-template-by-id
    :workspace-addresses/get-all #'get-workspace-addresses
+   :workspace-addresses/get-paginated #'get-workspace-addresses-paginated
    :workspace-addresses/get-by-id #'get-workspace-address-by-id})
 
 (def write-queries

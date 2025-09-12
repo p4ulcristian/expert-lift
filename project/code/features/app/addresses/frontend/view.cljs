@@ -22,15 +22,18 @@
     workspace-id))
 
 (defn- load-addresses-query
-  "Execute ParQuery to load addresses"
-  [workspace-id loading? addresses]
+  "Execute ParQuery to load addresses with pagination"
+  [workspace-id loading? addresses params]
+  (println "DEBUG load-addresses-query called with params:" params)
+  (reset! loading? true)
   (parquery/send-queries
-   {:queries {:workspace-addresses/get-all {}}
+   {:queries {:workspace-addresses/get-paginated params}
     :parquery/context {:workspace-id workspace-id}
     :callback (fn [response]
+               (println "DEBUG load-addresses-query response:" response)
                (reset! loading? false)
-               (let [result (:workspace-addresses/get-all response)]
-                 (reset! addresses (or result []))))}))
+               (let [result (:workspace-addresses/get-paginated response)]
+                 (reset! addresses result)))}))
 
 (defn- get-query-type
   "Get appropriate query type for save operation"
@@ -337,16 +340,23 @@
       (:address/contact-email row)])])
 
 (defn addresses-table
-  "Addresses table using new data-table component"
-  [addresses loading? on-edit on-delete]
-  [data-table/data-table
-   {:headers [{:key :address/name :label "Address" :render address-name-render}
-              {:key :address/elevators :label "Elevators" :render elevators-render}
-              {:key :address/contact-person :label "Contact" :render contact-render}]
-    :rows addresses
-    :loading? loading?
+  "Addresses table using server-side data-table component with search, sorting, and pagination"
+  [addresses loading? on-edit on-delete query-fn]
+  [data-table/server-side-data-table
+   {:headers [{:key :address/name :label "Address" :render address-name-render :sortable? true}
+              {:key :address/elevators :label "Elevators" :render elevators-render :sortable? false}
+              {:key :address/contact-person :label "Contact" :render contact-render :sortable? true}
+              {:key :address/city :label "City" :sortable? true}
+              {:key :address/country :label "Country" :sortable? true}]
+    :data-source @addresses
+    :loading? @loading?
     :empty-message "No addresses found"
     :id-key :address/id
+    :table-id :addresses-table
+    :show-search? true
+    :show-pagination? true
+    :query-fn query-fn
+    :on-data-change (fn [result] (reset! addresses result))
     :actions [{:key :edit :label "Edit" :variant :primary :on-click on-edit}
               {:key :delete :label "Delete" :variant :danger 
                :on-click (fn [row] 
@@ -368,15 +378,16 @@
                      :text "+ Add New Address"}]}])
 
 (defn- addresses-content
-  "Main content area with data table using new UI component"
-  [addresses loading? modal-address modal-is-new? delete-address]
+  "Main content area with server-side data table"
+  [addresses loading? modal-address modal-is-new? delete-address query-fn]
   [addresses-table 
-   @addresses 
-   @loading?
+   addresses 
+   loading?
    (fn [address]
      (reset! modal-address address)
      (reset! modal-is-new? false))
-   delete-address])
+   delete-address
+   query-fn])
 
 (defn- modal-when-open
   "Render modal when address is selected"
@@ -393,16 +404,15 @@
         modal-address (r/atom nil)
         modal-is-new? (r/atom false)
         
-        load-addresses (fn []
-                        (reset! loading? true)
-                        (load-addresses-query workspace-id loading? addresses))
+        load-addresses (fn [params]
+                        (load-addresses-query workspace-id loading? addresses (or params {})))
         
         save-address (fn [address callback]
                        (save-address-query address workspace-id modal-is-new? 
-                                          callback modal-address load-addresses))
+                                          callback modal-address (fn [] (load-addresses {}))))
         
         delete-address (fn [address-id]
-                         (delete-address-query address-id workspace-id load-addresses))]
+                         (delete-address-query address-id workspace-id (fn [] (load-addresses {}))))]
     
     (fn []
       ;; Call useEffect hook inside the render function
@@ -417,8 +427,8 @@
                                  (if (and user (:user/id user))
                                    (do 
                                      (reset! authenticated? true)
-                                     ;; Load addresses after authentication is confirmed
-                                     (when (empty? @addresses) (load-addresses)))
+                                     ;; Load initial addresses after authentication is confirmed
+                                     (when (empty? (:addresses @addresses [])) (load-addresses {})))
                                    (reset! authenticated? false))))}))
          :params #js[]})
       
@@ -437,5 +447,5 @@
         [:div {:style {:min-height "100vh" :background "#f9fafb"}}
          [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
           [addresses-page-header modal-address modal-is-new?]
-          [addresses-content addresses loading? modal-address modal-is-new? delete-address]
+          [addresses-content addresses loading? modal-address modal-is-new? delete-address load-addresses]
           [modal-when-open modal-address modal-is-new? save-address]]]))))
