@@ -306,15 +306,21 @@
          (when (:address/address-line2 row) (str ", " (:address/address-line2 row)))
          ", " (:address/city row) " " (:address/postal-code row))]
    
-   ;; Display elevators if any
-   (when (seq (:address/elevators row))
-     [:div {:style {:margin-top "0.5rem"}}
-      (for [elevator (:address/elevators row)]
-        ^{:key (str "table-elevator-" elevator)}
-        [:span {:style {:display "inline-block" :margin-right "0.5rem" :margin-bottom "0.25rem"
-                        :padding "0.25rem 0.5rem" :background "#e0f2fe" :color "#0891b2"
-                        :border-radius "12px" :font-size "0.75rem" :font-weight "500"}}
-         (str "🏢 " elevator)])])])
+])
+
+(defn- elevators-render
+  "Custom render function for elevators column"
+  [elevators row]
+  [:div
+   (if (seq elevators)
+     (for [elevator elevators]
+       ^{:key (str "table-elevator-" elevator)}
+       [:span {:style {:display "inline-block" :margin-right "0.5rem" :margin-bottom "0.25rem"
+                       :padding "0.25rem 0.5rem" :background "#e0f2fe" :color "#0891b2"
+                       :border-radius "12px" :font-size "0.75rem" :font-weight "500"}}
+        (str "🏢 " elevator)])
+     [:span {:style {:color "#9ca3af" :font-style "italic" :font-size "0.75rem"}}
+      "No elevators"])])
 
 (defn- contact-render
   "Custom render function for contact info"
@@ -335,8 +341,7 @@
   [addresses loading? on-edit on-delete]
   [data-table/data-table
    {:headers [{:key :address/name :label "Address" :render address-name-render}
-              {:key :address/country :label "Country"
-               :cell-style {:color "#374151" :font-weight "500" :font-size "0.875rem"}}
+              {:key :address/elevators :label "Elevators" :render elevators-render}
               {:key :address/contact-person :label "Contact" :render contact-render}]
     :rows addresses
     :loading? loading?
