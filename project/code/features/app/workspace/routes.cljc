@@ -2,6 +2,7 @@
   #?(:cljs (:require [features.app.workspace.frontend.view :as workspace]
                      [features.app.material-templates.frontend.view :as material-templates]
                      [features.app.addresses.frontend.view :as addresses]
+                     [features.app.teams.frontend.view :as teams]
                      [features.app.worksheets.frontend.view :as worksheets]
                      [features.app.settings.frontend.view :as settings]))
   #?(:clj  (:require [features.app.zero.backend.view :as backend-view])))
@@ -9,6 +10,7 @@
 (def workspace-path "/app/:workspace-id")
 (def material-templates-path "/app/:workspace-id/material-templates")
 (def addresses-path "/app/:workspace-id/addresses")
+(def teams-path "/app/:workspace-id/teams")
 (def worksheets-path "/app/:workspace-id/worksheets")
 (def settings-path "/app/:workspace-id/settings")
 
@@ -22,6 +24,9 @@
             {:path addresses-path
              :view #'addresses/view
              :title "Addresses"}
+            {:path teams-path
+             :view #'teams/view
+             :title "Teams"}
             {:path worksheets-path
              :view #'worksheets/view
              :title "Worksheets"}
@@ -33,6 +38,8 @@
             {:path material-templates-path
              :get #'backend-view/response}
             {:path addresses-path
+             :get #'backend-view/response}
+            {:path teams-path
              :get #'backend-view/response}
             {:path worksheets-path
              :get #'backend-view/response}

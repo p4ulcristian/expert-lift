@@ -5,6 +5,7 @@
    [workspaces.backend.db :as workspace-db]
    [features.app.material-templates.backend.db :as material-templates-db]
    [features.app.addresses.backend.db :as addresses-db]
+   [features.app.teams.backend.db :as teams-db]
    [features.app.worksheets.backend.db :as worksheets-db]
    [features.app.settings.backend.db :as settings-db]
    [cheshire.core]))
@@ -859,6 +860,202 @@
         {:success false :error "No workspace context"}))
     {:success false :error "Insufficient permissions"}))
 
+;; Workspace Teams Handlers
+(defn get-workspace-teams
+  "Get all teams (users) for workspace"
+  [{:parquery/keys [context request] :as params}]
+  (let [workspace-id (:workspace-id context)]
+    (if workspace-id
+      (try
+        (let [users (teams-db/get-users-by-workspace workspace-id)]
+          (mapv (fn [user]
+                 {:user/id (str (:id user))
+                  :user/username (:username user)
+                  :user/full-name (:full_name user)
+                  :user/email (:email user)
+                  :user/phone (:phone user)
+                  :user/role (:role user)
+                  :user/active (:active user)
+                  :user/created-at (str (:created_at user))
+                  :user/updated-at (str (:updated_at user))})
+               users))
+        (catch Exception e
+          (println "ERROR: get-workspace-teams failed:" (.getMessage e))
+          []))
+      (do
+        []))))
+
+(defn get-workspace-teams-paginated
+  "Get teams (users) with server-side filtering, sorting, and pagination"
+  [{:parquery/keys [context request] :as params}]
+  (let [workspace-id (:workspace-id context)
+        search (:search params)
+        sort-by (:sort-by params) 
+        sort-direction (:sort-direction params)
+        page (:page params 0)
+        page-size (:page-size params 10)]
+    (println "DEBUG get-workspace-teams-paginated:")
+    (println "  workspace-id:" workspace-id)
+    (println "  search:" search)
+    (println "  sort-by:" sort-by)
+    (println "  sort-direction:" sort-direction) 
+    (println "  page:" page)
+    (println "  page-size:" page-size)
+    (if workspace-id
+      (try
+        (let [result (teams-db/get-users-paginated workspace-id
+                                                  {:search search
+                                                   :sort-by sort-by
+                                                   :sort-direction sort-direction
+                                                   :page page
+                                                   :page-size page-size})
+              formatted-users (mapv (fn [user]
+                                     {:user/id (str (:id user))
+                                      :user/username (:username user)
+                                      :user/full-name (:full_name user)
+                                      :user/email (:email user)
+                                      :user/phone (:phone user)
+                                      :user/role (:role user)
+                                      :user/active (:active user)
+                                      :user/created-at (str (:created_at user))
+                                      :user/updated-at (str (:updated_at user))})
+                                   (:users result))]
+          {:users formatted-users
+           :pagination {:total-count (:total-count result)
+                        :page (:page result)
+                        :page-size (:page-size result)
+                        :total-pages (:total-pages result)}})
+        (catch Exception e
+          (println "ERROR: get-workspace-teams-paginated failed:" (.getMessage e))
+          {:users []
+           :pagination {:total-count 0 :page 0 :page-size page-size :total-pages 0}}))
+      (do
+        {:users []
+         :pagination {:total-count 0 :page 0 :page-size page-size :total-pages 0}}))))
+
+(defn get-workspace-team-by-id
+  "Get single team member (user) by ID within workspace"
+  [{:parquery/keys [context request] :as params}]
+  (let [workspace-id (:workspace-id context)
+        user-id (:user/id params)]
+    (if (and user-id workspace-id)
+      (try
+        (let [user (first (teams-db/get-user-by-id user-id workspace-id))]
+          (when user
+            {:user/id (str (:id user))
+             :user/username (:username user)
+             :user/full-name (:full_name user)
+             :user/email (:email user)
+             :user/phone (:phone user)
+             :user/role (:role user)
+             :user/active (:active user)
+             :user/created-at (str (:created_at user))
+             :user/updated-at (str (:updated_at user))}))
+        (catch Exception e
+          (println "ERROR: get-workspace-team-by-id failed:" (.getMessage e))
+          nil))
+      nil)))
+
+(defn search-workspace-teams
+  "Search teams (users) for dropdown - returns simplified data"
+  [{:parquery/keys [context request] :as params}]
+  (let [workspace-id (:workspace-id context)
+        search-term (:search params "")
+        limit (:limit params 20)]
+    (if workspace-id
+      (try
+        (let [users (teams-db/search-users-for-dropdown workspace-id search-term limit)]
+          (mapv (fn [user]
+                  {:user/id (str (:id user))
+                   :user/username (:username user)
+                   :user/full-name (:full_name user)
+                   :user/email (:email user)
+                   :user/role (:role user)})
+                users))
+        (catch Exception e
+          (println "ERROR: search-workspace-teams failed:" (.getMessage e))
+          []))
+      [])))
+
+(defn create-workspace-team
+  "Create new team member (user) in workspace (admin+ only)"
+  [{:parquery/keys [context request] :as params}]
+  (if (has-admin-role? request)
+    (let [workspace-id (:workspace-id context)
+          username (:user/username params)
+          full-name (:user/full-name params)
+          email (:user/email params)
+          phone (:user/phone params)
+          role (:user/role params)
+          password (:user/password params)]
+      (if workspace-id
+        (try
+          (println "DEBUG: Attempting to create user with workspace-id:" workspace-id)
+          (let [result (first (teams-db/create-user workspace-id username full-name email phone role password))]
+            (println "DEBUG: User created successfully:" result)
+            {:user/id (str (:id result))
+             :user/username (:username result)
+             :user/full-name (:full_name result)
+             :user/email (:email result)
+             :user/phone (:phone result)
+             :user/role (:role result)
+             :user/active (:active result)
+             :user/created-at (str (:created_at result))
+             :user/updated-at (str (:updated_at result))
+             :success true})
+          (catch Exception e
+            (println "Error creating workspace team member:" (.getMessage e))
+            {:success false :error (parse-db-error (.getMessage e))}))
+        {:success false :error "No workspace context"}))
+    {:success false :error "Insufficient permissions"}))
+
+(defn update-workspace-team
+  "Update existing team member (user) in workspace (admin+ only)"
+  [{:parquery/keys [context request] :as params}]
+  (if (has-admin-role? request)
+    (let [workspace-id (:workspace-id context)
+          id (:user/id params)
+          username (:user/username params)
+          full-name (:user/full-name params)
+          email (:user/email params)
+          phone (:user/phone params)
+          role (:user/role params)
+          active (:user/active params)]
+      (if workspace-id
+        (try
+          (let [result (first (teams-db/update-user id workspace-id username full-name email phone role active))]
+            {:user/id (str (:id result))
+             :user/username (:username result)
+             :user/full-name (:full_name result)
+             :user/email (:email result)
+             :user/phone (:phone result)
+             :user/role (:role result)
+             :user/active (:active result)
+             :user/created-at (str (:created_at result))
+             :user/updated-at (str (:updated_at result))
+             :success true})
+          (catch Exception e
+            (println "Error updating workspace team member:" (.getMessage e))
+            {:success false :error (parse-db-error (.getMessage e))}))
+        {:success false :error "No workspace context"}))
+    {:success false :error "Insufficient permissions"}))
+
+(defn delete-workspace-team
+  "Delete team member (user) from workspace (admin+ only)"
+  [{:parquery/keys [context request] :as params}]
+  (if (has-admin-role? request)
+    (let [workspace-id (:workspace-id context)
+          user-id (:user/id params)]
+      (if workspace-id
+        (try
+          (teams-db/delete-user user-id workspace-id)
+          {:success true :user/id user-id}
+          (catch Exception e
+            (println "Error deleting workspace team member:" (.getMessage e))
+            {:success false :error (parse-db-error (.getMessage e))}))
+        {:success false :error "No workspace context"}))
+    {:success false :error "Insufficient permissions"}))
+
 ;; Query mappings to functions
 (def read-queries
   "Read operations - mapped to handler functions"
@@ -873,6 +1070,10 @@
    :workspace-addresses/get-paginated #'get-workspace-addresses-paginated
    :workspace-addresses/get-by-id #'get-workspace-address-by-id
    :workspace-addresses/search #'search-workspace-addresses
+   :workspace-teams/get-all #'get-workspace-teams
+   :workspace-teams/get-paginated #'get-workspace-teams-paginated
+   :workspace-teams/get-by-id #'get-workspace-team-by-id
+   :workspace-teams/search #'search-workspace-teams
    :workspace-worksheets/get-all #'get-workspace-worksheets
    :workspace-worksheets/get-paginated #'get-workspace-worksheets-paginated
    :workspace-worksheets/get-by-id #'get-workspace-worksheet-by-id
@@ -894,6 +1095,9 @@
    :workspace-addresses/create #'create-workspace-address
    :workspace-addresses/update #'update-workspace-address
    :workspace-addresses/delete #'delete-workspace-address
+   :workspace-teams/create #'create-workspace-team
+   :workspace-teams/update #'update-workspace-team
+   :workspace-teams/delete #'delete-workspace-team
    :workspace-worksheets/create #'create-workspace-worksheet
    :workspace-worksheets/update #'update-workspace-worksheet
    :workspace-worksheets/delete #'delete-workspace-worksheet

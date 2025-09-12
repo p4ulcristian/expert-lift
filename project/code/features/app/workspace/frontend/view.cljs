@@ -95,7 +95,7 @@
    [feature-card "📍" "Addresses" "Manage workspace addresses and locations" (str "/app/" workspace-id "/addresses")]
    [feature-card "📋" "Worksheets" "Manage work orders and service reports" (str "/app/" workspace-id "/worksheets")]
    [feature-card "⚙️" "Settings" "Configure workspace settings and preferences" (str "/app/" workspace-id "/settings")]
-   [feature-card "👥" "Team" "Collaborate with your service team"]])
+   [feature-card "👥" "Teams" "Manage your service team members" (str "/app/" workspace-id "/teams")]])
 
 (defn- workspace-footer [workspace-id]
   "Footer with workspace ID"
