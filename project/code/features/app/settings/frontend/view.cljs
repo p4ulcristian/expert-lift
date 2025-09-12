@@ -130,7 +130,13 @@
   (let [file (-> e .-target .-files (aget 0))]
     (rf/dispatch [:settings/set-selected-file file])
     (when file
-      (println "Selected file:" (.-name file)))))
+      (println "Selected file:" (.-name file))
+      ;; Create preview URL for selected image
+      (let [reader (js/FileReader.)]
+        (set! (.-onload reader)
+              (fn [e]
+                (rf/dispatch [:settings/set-preview-url (-> e .-target .-result)])))
+        (.readAsDataURL reader file)))))
 
 (defn- upload-status-display
   "Display upload status and file selection"
@@ -229,17 +235,17 @@
         uploading? @(rf/subscribe [:settings/uploading?])]
     [:div.form-actions {:style {:margin-top "2rem"}}
      [enhanced-button/enhanced-button
-      {:type "primary"
-       :disabled (or loading? uploading?)
-       :on-click #(handle-save-click workspace-id)}
-      (if (or loading? uploading?) "Saving..." "Save Settings")]]))
+      {:variant :primary
+       :loading? (or loading? uploading?)
+       :on-click #(handle-save-click workspace-id)
+       :text (if (or loading? uploading?) "Saving..." "Save Settings")}]]))
 
 (defn- settings-form-content
   "Main settings form content"
   [workspace-id]
   [:div {:style {:max-width "600px"}}
-   [logo-upload-section]
    [workspace-name-input]
+   [logo-upload-section]
    [save-button workspace-id]])
 
 (defn settings-form
