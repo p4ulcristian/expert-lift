@@ -11,8 +11,9 @@
             [ui.enhanced-button :as enhanced-button]
             [ui.page-header :as page-header]))
 
-(defn- get-workspace-id []
+(defn- get-workspace-id
   "Get workspace ID from router parameters"
+  []
   (let [router-state @router/state
         workspace-id (get-in router-state [:parameters :path :workspace-id])]
     (println "DEBUG: get-workspace-id called")
@@ -20,8 +21,9 @@
     (println "  Extracted workspace-id:" workspace-id)
     workspace-id))
 
-(defn- load-templates-query [workspace-id loading? templates]
+(defn- load-templates-query
   "Execute ParQuery to load templates"
+  [workspace-id loading? templates]
   (parquery/send-queries
    {:queries {:workspace-material-templates/get-all {}}
     :parquery/context {:workspace-id workspace-id}
@@ -30,20 +32,23 @@
                (let [result (:workspace-material-templates/get-all response)]
                  (reset! templates (or result []))))}))
 
-(defn- get-query-type [is-new?]
+(defn- get-query-type
   "Get appropriate query type for save operation"
+  [is-new?]
   (if @is-new? 
     :workspace-material-templates/create 
     :workspace-material-templates/update))
 
-(defn- prepare-template-data [template is-new?]
+(defn- prepare-template-data
   "Prepare template data for save"
+  [template is-new?]
   (if @is-new?
     (dissoc template :material-template/id)
     template))
 
-(defn- handle-save-response [response query-type callback modal-template load-templates]
+(defn- handle-save-response
   "Handle save response and update UI"
+  [response query-type callback modal-template load-templates]
   (callback)
   (if (:success (get response query-type))
     (do (reset! modal-template nil)
@@ -77,12 +82,14 @@
                  (load-templates)
                  (js/alert "Error deleting template")))}))
 
-(defn- validate-name [name]
+(defn- validate-name
   "Validate template name"
+  [name]
   (< (count (str/trim (str name))) 2))
 
-(defn- validate-unit [unit]
+(defn- validate-unit
   "Validate template unit"
+  [unit]
   (< (count (str/trim (str unit))) 1))
 
 (defn validate-material-template
