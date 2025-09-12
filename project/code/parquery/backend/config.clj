@@ -170,9 +170,13 @@
 (defn update-user
   "Update existing user"
   [{:parquery/keys [context request] :as params}]
-  (let [{:user/keys [id username full-name email phone role active workspace-id]} params]
+  (let [{:user/keys [id username full-name email phone role active workspace-id password]} params]
     (try
+      ;; Update user fields first
       (let [result (first (user-db/update-user id username full-name email phone role active workspace-id))]
+        ;; If password is provided, update it separately
+        (when (and password (seq (str password)))
+          (user-db/update-user-password id password))
         {:user/id (:id result)
          :user/username (:username result)
          :user/full-name (:full_name result)

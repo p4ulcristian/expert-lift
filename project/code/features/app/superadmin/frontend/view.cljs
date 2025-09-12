@@ -27,7 +27,10 @@
       (assoc :user/email "Please enter a valid email address")
       
       (and is-new? (< (count (str/trim password)) 6))
-      (assoc :user/password "Password must be at least 6 characters"))))
+      (assoc :user/password "Password must be at least 6 characters")
+      
+      (and (not is-new?) (seq (str/trim password)) (< (count (str/trim password)) 6))
+      (assoc :user/password "New password must be at least 6 characters"))))
 
 (defn validate-workspace
   "Validates workspace data and returns map of field errors"
@@ -127,8 +130,8 @@
    [input-field "Phone" :user/phone user errors {:type "tel"}]
    [role-select user errors]
    [workspace-select user errors workspaces]
-   (when is-new?
-     [input-field "Password" :user/password user errors {:type "password"}])
+   [input-field (if is-new? "Password" "New Password (leave empty to keep current)") 
+                :user/password user errors {:type "password" :placeholder (when-not is-new? "Leave empty to keep current password")}]
    [validation-summary errors]])
 
 (defn modal-header [is-new?]
@@ -403,7 +406,10 @@
                                                      (:user/workspace-id user))}
                     user-data (if is-new?
                                 (assoc base-data :user/password (:user/password user))
-                                (assoc base-data :user/id (:user/id user) :user/active (:user/active user)))]
+                                (let [update-data (assoc base-data :user/id (:user/id user) :user/active (:user/active user))]
+                                  (if (and (:user/password user) (seq (str/trim (:user/password user))))
+                                    (assoc update-data :user/password (:user/password user))
+                                    update-data)))]
                 (save-user user-data is-new?))
              #(reset! modal-open? false)
              @workspaces]
