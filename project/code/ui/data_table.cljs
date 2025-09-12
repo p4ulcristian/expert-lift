@@ -16,13 +16,9 @@
 (re-frame/reg-event-db
   :data-table/set-sort
   (fn [db [table-id sort-key sort-direction]]
-    (println "DEBUG: setting sort for table-id:" table-id "sort-key:" sort-key "direction:" sort-direction)
-    (println "DEBUG: current search before sort:" (get-in db [:data-table table-id :search]))
-    (let [result (-> db
-                     (assoc-in [:data-table table-id :sort] {:key sort-key :direction sort-direction})
-                     (assoc-in [:data-table table-id :pagination :current-page] 0))]
-      (println "DEBUG: search after sort:" (get-in result [:data-table table-id :search]))
-      result)))
+    (-> db
+        (assoc-in [:data-table table-id :sort] {:key sort-key :direction sort-direction})
+        (assoc-in [:data-table table-id :pagination :current-page] 0))))
 
 (re-frame/reg-event-db
   :data-table/set-page
@@ -37,7 +33,6 @@
 (re-frame/reg-event-db
   :data-table/reset-state
   (fn [db [table-id]]
-    (println "DEBUG: resetting table state for table-id:" table-id)
     (assoc-in db [:data-table table-id] 
               {:search ""
                :sort {:key nil :direction :asc}
@@ -75,20 +70,14 @@
 (defn- search-matches?
   "Check if a row matches the search term"
   [row search-term headers]
-  (println "DEBUG search-matches?: search-term=" search-term "row keys=" (keys row))
   (if (str/blank? search-term)
-    (do (println "DEBUG: search-term is blank, returning true")
-        true)
+    true
     (let [search-lower (str/lower-case search-term)]
-      (println "DEBUG: searching for:" search-lower)
-      (let [match-result (some (fn [header]
-                                (let [value (get row (:key header))
-                                      value-str (str/lower-case (str (or value "")))]
-                                  (println "DEBUG: checking header" (:key header) "value=" value "value-str=" value-str)
-                                  (str/includes? value-str search-lower)))
-                              headers)]
-        (println "DEBUG: match result for row:" match-result)
-        match-result))))
+      (some (fn [header]
+              (let [value (get row (:key header))
+                    value-str (str/lower-case (str (or value "")))]
+                (str/includes? value-str search-lower)))
+            headers))))
 
 (defn- sort-rows
   "Sort rows by the given sort configuration"
@@ -110,8 +99,6 @@
 (defn- filter-sort-paginate
   "Apply search, sort, and pagination to rows"
   [rows headers table-state]
-  (println "DEBUG filter-sort-paginate: table-state=" table-state)
-  (println "DEBUG: original rows count=" (count rows))
   (let [search-term (:search table-state)
         sort-config (:sort table-state)
         pagination (:pagination table-state)
@@ -120,10 +107,6 @@
         sorted-rows (sort-rows filtered-rows sort-config)
         total-count (count sorted-rows)
         paginated-rows (paginate-rows sorted-rows pagination)]
-    
-    (println "DEBUG: after filtering, rows count=" (count filtered-rows))
-    (println "DEBUG: after sorting, rows count=" (count sorted-rows))
-    (println "DEBUG: after pagination, rows count=" (count paginated-rows))
     
     {:rows paginated-rows
      :total-count total-count
@@ -176,13 +159,11 @@
 (defn- search-input
   "Search input component"
   [table-id search-term]
-  (println "DEBUG search-input: table-id=" table-id "search-term=" search-term)
   [:div {:style {:margin-bottom "1rem"}}
    [:input {:type "text"
             :placeholder "Search..."
             :value search-term
-            :on-change #(do (println "DEBUG: search input changed to:" (.. % -target -value))
-                           (re-frame/dispatch [:data-table/set-search table-id (.. % -target -value)]))
+            :on-change #(re-frame/dispatch [:data-table/set-search table-id (.. % -target -value)])
             :style {:width "300px"
                     :padding "0.75rem 1rem"
                     :border "1px solid #d1d5db"
@@ -205,8 +186,7 @@
                        (:style header)
                        (when is-sortable? {:cursor "pointer" :user-select "none"}))
           :on-click (when is-sortable? 
-                     #(do (println "DEBUG: sort header clicked for" (:key header) "next-direction:" next-direction)
-                          (re-frame/dispatch [:data-table/set-sort table-id (:key header) next-direction])))}
+                     #(re-frame/dispatch [:data-table/set-sort table-id (:key header) next-direction]))}
      [:div {:style {:display "flex" :align-items "center" :gap "0.5rem"}}
       (:label header)
       (when is-sortable?
@@ -307,11 +287,6 @@
         sort-config (:sort table-state)
         pagination (:pagination table-state)
         
-        _ (println "DEBUG data-table: table-id=" table-id)
-        _ (println "DEBUG data-table: table-state=" table-state)
-        _ (println "DEBUG data-table: rows count=" (count rows))
-        _ (println "DEBUG data-table: headers=" (mapv :key headers))
-        
         processed-data (when rows (filter-sort-paginate rows headers table-state))
         display-rows (:rows processed-data)
         total-count (:total-count processed-data)]
@@ -400,7 +375,29 @@
         server-pagination (:pagination data-source)
         total-count (:total-count server-pagination 0)]
     
-    ;; Use React effect to trigger data fetch when table state changes (prevents infinite loop) 
+    ;; Normalize values to prevent unnecessary re-renders
+    (let [normalized-search (or search-term "")
+          normalized-sort-key (:key sort-config)
+          normalized-sort-direction (name (:direction sort-config :asc))
+          normalized-page (:current-page pagination 0)
+          normalized-page-size (:page-size pagination 10)
+          normalized-search-map {:search normalized-search
+                                 :sort-by normalized-sort-key
+                                 :sort-direction normalized-sort-direction
+                                 :page normalized-page
+                                 :page-size normalized-page-size}]
+    
+      ;; Use React effect to trigger data fetch when table state changes (prevents infinite loop)
+      (zero-react/use-effect
+       {:mount (fn []
+                 (when query-fn
+                   (query-fn normalized-search-map)))
+        :params #js []})
+      (zero-react/use-effect
+        {:mount (fn []
+                  (when query-fn
+                    (query-fn normalized-search-map)))
+         :params #js [normalized-search normalized-sort-key normalized-sort-direction normalized-page normalized-page-size]}))
     [:div
       ;; Search input
       (when show-search?

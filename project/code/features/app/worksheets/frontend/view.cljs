@@ -22,7 +22,6 @@
 (defn- load-worksheets-query
   "Execute ParQuery to load worksheets with pagination"
   [workspace-id params]
-  (println "DEBUG: load-worksheets-query called with params:" params "type:" (type params))
   (rf/dispatch [:worksheets/set-loading true])
   (parquery/send-queries
    {:queries {:workspace-worksheets/get-paginated (or params {})}
@@ -529,11 +528,6 @@
         delete-worksheet (fn [worksheet-id]
                          (delete-worksheet-query worksheet-id workspace-id (fn [] (load-worksheets {}))))]
     
-    ;; Initialize authentication check on mount
-    (zero-react/use-effect
-      {:mount (fn []
-                (rf/dispatch [:worksheets/load-data {}]))
-       :params #js[]})
     
     [:div {:style {:min-height "100vh" :background "#f9fafb"}}
      [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}

@@ -414,11 +414,7 @@
                          (delete-address-query address-id workspace-id (fn [] (load-addresses {}))))]
     
     (fn []
-      ;; Load addresses on component mount (authentication handled by backend)
-      (zero-react/use-effect
-        {:mount (fn [] (load-addresses {}))
-         :params #js[]})
-      
+      ;; Load addresses on component mount (authentication handled by backend)  
       [:div {:style {:min-height "100vh" :background "#f9fafb"}}
        [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
         [addresses-page-header modal-address modal-is-new?]

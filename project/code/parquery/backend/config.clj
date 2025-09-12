@@ -282,6 +282,33 @@
       (do
         []))))
 
+(defn get-workspace-material-templates-paginated
+  "Get material templates with pagination and filtering for workspace"
+  [{:parquery/keys [context request] :as params}]
+  (let [workspace-id (:workspace-id context)
+        query-params (dissoc params :parquery/context :parquery/request)]
+    (if workspace-id
+      (try
+        (let [result (material-templates-db/get-material-templates-paginated workspace-id query-params)
+              formatted-templates (mapv (fn [template]
+                                         {:material-template/id (str (:id template))
+                                          :material-template/name (:name template)
+                                          :material-template/unit (:unit template)
+                                          :material-template/category (:category template)
+                                          :material-template/description (:description template)
+                                          :material-template/active (:active template)
+                                          :material-template/workspace-id (str (:workspace_id template))
+                                          :material-template/created-at (str (:created_at template))
+                                          :material-template/updated-at (str (:updated_at template))})
+                                        (:material-templates result))]
+          (assoc result :material-templates formatted-templates))
+        (catch Exception e
+          (println "ERROR: get-workspace-material-templates-paginated failed:" (.getMessage e))
+          {:material-templates [] :total-count 0 :page 0 :page-size 10 :total-pages 0}))
+      (do
+        (println "ERROR: workspace-id missing in get-workspace-material-templates-paginated")
+        {:material-templates [] :total-count 0 :page 0 :page-size 10 :total-pages 0}))))
+
 (defn get-workspace-material-template-by-id
   "Get material template by ID within workspace"
   [{:parquery/keys [context request] :as params}]
@@ -1066,6 +1093,7 @@
    :workspaces/get-by-id #'get-workspace-by-id
    :current-user/basic-data #'get-current-user
    :workspace-material-templates/get-all #'get-workspace-material-templates
+   :workspace-material-templates/get-paginated #'get-workspace-material-templates-paginated
    :workspace-material-templates/get-by-id #'get-workspace-material-template-by-id
    :workspace-addresses/get-all #'get-workspace-addresses
    :workspace-addresses/get-paginated #'get-workspace-addresses-paginated

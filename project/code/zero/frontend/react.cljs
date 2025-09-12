@@ -7,7 +7,7 @@
 (defn use-effect [{:keys [mount unmount params]}]
   (react/useEffect
    (fn []
-     (mount)
+     (when mount (mount))
      (if unmount
        (fn [] (unmount))
        (fn [])))

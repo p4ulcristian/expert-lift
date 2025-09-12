@@ -3,7 +3,7 @@
             [clojure.string :as str]
             [parquery.frontend.request :as parquery]
             [router.frontend.zero :as router]
-            [zero.frontend.re-frame]
+            [zero.frontend.re-frame :as rf]
             [zero.frontend.react :as zero-react]
             [ui.modal :as modal]
             [ui.form-field :as form-field]
@@ -16,21 +16,18 @@
   []
   (let [router-state @router/state
         workspace-id (get-in router-state [:parameters :path :workspace-id])]
-    (println "DEBUG: get-workspace-id called")
-    (println "  Router state:" router-state)
-    (println "  Extracted workspace-id:" workspace-id)
     workspace-id))
 
 (defn- load-templates-query
-  "Execute ParQuery to load templates"
-  [workspace-id loading? templates]
+  "Execute ParQuery to load material templates with pagination"
+  [workspace-id params]
+  (rf/dispatch [:material-templates/set-loading true])
   (parquery/send-queries
-   {:queries {:workspace-material-templates/get-all {}}
+   {:queries {:workspace-material-templates/get-paginated (or params {})}
     :parquery/context {:workspace-id workspace-id}
     :callback (fn [response]
-               (reset! loading? false)
-               (let [result (:workspace-material-templates/get-all response)]
-                 (reset! templates (or result []))))}))
+               (let [result (:workspace-material-templates/get-paginated response)]
+                 (rf/dispatch [:material-templates/load-success result])))}))
 
 (defn- get-query-type
   "Get appropriate query type for save operation"
@@ -250,9 +247,9 @@
       [:span {:style {:color "#9ca3af" :font-style "italic"}} "No category"]))
 
 (defn material-templates-table
-  "Material templates table using enhanced data-table component with search, sorting, and pagination"
-  [templates loading? on-edit on-delete]
-  [data-table/data-table
+  "Material templates table using server-side data-table component with search, sorting, and pagination"
+  [templates-data loading? on-edit on-delete query-fn]
+  [data-table/server-side-data-table
    {:headers [{:key :material-template/name :label "Material" :render template-name-render :sortable? true}
               {:key :material-template/unit :label "Unit" :sortable? true
                :cell-style {:color "#374151" :font-weight "500" :font-size "0.875rem"}}
@@ -260,13 +257,15 @@
                :cell-style {:color "#6b7280" :font-size "0.875rem"}}
               {:key :material-template/active :label "Status" :sortable? true
                :render (fn [active? _] [data-table/status-badge active?])}]
-    :rows templates
+    :data-source templates-data
+    :data-key :material-templates
     :loading? loading?
     :empty-message "No material templates found"
     :id-key :material-template/id
     :table-id :material-templates-table
     :show-search? true
     :show-pagination? true
+    :query-fn query-fn
     :actions [{:key :edit :label "Edit" :variant :primary :on-click on-edit}
               {:key :delete :label "Delete" :variant :danger 
                :on-click (fn [row] 
@@ -287,15 +286,16 @@
                      :text "+ Add New Template"}]}])
 
 (defn- templates-content
-  "Main content area with data table using new UI component"
-  [templates loading? modal-template modal-is-new? delete-template]
+  "Main content area with server-side data table"
+  [templates-data loading? modal-template modal-is-new? delete-template query-fn]
   [material-templates-table 
-   @templates 
-   @loading?
+   templates-data
+   loading?
    (fn [template]
      (reset! modal-template template)
      (reset! modal-is-new? false))
-   delete-template])
+   delete-template
+   query-fn])
 
 (defn- modal-when-open
   "Render modal when template is selected"
@@ -304,32 +304,60 @@
     [material-template-modal @modal-template @modal-is-new? save-template
      (fn [] (reset! modal-template nil))]))
 
+;; Re-frame subscriptions and events
+(rf/reg-sub
+  :material-templates/data
+  (fn [db _]
+    (get-in db [:material-templates :data] {:material-templates [] :pagination {}})))
+
+(rf/reg-sub
+  :material-templates/loading?
+  (fn [db _]
+    (get-in db [:material-templates :loading?] false)))
+
+(rf/reg-event-db
+  :material-templates/set-loading
+  (fn [db [_ loading?]]
+    (assoc-in db [:material-templates :loading?] loading?)))
+
+(rf/reg-event-db
+  :material-templates/load-success
+  (fn [db [_ data]]
+    (-> db
+        (assoc-in [:material-templates :data] data)
+        (assoc-in [:material-templates :loading?] false))))
+
+(rf/reg-event-db
+  :material-templates/load-data
+  (fn [db [_ params]]
+    (let [workspace-id (get-workspace-id)]
+      (load-templates-query workspace-id (or params {}))
+      db)))
+
 (defn view []
   (let [workspace-id (get-workspace-id)
-        templates (r/atom [])
-        loading? (r/atom false)
+        templates-data (rf/subscribe [:material-templates/data])
+        loading? (rf/subscribe [:material-templates/loading?])
         modal-template (r/atom nil)
         modal-is-new? (r/atom false)
         
-        load-templates (fn []
-                        (reset! loading? true)
-                        (load-templates-query workspace-id loading? templates))
+        load-templates (fn [params]
+                         (rf/dispatch [:material-templates/load-data params]))
         
         save-template (fn [template callback]
-                       (save-template-query template workspace-id modal-is-new? 
-                                          callback modal-template load-templates))
+                        (save-template-query template workspace-id modal-is-new? 
+                                             callback modal-template (fn [] (load-templates {}))))
         
         delete-template (fn [template-id]
-                         (delete-template-query template-id workspace-id load-templates))]
+                          (delete-template-query template-id workspace-id (fn [] (load-templates {}))))]
     
-    (fn []
-      ;; Load templates on component mount (authentication handled by backend)
-      (zero-react/use-effect
-        {:mount (fn [] (load-templates))
-         :params #js[]})
-      
-      [:div {:style {:min-height "100vh" :background "#f9fafb"}}
-       [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
-        [templates-page-header modal-template modal-is-new?]
-        [templates-content templates loading? modal-template modal-is-new? delete-template]
-        [modal-when-open modal-template modal-is-new? save-template]]])))
+    ;; Load templates on component mount
+    (zero-react/use-effect
+      {:mount (fn [] (load-templates {}))
+       :params #js[]})
+    
+    [:div {:style {:min-height "100vh" :background "#f9fafb"}}
+     [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
+      [templates-page-header modal-template modal-is-new?]
+      [templates-content templates-data loading? modal-template modal-is-new? delete-template load-templates]
+      [modal-when-open modal-template modal-is-new? save-template]]]))

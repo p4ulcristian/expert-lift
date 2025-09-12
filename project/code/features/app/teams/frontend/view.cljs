@@ -16,33 +16,18 @@
   []
   (let [router-state @router/state
         workspace-id (get-in router-state [:parameters :path :workspace-id])]
-    (println "DEBUG: get-workspace-id called")
-    (println "  Router state:" router-state)
-    (println "  Extracted workspace-id:" workspace-id)
     workspace-id))
 
 (defn- load-teams-query
   "Execute ParQuery to load team members with pagination"
   [workspace-id params]
-  (println "DEBUG load-teams-query called with params:" params)
-  (println "DEBUG workspace-id:" workspace-id)
   (rf/dispatch [:teams/set-loading true])
   (parquery/send-queries
    {:queries {:workspace-teams/get-paginated params}
     :parquery/context {:workspace-id workspace-id}
     :callback (fn [response]
-               (println "DEBUG load-teams-query response:" response)
                (let [result (:workspace-teams/get-paginated response)]
-                 (println "DEBUG: ParQuery result structure:" result)
-                 (println "DEBUG: Teams array:" (:users result))
-                 (println "DEBUG: About to dispatch with result:" result)
-                 (println "DEBUG: Result type:" (type result))
-                 (let [event-keyword :teams/load-success
-                       event-vec [event-keyword result]]
-                   (println "DEBUG: Event keyword:" event-keyword)
-                   (println "DEBUG: Constructed event vector:" event-vec)
-                   (println "DEBUG: Event vector length:" (count event-vec))
-                   (rf/dispatch event-vec))))}))
+                 (rf/dispatch [:teams/load-success result])))}))
 
 (defn- get-query-type
   "Get appropriate query type for save operation"
@@ -73,16 +58,10 @@
   (let [query-type (get-query-type modal-is-new?)
         team-data (prepare-team-data team modal-is-new?)
         context {:workspace-id workspace-id}]
-    (println "DEBUG: save-team-query called")
-    (println "  Workspace ID:" workspace-id)
-    (println "  Query type:" query-type)
-    (println "  Team data:" team-data)
-    (println "  Context being sent:" context)
     (parquery/send-queries
      {:queries {query-type team-data}
       :parquery/context context
       :callback (fn [response]
-                 (println "DEBUG: save-team-query response:" response)
                  (handle-save-response response query-type callback load-teams))})))
 
 (defn- delete-team-query
@@ -178,21 +157,15 @@
 (rf/reg-event-db
   :teams/load-success
   (fn [db [_ data]]
-    (println "DEBUG: teams/load-success event called")
-    (println "DEBUG: data received (after trim-v):" data)
-    (println "DEBUG: data type:" (type data))
-    (println "DEBUG: current teams state before update:" (get-in db [:teams]))
     (let [updated-db (-> db
                          (assoc-in [:teams :data] data)
                          (assoc-in [:teams :loading?] false))]
-      (println "DEBUG: teams state after update:" (get-in updated-db [:teams]))
       updated-db)))
 
 
 (rf/reg-event-db
   :teams/open-modal
   (fn [db [_ team is-new?]]  ; Standard re-frame pattern, no trim-v
-    (println "DEBUG: teams/open-modal - team:" team "is-new?:" is-new?)
     (-> db
         (assoc-in [:teams :modal-team] team)
         (assoc-in [:teams :modal-is-new?] is-new?))))
@@ -396,9 +369,6 @@
 (defn teams-table
   "Teams table using server-side data-table component with search, sorting, and pagination"
   [teams loading? on-edit on-delete query-fn]
-  (println "DEBUG teams-table: Full teams data:" @teams)
-  (println "DEBUG teams-table: Loading?" @loading?)
-  (println "DEBUG teams-table: Users count:" (count (:users @teams [])))
   [data-table/server-side-data-table
    {:headers [{:key :user/full-name :label "Team Member" :render user-name-render :sortable? true}
               {:key :user/role :label "Role" :render role-render :sortable? true}
@@ -439,9 +409,7 @@
    teams-data 
    loading?
    (fn [team]
-     (println "DEBUG: Edit button clicked for team:" team)
      (let [event-vec [:teams/open-modal team false]]
-       (println "DEBUG: About to dispatch event:" event-vec)
        (rf/dispatch event-vec)))
    delete-team
    query-fn])
@@ -451,9 +419,7 @@
   [save-team]
   (let [modal-team (rf/subscribe [:teams/modal-team])
         modal-is-new? (rf/subscribe [:teams/modal-is-new?])]
-    (println "DEBUG: modal-when-open - modal-team:" @modal-team "is-new?:" @modal-is-new?)
     (when @modal-team
-      (println "DEBUG: Rendering modal with team data")
       [team-modal @modal-team @modal-is-new? save-team
        (fn [] (rf/dispatch [:teams/close-modal]))])))
 
@@ -465,7 +431,6 @@
         modal-is-new? (rf/subscribe [:teams/modal-is-new?])
         
         load-teams (fn [params]
-                     (println ":dskahdklasjhdkjajhksdhjask")
                      (load-teams-query workspace-id (or params {})))
         
         save-team (fn [team callback]
