@@ -678,21 +678,31 @@
   (fn []
     (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
           maintainer-ref @(rf/subscribe [:worksheets/maintainer-signature-ref])
-          customer-ref @(rf/subscribe [:worksheets/customer-signature-ref])
-          maintainer-signature (when (and maintainer-ref (not (.isEmpty maintainer-ref)))
-                                  (.toDataURL maintainer-ref))
-          customer-signature (when (and customer-ref (not (.isEmpty customer-ref)))
-                               (.toDataURL customer-ref))
-          form-data-with-signatures (cond-> form-data
-                                      maintainer-signature (assoc :worksheet/maintainer-signature maintainer-signature)
-                                      customer-signature (assoc :worksheet/customer-signature customer-signature))
-          validation-errors (validate-worksheet form-data-with-signatures)]
-      (if (empty? validation-errors)
-        (do
-          (rf/dispatch [:worksheets/set-modal-form-loading true])
-          (rf/dispatch [:worksheets/set-modal-form-errors {}])
-          (on-save form-data-with-signatures (fn [] (rf/dispatch [:worksheets/set-modal-form-loading false]))))
-        (rf/dispatch [:worksheets/set-modal-form-errors validation-errors])))))
+          customer-ref @(rf/subscribe [:worksheets/customer-signature-ref])]
+      (println "DEBUG save-button: maintainer-ref:" maintainer-ref "customer-ref:" customer-ref)
+      (println "DEBUG save-button: maintainer-ref isEmpty:" (when maintainer-ref (.isEmpty maintainer-ref)))
+      (println "DEBUG save-button: customer-ref isEmpty:" (when customer-ref (.isEmpty customer-ref)))
+      (let [maintainer-signature (when (and maintainer-ref (not (.isEmpty maintainer-ref)))
+                                    (let [data (.toDataURL maintainer-ref)]
+                                      (println "DEBUG save-button: maintainer signature data length:" (count data))
+                                      data))
+            customer-signature (when (and customer-ref (not (.isEmpty customer-ref)))
+                                 (let [data (.toDataURL customer-ref)]
+                                   (println "DEBUG save-button: customer signature data length:" (count data))
+                                   data))
+            form-data-with-signatures (cond-> form-data
+                                        maintainer-signature (assoc :worksheet/maintainer-signature maintainer-signature)
+                                        customer-signature (assoc :worksheet/customer-signature customer-signature))
+            validation-errors (validate-worksheet form-data-with-signatures)]
+        (println "DEBUG save-button: form-data-with-signatures keys:" (keys form-data-with-signatures))
+        (println "DEBUG save-button: has maintainer signature?" (contains? form-data-with-signatures :worksheet/maintainer-signature))
+        (println "DEBUG save-button: has customer signature?" (contains? form-data-with-signatures :worksheet/customer-signature))
+        (if (empty? validation-errors)
+          (do
+            (rf/dispatch [:worksheets/set-modal-form-loading true])
+            (rf/dispatch [:worksheets/set-modal-form-errors {}])
+            (on-save form-data-with-signatures (fn [] (rf/dispatch [:worksheets/set-modal-form-loading false]))))
+          (rf/dispatch [:worksheets/set-modal-form-errors validation-errors]))))))
 
 (defn- modal-footer-buttons
   "Render modal footer buttons"
@@ -922,11 +932,13 @@
 (rf/reg-event-db
   :worksheets/set-maintainer-signature-ref
   (fn [db [_ ref]]
+    (println "DEBUG set-maintainer-signature-ref:" ref)
     (assoc-in db [:worksheets :maintainer-signature-ref] ref)))
 
 (rf/reg-event-db
   :worksheets/set-customer-signature-ref
   (fn [db [_ ref]]
+    (println "DEBUG set-customer-signature-ref:" ref)
     (assoc-in db [:worksheets :customer-signature-ref] ref)))
 
 (rf/reg-sub
@@ -965,13 +977,19 @@
   (fn [{:keys [db]} _]
     (let [zoom-data (get-in db [:worksheets :signature-zoom-data])
           zoom-ref (get-in db [:worksheets :zoom-signature-ref])]
+      (println "DEBUG close-signature-zoom: zoom-data:" zoom-data)
+      (println "DEBUG close-signature-zoom: zoom-ref:" zoom-ref)
+      (println "DEBUG close-signature-zoom: zoom-ref isEmpty:" (when zoom-ref (.isEmpty zoom-ref)))
       ;; Copy signature data from zoom canvas back to main canvas
       (when (and zoom-data zoom-ref (not (.isEmpty zoom-ref)))
         (let [main-ref (if (= (:ref-dispatch-key zoom-data) :worksheets/set-maintainer-signature-ref)
                          (get-in db [:worksheets :maintainer-signature-ref])
                          (get-in db [:worksheets :customer-signature-ref]))]
+          (println "DEBUG close-signature-zoom: main-ref:" main-ref)
           (when main-ref
-            (.fromDataURL main-ref (.toDataURL zoom-ref)))))
+            (let [signature-data (.toDataURL zoom-ref)]
+              (println "DEBUG close-signature-zoom: copying signature data, length:" (count signature-data))
+              (.fromDataURL main-ref signature-data)))))
       {:db (-> db
                (assoc-in [:worksheets :signature-zoom-data] nil)
                (assoc-in [:worksheets :zoom-signature-ref] nil))})))
