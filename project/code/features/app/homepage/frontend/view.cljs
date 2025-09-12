@@ -32,7 +32,7 @@
                     :box-shadow "0 10px 25px rgba(0, 0, 0, 0.1)"
                     :border "4px solid #3b82f6"
                     :overflow "hidden"}}
-      [:img {:src "/logo/logo.png" 
+      [:img {:src "/logo/logo-256.webp" 
              :alt "ElevaThor Logo"
              :style {:width "180px"
                      :height "180px"

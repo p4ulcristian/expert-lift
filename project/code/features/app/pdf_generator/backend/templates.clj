@@ -223,7 +223,7 @@
    [:body
     [:div.header
      [:div.title "MUNKALAP"]
-     (let [logo-path (or workspace-logo-path "project/resources/public/logo/logo.png")]
+     (let [logo-path (or workspace-logo-path "project/resources/public/logo/logo-256.png")]
        (when-let [logo-data (encode-image-to-base64 logo-path)]
          [:img.logo {:src logo-data}]))]
     

@@ -61,7 +61,7 @@
                        :justify-content "center"
                        :gap "12px"
                        :margin-bottom "1.5rem"}}
-         [:img {:src "/logo/logo.png"
+         [:img {:src "/logo/logo-256.webp"
                 :alt "Logo"
                 :style {:height "50px"
                         :width "50px"

@@ -58,9 +58,10 @@
   (let [current-language (rf/subscribe [:header/current-language])]
     [:div.language-toggle
      [button/view 
-      {:class "language-toggle-btn"
+      {:type :secondary
+       :class "language-toggle-btn"
        :on-click #(handle-language-toggle @current-language)}
-      (if (= @current-language "en") "EN" "HU")]]))
+      (if (= @current-language :en) "EN" "HU")]]))
 
 (defn header
   "Main application header with logo, language toggle, and logout button"
@@ -70,15 +71,15 @@
     [:div.header-left
      {:on-click handle-logo-click
       :style {:cursor "pointer" :display "flex" :align-items "center"}}
-     [:img.logo {:src "/logo/logo.png" :alt "Logo"}]
+     [:img.logo {:src "/logo/logo-256.webp" :alt "Logo"}]
      [:span.brand-name (tr/tr :header/brand)]]
     [:div.header-right
-     [language-toggle]
      [button/view 
       {:type :secondary
        :on-click handle-logout
        :class "logout-btn"}
-      @(rf/subscribe [:translate :header/logout])]]]])
+      @(rf/subscribe [:translate :header/logout])]
+     [language-toggle]]]])
 
 (defn view
   "Header component view function"

@@ -6,7 +6,7 @@
 (defn loading []
   [:div {:style "height: 100vh; width: 100vw; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #f8f9fa; gap: 20px;"}
    [:div {:class "loading-brand-container"}
-    [:img {:class "loading-logo" :src "/logo/logo.png" :alt "Logo"}] 
+    [:img {:class "loading-logo" :src "/logo/logo-256.webp" :alt "Logo"}] 
     [:div {:class "loading-brand"} "ElevaThor"]]
    [:div {:class "loading-spinner"}]])
 
