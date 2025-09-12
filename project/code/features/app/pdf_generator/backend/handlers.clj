@@ -4,7 +4,8 @@
    [features.app.pdf-generator.backend.pdf :as pdf]
    [features.app.worksheets.backend.db :as worksheets-db]
    [features.app.settings.backend.db :as settings-db]
-   [malli.core :as m]))
+   [malli.core :as m]
+   [cheshire.core]))
 
 (def work-report-schema
   "Schema for work report data validation"
@@ -110,7 +111,16 @@
      :departure-time (format-time-from-iso (:departure_time worksheet))
      :work-duration-hours (:work_duration_hours worksheet)
      :work-description (or (:work_description worksheet) "")
-     :materials-used [] ; TODO: Add materials when available
+     :materials-used (let [materials (:material_usage worksheet)]
+                      (println "DEBUG: Raw material_usage from DB:" materials "type:" (type materials))
+                      (cond
+                        (nil? materials) []
+                        (string? materials) (try (cheshire.core/parse-string materials true)
+                                                (catch Exception e
+                                                  (println "ERROR parsing material_usage JSON:" (.getMessage e))
+                                                  []))
+                        (vector? materials) materials
+                        :else []))
      :notes (or (:notes worksheet) "")
      :date (str (:creation_date worksheet))
      :technician-signature (:maintainer_signature worksheet)

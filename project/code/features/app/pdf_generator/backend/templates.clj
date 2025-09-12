@@ -283,12 +283,19 @@
        [:th {:colspan "2"} "Anyagfelhasználás"]]
       [:tr  
        [:th "megnevezés"]
-       [:th "m"]]]
+       [:th "mennyiség"]]]
      [:tbody
-      (for [i (range 4)]
-        [:tr
-         [:td ""]
-         [:td ""]])]]
+      ;; Display actual materials used
+      (if (and materials-used (seq materials-used))
+        (for [material materials-used]
+          [:tr
+           [:td (str (:name material) " (" (:unit material) ")")]
+           [:td (:quantity material)]])
+        ;; Show empty rows if no materials
+        (for [i (range 4)]
+          [:tr
+           [:td ""]
+           [:td ""]]))]]
     
     [:div.notes-section
      [:label {:style "font-weight: bold;"} "Megjegyzés:"]
