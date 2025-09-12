@@ -584,6 +584,8 @@
                    :worksheet/departure-time (str (:departure_time worksheet))
                    :worksheet/work-duration-hours (:work_duration_hours worksheet)
                    :worksheet/notes (:notes worksheet)
+                   :worksheet/maintainer-signature (:maintainer_signature worksheet)
+                   :worksheet/customer-signature (:customer_signature worksheet)
                    :worksheet/created-at (str (:created_at worksheet))
                    :worksheet/updated-at (str (:updated_at worksheet))})
                 worksheets))
@@ -635,6 +637,8 @@
                                           :worksheet/departure-time (str (:departure_time worksheet))
                                           :worksheet/work-duration-hours (:work_duration_hours worksheet)
                                           :worksheet/notes (:notes worksheet)
+                                          :worksheet/maintainer-signature (:maintainer_signature worksheet)
+                                          :worksheet/customer-signature (:customer_signature worksheet)
                                           :worksheet/created-at (str (:created_at worksheet))
                                           :worksheet/updated-at (str (:updated_at worksheet))})
                                        worksheets)]
@@ -676,6 +680,8 @@
              :worksheet/departure-time (str (:departure_time worksheet))
              :worksheet/work-duration-hours (:work_duration_hours worksheet)
              :worksheet/notes (:notes worksheet)
+             :worksheet/maintainer-signature (:maintainer_signature worksheet)
+             :worksheet/customer-signature (:customer_signature worksheet)
              :worksheet/created-at (str (:created_at worksheet))
              :worksheet/updated-at (str (:updated_at worksheet))}))
         (catch Exception e
