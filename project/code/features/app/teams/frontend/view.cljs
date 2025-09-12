@@ -3,7 +3,7 @@
             [clojure.string :as str]
             [parquery.frontend.request :as parquery]
             [router.frontend.zero :as router]
-            [zero.frontend.re-frame]
+            [zero.frontend.re-frame :as rf]
             [zero.frontend.react :as zero-react]
             [ui.modal :as modal]
             [ui.form-field :as form-field]
@@ -23,17 +23,18 @@
 
 (defn- load-teams-query
   "Execute ParQuery to load team members with pagination"
-  [workspace-id loading? teams params]
+  [workspace-id params]
   (println "DEBUG load-teams-query called with params:" params)
-  (reset! loading? true)
+  (rf/dispatch [:teams/set-loading true])
   (parquery/send-queries
    {:queries {:workspace-teams/get-paginated params}
     :parquery/context {:workspace-id workspace-id}
     :callback (fn [response]
                (println "DEBUG load-teams-query response:" response)
-               (reset! loading? false)
                (let [result (:workspace-teams/get-paginated response)]
-                 (reset! teams result)))}))
+                 (println "DEBUG: ParQuery result structure:" result)
+                 (println "DEBUG: Teams array:" (:users result))
+                 (rf/dispatch [:teams/set-data result])))}))
 
 (defn- get-query-type
   "Get appropriate query type for save operation"
@@ -51,16 +52,16 @@
 
 (defn- handle-save-response
   "Handle save response and update UI"
-  [response query-type callback modal-team load-teams]
+  [response query-type callback load-teams]
   (callback)
   (if (:success (get response query-type))
-    (do (reset! modal-team nil)
+    (do (rf/dispatch [:teams/close-modal])
         (load-teams))
     (js/alert (str "Error: " (:error (get response query-type))))))
 
 (defn- save-team-query
   "Execute ParQuery to save team member"
-  [team workspace-id modal-is-new? callback modal-team load-teams]
+  [team workspace-id modal-is-new? callback load-teams]
   (let [query-type (get-query-type modal-is-new?)
         team-data (prepare-team-data team modal-is-new?)
         context {:workspace-id workspace-id}]
@@ -74,7 +75,7 @@
       :parquery/context context
       :callback (fn [response]
                  (println "DEBUG: save-team-query response:" response)
-                 (handle-save-response response query-type callback modal-team load-teams))})))
+                 (handle-save-response response query-type callback load-teams))})))
 
 (defn- delete-team-query
   "Execute ParQuery to delete team member"
@@ -123,6 +124,63 @@
       (validate-full-name full-name) (assoc :user/full-name "Full name is required (min 2 characters)")
       (validate-email email) (assoc :user/email "Valid email is required")
       (validate-password password is-new?) (assoc :user/password "Password is required (min 6 characters)"))))
+
+;; Re-frame events and subscriptions
+(rf/reg-sub
+  :teams/data
+  (fn [db _]
+    (get-in db [:teams :data] {:users [] :pagination {}})))
+
+(rf/reg-sub
+  :teams/loading?
+  (fn [db _]
+    (get-in db [:teams :loading?] false)))
+
+(rf/reg-sub
+  :teams/modal-team
+  (fn [db _]
+    (get-in db [:teams :modal-team] nil)))
+
+(rf/reg-sub
+  :teams/modal-is-new?
+  (fn [db _]
+    (get-in db [:teams :modal-is-new?] false)))
+
+(rf/reg-sub
+  :teams/authenticated?
+  (fn [db _]
+    (get-in db [:teams :authenticated?] nil)))
+
+(rf/reg-event-db
+  :teams/set-loading
+  (fn [db [_ loading?]]
+    (assoc-in db [:teams :loading?] loading?)))
+
+(rf/reg-event-db
+  :teams/set-data
+  (fn [db [_ data]]
+    (-> db
+        (assoc-in [:teams :data] data)
+        (assoc-in [:teams :loading?] false))))
+
+(rf/reg-event-db
+  :teams/set-authenticated
+  (fn [db [_ authenticated?]]
+    (assoc-in db [:teams :authenticated?] authenticated?)))
+
+(rf/reg-event-db
+  :teams/open-modal
+  (fn [db [_ team is-new?]]
+    (-> db
+        (assoc-in [:teams :modal-team] team)
+        (assoc-in [:teams :modal-is-new?] is-new?))))
+
+(rf/reg-event-db
+  :teams/close-modal
+  (fn [db _]
+    (-> db
+        (assoc-in [:teams :modal-team] nil)
+        (assoc-in [:teams :modal-is-new?] false))))
 
 (defn- field-label [label field-key has-error?]
   [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600"
@@ -315,51 +373,51 @@
 
 (defn- teams-page-header
   "Page header with title and add button using new UI component"
-  [modal-team modal-is-new?]
+  []
   [page-header/page-header
    {:title "Team"
     :description "Manage team members for this workspace"
     :action-button [enhanced-button/enhanced-button
                     {:variant :success
                      :on-click (fn [] 
-                                (reset! modal-team {:user/role "employee"
-                                                   :user/active true})
-                                (reset! modal-is-new? true))
+                                (rf/dispatch [:teams/open-modal {:user/role "employee"
+                                                                :user/active true} true]))
                      :text "+ Add New Team Member"}]}])
 
 (defn- teams-content
   "Main content area with server-side data table"
-  [teams loading? modal-team modal-is-new? delete-team query-fn]
+  [teams-data loading? delete-team query-fn]
   [teams-table 
-   teams 
+   teams-data 
    loading?
    (fn [team]
-     (reset! modal-team team)
-     (reset! modal-is-new? false))
+     (rf/dispatch [:teams/open-modal team false]))
    delete-team
    query-fn])
 
 (defn- modal-when-open
   "Render modal when team member is selected"
-  [modal-team modal-is-new? save-team]
-  (when @modal-team
-    [team-modal @modal-team @modal-is-new? save-team
-     (fn [] (reset! modal-team nil))]))
+  [save-team]
+  (let [modal-team (rf/subscribe [:teams/modal-team])
+        modal-is-new? (rf/subscribe [:teams/modal-is-new?])]
+    (when @modal-team
+      [team-modal @modal-team @modal-is-new? save-team
+       (fn [] (rf/dispatch [:teams/close-modal]))])))
 
 (defn view []
-  (let [authenticated? (r/atom nil)  ; nil = checking, true = authenticated, false = not authenticated
-        workspace-id (get-workspace-id)
-        teams (r/atom [])
-        loading? (r/atom false)
-        modal-team (r/atom nil)
-        modal-is-new? (r/atom false)
+  (let [workspace-id (get-workspace-id)
+        teams-data (rf/subscribe [:teams/data])
+        loading? (rf/subscribe [:teams/loading?])
+        modal-team (rf/subscribe [:teams/modal-team])
+        modal-is-new? (rf/subscribe [:teams/modal-is-new?])
+        authenticated? (rf/subscribe [:teams/authenticated?])
         
         load-teams (fn [params]
-                    (load-teams-query workspace-id loading? teams (or params {})))
+                    (load-teams-query workspace-id (or params {})))
         
         save-team (fn [team callback]
                     (save-team-query team workspace-id modal-is-new? 
-                                    callback modal-team (fn [] (load-teams {}))))
+                                    callback (fn [] (load-teams {}))))
         
         delete-team (fn [user-id]
                      (delete-team-query user-id workspace-id (fn [] (load-teams {}))))]
@@ -376,10 +434,10 @@
                                (let [user (:user/current response)]
                                  (if (and user (:user/id user))
                                    (do 
-                                     (reset! authenticated? true)
+                                     (rf/dispatch [:teams/set-authenticated true])
                                      ;; Load initial teams after authentication is confirmed
-                                     (when (empty? (:users @teams [])) (load-teams {})))
-                                   (reset! authenticated? false))))}))
+                                     (when (empty? (:users @teams-data [])) (load-teams {})))
+                                   (rf/dispatch [:teams/set-authenticated false]))))}))
          :params #js[]})
       
       (cond
@@ -396,6 +454,6 @@
         :else
         [:div {:style {:min-height "100vh" :background "#f9fafb"}}
          [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
-          [teams-page-header modal-team modal-is-new?]
-          [teams-content teams loading? modal-team modal-is-new? delete-team load-teams]
-          [modal-when-open modal-team modal-is-new? save-team]]]))))
+          [teams-page-header]
+          [teams-content teams-data loading? delete-team load-teams]
+          [modal-when-open save-team]]]))))
