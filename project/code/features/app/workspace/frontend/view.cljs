@@ -1,7 +1,9 @@
 (ns features.app.workspace.frontend.view
   (:require [reagent.core :as r]
             [parquery.frontend.request :as parquery]
-            [router.frontend.zero :as router]))
+            [router.frontend.zero :as router]
+            [translations.core :as tr]
+            [zero.frontend.re-frame :as rf]))
 
 (defn- get-workspace-id []
   "Get workspace ID from router parameters"
@@ -52,12 +54,41 @@
                  :background "#c9ddd8"}}
    [:div {:class "loading-spinner"}]])
 
+(defn- get-random-welcome-message [username]
+  "Returns a random welcoming message personalized with username and elevator maintenance themes"
+  (let [name (or username "there")
+        welcome-keys [:welcome/ready-to-keep-running
+                      :welcome/ensure-safe-comfortable
+                      :welcome/elevate-service
+                      :welcome/expertise-keeps-moving
+                      :welcome/lift-standards
+                      :welcome/vertical-excellence
+                      :welcome/skilled-hands
+                      :welcome/perfect-journey
+                      :welcome/safety-reliability
+                      :welcome/rise-to-challenges
+                      :welcome/dedication-connects
+                      :welcome/smooth-rides]
+        prefix-keys [:welcome-prefix/welcome-back
+                     :welcome-prefix/hello  
+                     :welcome-prefix/good-morning
+                     :welcome-prefix/great-to-see
+                     :welcome-prefix/welcome
+                     :welcome-prefix/good-to-see]
+        random-prefix-key (rand-nth prefix-keys)
+        welcome-prefix (str (tr/tr random-prefix-key) ", " name "! ")
+        random-key (rand-nth welcome-keys)
+        message-text (tr/tr random-key)]
+    (str welcome-prefix message-text)))
+
 (defn- workspace-header [workspace auth-user]
   "Workspace header with title and user info"
   [:div {:style {:display "flex" :justify-content "center" :align-items "center" :margin-bottom "3rem"}}
    [:div {:style {:text-align "center"}}
     [:h1 {:style {:color "#333" :margin "0" :margin-bottom "0.5rem"}}
      (:workspace/name workspace)]
+    [:p {:style {:color "#72a9bf" :margin "0" :font-size "1rem" :font-style "italic" :margin-bottom "0.5rem"}}
+     (get-random-welcome-message (:user/username auth-user))]
     [:p {:style {:color "#666" :margin "0" :font-size "1.1rem"}}
      (:workspace/description workspace)]]])
 
@@ -83,17 +114,17 @@
 (defn- features-grid [workspace-id]
   "Grid of feature cards"
   [:div {:style {:display "grid" :grid-template-columns "repeat(auto-fit, minmax(250px, 1fr))" :gap "2rem" :margin-top "3rem"}}
-   [feature-card "🏗️" "Material Templates" "Manage standard materials and supplies" (str "/app/" workspace-id "/material-templates")]
-   [feature-card "📍" "Addresses" "Manage workspace addresses and locations" (str "/app/" workspace-id "/addresses")]
-   [feature-card "📋" "Worksheets" "Manage work orders and service reports" (str "/app/" workspace-id "/worksheets")]
-   [feature-card "⚙️" "Settings" "Configure workspace settings and preferences" (str "/app/" workspace-id "/settings")]
-   [feature-card "👥" "Teams" "Manage your service team members" (str "/app/" workspace-id "/teams")]])
+   [feature-card "🏗️" (tr/tr :features/material-templates) (tr/tr :features/material-templates-desc) (str "/app/" workspace-id "/material-templates")]
+   [feature-card "📍" (tr/tr :features/addresses) (tr/tr :features/addresses-desc) (str "/app/" workspace-id "/addresses")]
+   [feature-card "📋" (tr/tr :features/worksheets) (tr/tr :features/worksheets-desc) (str "/app/" workspace-id "/worksheets")]
+   [feature-card "⚙️" (tr/tr :features/settings) (tr/tr :features/settings-desc) (str "/app/" workspace-id "/settings")]
+   [feature-card "👥" (tr/tr :features/teams) (tr/tr :features/teams-desc) (str "/app/" workspace-id "/teams")]])
 
 (defn- workspace-footer [workspace-id]
   "Footer with workspace ID"
   [:div {:style {:border-top "1px solid #eee" :padding-top "2rem" :margin-top "3rem"}}
    [:p {:style {:color "#888" :font-size "0.9rem"}}
-    (str "Workspace ID: " workspace-id)]])
+    (str (tr/tr :dashboard/workspace-id) ": " workspace-id)]])
 
 (defn- workspace-content [auth-user workspace workspace-id]
   "Main workspace dashboard content"
@@ -113,13 +144,38 @@
                  :display "flex"
                  :align-items "center"
                  :justify-content "center"
-                 :background "#c9ddd8"}}
-   [:div {:style {:text-align "center"}}
-    [:h2 "Access Denied"]
-    [:p "You don't have access to this workspace or it doesn't exist."]
-    [:button {:on-click #(set! (.-location js/window) "/app")
-              :style {:padding "0.5rem 1rem" :background "#72a9bf" :color "white" :border "none" :border-radius "4px" :cursor "pointer"}}
-     "Go to Dashboard"]]])
+                 :background "#c9ddd8"
+                 :padding "2rem"}}
+   [:div {:style {:background "white"
+                  :border-radius "12px"
+                  :padding "3rem 2.5rem"
+                  :box-shadow "0 8px 24px rgba(0,0,0,0.15)"
+                  :text-align "center"
+                  :max-width "500px"
+                  :width "100%"}}
+    [:div {:style {:color "#dc3545" :font-size "4rem" :margin-bottom "1.5rem"}} "🚫"]
+    [:h1 {:style {:color "#333" 
+                  :margin "0 0 1rem 0" 
+                  :font-size "2rem"
+                  :font-weight "600"}} 
+     (tr/tr :dashboard/access-denied)]
+    [:p {:style {:color "#666" 
+                 :margin "0 0 2rem 0" 
+                 :font-size "1.1rem"
+                 :line-height "1.5"}} 
+     (tr/tr :dashboard/access-denied-message)]
+    [:button {:on-click #(set! (.-location js/window) "/login")
+              :style {:padding "0.75rem 2rem" 
+                      :background "#72a9bf" 
+                      :color "white" 
+                      :border "none" 
+                      :border-radius "8px" 
+                      :cursor "pointer"
+                      :font-size "1rem"
+                      :font-weight "500"
+                      :transition "background-color 0.2s"
+                      :box-shadow "0 2px 4px rgba(114, 169, 191, 0.3)"}}
+     (tr/tr :dashboard/go-to-login)]]])
 
 (defn view []
   "Main workspace view component"
