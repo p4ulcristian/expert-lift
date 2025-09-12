@@ -65,10 +65,15 @@
      }
      .checkbox-row { 
        margin: 20px 0; 
+       overflow: hidden;
      }
      .checkbox-item { 
-       display: inline-block; 
-       margin-right: 40px;
+       float: left;
+       width: 30%;
+       margin-right: 3%;
+     }
+     .checkbox-item:last-child {
+       margin-right: 0;
      }
      .checkbox { 
        width: 15px; 
@@ -78,10 +83,30 @@
      }
      .time-row { 
        margin: 20px 0; 
+       overflow: hidden;
      }
      .time-row div {
-       display: inline-block;
-       margin-right: 40px;
+       float: left;
+       width: 47%;
+       margin-right: 6%;
+     }
+     .time-row div:last-child {
+       margin-right: 0;
+     }
+     .work-type-section {
+       margin: 20px 0;
+     }
+     .work-type-row {
+       margin: 10px 0;
+       overflow: hidden;
+     }
+     .work-type-item {
+       float: left;
+       width: 30%;
+       margin-right: 3%;
+     }
+     .work-type-item:last-child {
+       margin-right: 0;
      }
      .materials-table { 
        width: 100%; 
@@ -107,9 +132,13 @@
      }
      .signature-box { 
        text-align: center; 
-       width: 200px; 
+       width: 30%; 
        float: left;
-       margin-right: 20px;
+       margin-right: 3%;
+       box-sizing: border-box;
+     }
+     .signature-box:last-child {
+       margin-right: 0;
      }
      .signature-line { 
        border-bottom: 1px solid #000; 
@@ -175,16 +204,18 @@
       [:span {:style "border-bottom: 1px solid #000; padding: 0 20px;"} ""]
       [:span " perc"]]]
     
-    [:div.checkbox-row
-     [:div.checkbox-item
-      [:label "Munka típusa: Javítás:"]
-      [:div.checkbox ""]]
-     [:div.checkbox-item
-      [:label "Karbantartás:"]
-      [:div.checkbox ""]]
-     [:div.checkbox-item
-      [:label "Egyéb:"]
-      [:div.checkbox ""]]]
+    [:div.work-type-section
+     [:label {:style "font-weight: bold; display: block; margin-bottom: 10px;"} "Munka típusa:"]
+     [:div.work-type-row
+      [:div.work-type-item
+       [:label "Javítás:"]
+       [:div.checkbox ""]]
+      [:div.work-type-item
+       [:label "Karbantartás:"]
+       [:div.checkbox ""]]
+      [:div.work-type-item
+       [:label "Egyéb:"]
+       [:div.checkbox ""]]]]
     
     [:div
      [:label {:style "font-weight: bold;"} "Munka leírása:"]
