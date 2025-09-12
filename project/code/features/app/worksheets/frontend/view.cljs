@@ -482,10 +482,11 @@
 (defn- signature-display
   "Render signature as clickable display (non-active)"
   [ref-dispatch-key label]
-  (let [signature-ref @(rf/subscribe (if (= ref-dispatch-key :worksheets/set-maintainer-signature-ref)
-                                       [:worksheets/maintainer-signature-ref]
-                                       [:worksheets/customer-signature-ref]))]
-    (println "DEBUG signature-display:" label "signature-ref:" signature-ref)
+  (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
+        signature-data (if (= ref-dispatch-key :worksheets/set-maintainer-signature-ref)
+                         (:worksheet/maintainer-signature form-data)
+                         (:worksheet/customer-signature form-data))]
+    (println "DEBUG signature-display:" label "has signature data:" (boolean signature-data))
     [:div
      [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600" :font-size "0.875rem" :color "#374151"}}
       label]
@@ -501,10 +502,10 @@
                     :justify-content "center"
                     :position "relative"}
             :on-click #(rf/dispatch [:worksheets/open-signature-zoom label])}
-      (if (and signature-ref (not (.isEmpty signature-ref)))
+      (if signature-data
         (do
-          (println "DEBUG signature-display: showing existing signature for" label)
-          [:img {:src (.toDataURL signature-ref)
+          (println "DEBUG signature-display: showing signature for" label)
+          [:img {:src signature-data
                  :style {:max-width "100%"
                          :max-height "100%"
                          :object-fit "contain"}}])
@@ -621,11 +622,13 @@
                   (rf/dispatch [:worksheets/set-zoom-signature-ref ref])
                   ;; Load existing signature data into zoom canvas
                   (when ref
-                    (let [main-ref (if (= (:ref-dispatch-key zoom-data) :worksheets/set-maintainer-signature-ref)
-                                     @(rf/subscribe [:worksheets/maintainer-signature-ref])
-                                     @(rf/subscribe [:worksheets/customer-signature-ref]))]
-                      (when (and main-ref (not (.isEmpty main-ref)))
-                        (.fromDataURL ref (.toDataURL main-ref))))))}]]
+                    (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
+                          signature-data (if (= (:ref-dispatch-key zoom-data) :worksheets/set-maintainer-signature-ref)
+                                           (:worksheet/maintainer-signature form-data)
+                                           (:worksheet/customer-signature form-data))]
+                      (when signature-data
+                        (println "DEBUG zoom canvas: loading existing signature data")
+                        (.fromDataURL ref signature-data)))))}]]
         
         ;; Action buttons
         [:div {:style {:display "flex" :justify-content "space-between" :gap "1rem"}}
@@ -654,57 +657,27 @@
     [signature-display :worksheets/set-maintainer-signature-ref "Maintainer Signature"]
     [signature-display :worksheets/set-customer-signature-ref "Customer Signature"]]
    
-   ;; Hidden signature canvases to maintain refs for saving
-   [:div {:style {:position "absolute" :left "-9999px" :top "-9999px" :width "1px" :height "1px" :overflow "hidden"}}
-    [signature-canvas :worksheets/set-maintainer-signature-ref "Hidden Maintainer"]
-    [signature-canvas :worksheets/set-customer-signature-ref "Hidden Customer"]]])
+   ])
 
-(defn- load-existing-signatures
-  "Load existing signatures when refs become available"
-  [worksheet-data]
-  (zero-react/use-effect
-   {:mount (fn []
-             (js/setTimeout
-               (fn []
-                 (when-let [maintainer-signature (:worksheet/maintainer-signature worksheet-data)]
-                   (when-let [ref @(rf/subscribe [:worksheets/maintainer-signature-ref])]
-                     (.fromDataURL ref maintainer-signature)))
-                 (when-let [customer-signature (:worksheet/customer-signature worksheet-data)]
-                   (when-let [ref @(rf/subscribe [:worksheets/customer-signature-ref])]
-                     (.fromDataURL ref customer-signature))))
-               200))
-    :params [worksheet-data]}))
 
 (defn- save-button-click-handler
   "Handle save button click with validation and signature capture"
   [on-save]
   (fn []
     (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
-          maintainer-ref @(rf/subscribe [:worksheets/maintainer-signature-ref])
-          customer-ref @(rf/subscribe [:worksheets/customer-signature-ref])]
-      (println "DEBUG save-button: maintainer-ref:" maintainer-ref "customer-ref:" customer-ref)
-      (println "DEBUG save-button: maintainer-ref isEmpty:" (when maintainer-ref (.isEmpty maintainer-ref)))
-      (println "DEBUG save-button: customer-ref isEmpty:" (when customer-ref (.isEmpty customer-ref)))
-      (let [maintainer-signature (when (and maintainer-ref (not (.isEmpty maintainer-ref)))
-                                    (let [data (.toDataURL maintainer-ref)]
-                                      (println "DEBUG save-button: maintainer signature data length:" (count data))
-                                      data))
-            customer-signature (when (and customer-ref (not (.isEmpty customer-ref)))
-                                 (let [data (.toDataURL customer-ref)]
-                                   (println "DEBUG save-button: customer signature data length:" (count data))
-                                   data))
-            form-data-with-signatures (cond-> form-data
-                                        maintainer-signature (assoc :worksheet/maintainer-signature maintainer-signature)
-                                        customer-signature (assoc :worksheet/customer-signature customer-signature))
-            validation-errors (validate-worksheet form-data-with-signatures)]
-        (println "DEBUG save-button: form-data-with-signatures keys:" (keys form-data-with-signatures))
-        (println "DEBUG save-button: has maintainer signature?" (contains? form-data-with-signatures :worksheet/maintainer-signature))
-        (println "DEBUG save-button: has customer signature?" (contains? form-data-with-signatures :worksheet/customer-signature))
+          maintainer-signature (:worksheet/maintainer-signature form-data)
+          customer-signature (:worksheet/customer-signature form-data)]
+      (println "DEBUG save-button: maintainer signature length:" (when maintainer-signature (count maintainer-signature)))
+      (println "DEBUG save-button: customer signature length:" (when customer-signature (count customer-signature)))
+      (println "DEBUG save-button: form-data keys:" (keys form-data))
+      (println "DEBUG save-button: has maintainer signature?" (boolean maintainer-signature))
+      (println "DEBUG save-button: has customer signature?" (boolean customer-signature))
+      (let [validation-errors (validate-worksheet form-data)]
         (if (empty? validation-errors)
           (do
             (rf/dispatch [:worksheets/set-modal-form-loading true])
             (rf/dispatch [:worksheets/set-modal-form-errors {}])
-            (on-save form-data-with-signatures (fn [] (rf/dispatch [:worksheets/set-modal-form-loading false]))))
+            (on-save form-data (fn [] (rf/dispatch [:worksheets/set-modal-form-loading false]))))
           (rf/dispatch [:worksheets/set-modal-form-errors validation-errors]))))))
 
 (defn- modal-footer-buttons
@@ -736,7 +709,6 @@
   
   (fn [worksheet-data is-new? on-save on-cancel]
     (println "worksheet-modal render function called")
-    [load-existing-signatures worksheet-data]
     [:div
      [modal/modal {:on-close (modal-close-handler on-cancel) 
                    :close-on-backdrop? true}
@@ -983,19 +955,21 @@
       (println "DEBUG close-signature-zoom: zoom-data:" zoom-data)
       (println "DEBUG close-signature-zoom: zoom-ref:" zoom-ref)
       (println "DEBUG close-signature-zoom: zoom-ref isEmpty:" (when zoom-ref (.isEmpty zoom-ref)))
-      ;; Copy signature data from zoom canvas back to main canvas
-      (when (and zoom-data zoom-ref (not (.isEmpty zoom-ref)))
-        (let [main-ref (if (= (:ref-dispatch-key zoom-data) :worksheets/set-maintainer-signature-ref)
-                         (get-in db [:worksheets :maintainer-signature-ref])
-                         (get-in db [:worksheets :customer-signature-ref]))]
-          (println "DEBUG close-signature-zoom: main-ref:" main-ref)
-          (when main-ref
-            (let [signature-data (.toDataURL zoom-ref)]
-              (println "DEBUG close-signature-zoom: copying signature data, length:" (count signature-data))
-              (.fromDataURL main-ref signature-data)))))
-      {:db (-> db
-               (assoc-in [:worksheets :signature-zoom-data] nil)
-               (assoc-in [:worksheets :zoom-signature-ref] nil))})))
+      ;; Store signature data directly in re-frame state
+      (let [new-db (if (and zoom-data zoom-ref (not (.isEmpty zoom-ref)))
+                     (let [signature-data (.toDataURL zoom-ref)
+                           signature-key (if (= (:ref-dispatch-key zoom-data) :worksheets/set-maintainer-signature-ref)
+                                           :worksheet/maintainer-signature
+                                           :worksheet/customer-signature)]
+                       (println "DEBUG close-signature-zoom: storing signature data, length:" (count signature-data))
+                       (-> db
+                           (assoc-in [:worksheets :modal-form-data signature-key] signature-data)
+                           (assoc-in [:worksheets :signature-zoom-data] nil)
+                           (assoc-in [:worksheets :zoom-signature-ref] nil)))
+                     (-> db
+                         (assoc-in [:worksheets :signature-zoom-data] nil)
+                         (assoc-in [:worksheets :zoom-signature-ref] nil)))]
+        {:db new-db}))))
 
 (rf/reg-event-db
   :worksheets/set-zoom-signature-ref
