@@ -4,7 +4,12 @@
             [parquery.frontend.request :as parquery]
             [router.frontend.zero :as router]
             [zero.frontend.re-frame]
-            [zero.frontend.react :as zero-react]))
+            [zero.frontend.react :as zero-react]
+            [ui.modal :as modal]
+            [ui.form-field :as form-field]
+            [ui.data-table :as data-table]
+            [ui.enhanced-button :as enhanced-button]
+            [ui.page-header :as page-header]))
 
 (defn- get-workspace-id []
   "Get workspace ID from router parameters"
@@ -230,19 +235,31 @@
     (if @loading? "Saving..." "Save Template")]])
 
 (defn material-template-modal
-  "Modal for creating/editing material templates"
+  "Modal for creating/editing material templates using new UI components"
   [template-data is-new? on-save on-cancel]
   (let [loading? (r/atom false)
         errors (r/atom {})
         template (r/atom template-data)]
     (fn [template-data is-new? on-save on-cancel]
       (reset! template template-data)
-      [:div {:style (modal-overlay)}
-       [:div {:style (modal-content)}
-        [modal-title is-new?]
-        [form-fields template @errors]
-        [active-checkbox template is-new?]
-        [modal-buttons template loading? errors on-save on-cancel]]])))
+      [modal/modal {:on-close on-cancel :close-on-backdrop? true}
+       [modal/modal-header
+        {:title (if is-new? "Add New Material Template" "Edit Material Template")
+         :subtitle (if is-new? 
+                     "Create a new material template for your workspace"
+                     "Update the details of this material template")}]
+       [form-fields template @errors]
+       [active-checkbox template is-new?]
+       [modal/modal-footer
+        [enhanced-button/enhanced-button
+         {:variant :secondary
+          :on-click on-cancel
+          :text "Cancel"}]
+        [enhanced-button/enhanced-button
+         {:variant :primary
+          :loading? @loading?
+          :on-click #(handle-save-click template loading? errors on-save)
+          :text (if @loading? "Saving..." "Save Template")}]]])))
 
 (defn- table-header-style []
   {:padding "1rem 1.25rem" :text-align "left" :font-weight "600" 
@@ -309,25 +326,17 @@
                             :hover {:background "#fee2e2" :border-color "#fca5a5"}}}
            "Delete"]]]])]]])
 
-(defn- page-header [modal-template modal-is-new?]
-  "Page header with title and add button"
-  [:div {:style {:display "flex" :justify-content "space-between" :align-items "center"
-                 :margin-bottom "2rem" :padding-bottom "1.5rem" :border-bottom "1px solid #e5e7eb"}}
-   [:div
-    [:h1 {:style {:font-size "1.875rem" :font-weight "700" :color "#111827" :margin "0"}}
-     "Material Templates"]
-    [:p {:style {:color "#6b7280" :font-size "0.875rem" :margin "0.5rem 0 0 0"}}
-     "Manage your material templates for this workspace"]]
-   [:button {:type "button"
-             :on-click (fn [] 
-                        (reset! modal-template {:material-template/active true})
-                        (reset! modal-is-new? true))
-             :style {:padding "0.75rem 1.25rem" :background "#10b981" :color "white"
-                     :border "none" :border-radius "8px" :cursor "pointer"
-                     :font-weight "600" :font-size "0.875rem" :letter-spacing "0.025em"
-                     :transition "all 0.2s ease-in-out" :box-shadow "0 1px 2px 0 rgba(0, 0, 0, 0.05)"
-                     :hover {:background "#059669" :box-shadow "0 4px 6px -1px rgba(0, 0, 0, 0.1)"}}}
-    "+ Add New Template"]])
+(defn- templates-page-header [modal-template modal-is-new?]
+  "Page header with title and add button using new UI component"
+  [page-header/page-header
+   {:title "Material Templates"
+    :description "Manage your material templates for this workspace"
+    :action-button [enhanced-button/enhanced-button
+                    {:variant :success
+                     :on-click (fn [] 
+                                (reset! modal-template {:material-template/active true})
+                                (reset! modal-is-new? true))
+                     :text "+ Add New Template"}]}])
 
 (defn- templates-content [templates loading? modal-template modal-is-new? delete-template]
   "Main content area with loading or table"
@@ -410,6 +419,6 @@
         :else
         [:div {:style {:min-height "100vh" :background "#f9fafb"}}
          [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
-          [page-header modal-template modal-is-new?]
+          [templates-page-header modal-template modal-is-new?]
           [templates-content templates loading? modal-template modal-is-new? delete-template]
           [modal-when-open modal-template modal-is-new? save-template]]]))))
