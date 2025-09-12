@@ -91,15 +91,33 @@
       (validate-unit unit) (assoc :material-template/unit "Unit is required"))))
 
 (defn- field-label [label field-key has-error?]
-  [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "bold"
-                   :color (if has-error? "#dc3545" "inherit")}}
-   label (when (#{:material-template/name :material-template/unit} field-key) " *")])
+  [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600"
+                   :font-size "0.875rem" :letter-spacing "0.025em"
+                   :color (if has-error? "#dc3545" "#374151")}}
+   label 
+   (when (#{:material-template/name :material-template/unit} field-key) 
+     [:span {:style {:color "#ef4444" :margin-left "0.25rem"}} "*"])])
 
 (defn- input-base-props [field-key template has-error? attrs]
   "Base properties for input fields"
   {:value (str (get @template field-key ""))
    :on-change #(swap! template assoc field-key (.. % -target -value))
-   :style (merge (:style attrs) (when has-error? {:border "2px solid #dc3545"}))})
+   :style (merge {:width "100%"
+                  :padding "0.75rem 1rem"
+                  :border (if has-error? "2px solid #dc3545" "1px solid #d1d5db")
+                  :border-radius "8px"
+                  :font-size "1rem"
+                  :line-height "1.5"
+                  :transition "border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out"
+                  :box-shadow (if has-error? 
+                                "0 0 0 3px rgba(220, 53, 69, 0.1)" 
+                                "0 1px 2px 0 rgba(0, 0, 0, 0.05)")
+                  :outline "none"}
+                 (:style attrs)
+                 {:focus {:border-color (if has-error? "#dc3545" "#3b82f6")
+                         :box-shadow (if has-error? 
+                                       "0 0 0 3px rgba(220, 53, 69, 0.1)"
+                                       "0 0 0 3px rgba(59, 130, 246, 0.1)")}})})
 
 (defn- render-textarea [field-key template has-error? attrs]
   "Render textarea input"
@@ -123,7 +141,7 @@
 (defn- form-field [label field-key template errors attrs]
   "Complete form field with label, input and error"
   (let [has-error? (contains? errors field-key)]
-    [:div {:style {:margin-bottom "1rem"}}
+    [:div {:style {:margin-bottom "1.5rem"}}
      [field-label label field-key has-error?]
      [field-input field-key template has-error? attrs]
      [field-error (get errors field-key)]]))
@@ -131,17 +149,27 @@
 (defn- modal-overlay []
   "Modal overlay background"
   {:position "fixed" :top 0 :left 0 :right 0 :bottom 0
-   :background "rgba(0,0,0,0.5)" :z-index 1000
-   :display "flex" :align-items "center" :justify-content "center"})
+   :background "rgba(0, 0, 0, 0.6)" :z-index 1000
+   :display "flex" :align-items "center" :justify-content "center"
+   :backdrop-filter "blur(4px)"
+   :animation "fadeIn 0.2s ease-out"})
 
 (defn- modal-content []
   "Modal content container styles"
-  {:background "white" :padding "2rem" :border-radius "8px"
-   :min-width "400px" :max-width "600px" :max-height "80vh" :overflow "auto"})
+  {:background "white" :padding "2rem" :border-radius "16px"
+   :min-width "480px" :max-width "640px" :max-height "90vh" :overflow "auto"
+   :box-shadow "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+   :transform "scale(1)" :animation "slideIn 0.2s ease-out"})
 
 (defn- modal-title [is-new?]
   "Modal title based on create/edit mode"
-  [:h3 (if is-new? "Add New Material Template" "Edit Material Template")])
+  [:div {:style {:margin-bottom "2rem" :padding-bottom "1rem" :border-bottom "1px solid #e5e7eb"}}
+   [:h3 {:style {:font-size "1.5rem" :font-weight "600" :color "#111827" :margin "0"}}
+    (if is-new? "Add New Material Template" "Edit Material Template")]
+   [:p {:style {:color "#6b7280" :font-size "0.875rem" :margin "0.5rem 0 0 0"}}
+    (if is-new? 
+      "Create a new material template for your workspace"
+      "Update the details of this material template")]])
 
 (defn- form-fields [template errors]
   "All form input fields"
@@ -158,13 +186,18 @@
 (defn- active-checkbox [template is-new?]
   "Active status checkbox for existing templates"
   (when-not is-new?
-    [:div {:style {:margin-bottom "1rem"}}
-     [:label {:style {:display "flex" :align-items "center" :font-weight "bold"}}
+    [:div {:style {:margin-bottom "1.5rem" :padding "1rem" :background "#f9fafb" 
+                   :border "1px solid #e5e7eb" :border-radius "8px"}}
+     [:label {:style {:display "flex" :align-items "center" :font-weight "600" 
+                      :color "#374151" :cursor "pointer"}}
       [:input {:type "checkbox"
                :checked (boolean (:material-template/active @template))
                :on-change #(swap! template assoc :material-template/active (.. % -target -checked))
-               :style {:margin-right "0.5rem"}}]
-      "Active"]]))
+               :style {:margin-right "0.75rem" :width "1rem" :height "1rem" 
+                       :accent-color "#3b82f6" :cursor "pointer"}}]
+      "Active Template"
+      [:span {:style {:color "#6b7280" :font-weight "normal" :margin-left "0.5rem"}}
+       "(Uncheck to disable this template)"]]]))
 
 (defn- handle-save-click [template loading? errors on-save]
   "Handle save button click with validation"
@@ -177,16 +210,24 @@
 
 (defn- modal-buttons [template loading? errors on-save on-cancel]
   "Save and Cancel buttons"
-  [:div {:style {:display "flex" :gap "1rem" :margin-top "2rem"}}
+  [:div {:style {:display "flex" :gap "0.75rem" :margin-top "2.5rem" :padding-top "2rem"
+                 :border-top "1px solid #e5e7eb" :justify-content "flex-end"}}
+   [:button {:type "button" :on-click on-cancel
+             :style {:padding "0.75rem 1.5rem" :background "white" :color "#374151"
+                     :border "1px solid #d1d5db" :border-radius "8px" :cursor "pointer"
+                     :font-weight "500" :transition "all 0.2s ease-in-out"
+                     :hover {:background "#f9fafb" :border-color "#9ca3af"}}}
+    "Cancel"]
    [:button {:type "button" :disabled @loading?
              :on-click #(handle-save-click template loading? errors on-save)
-             :style {:padding "0.5rem 1rem" :background "#007bff" :color "white"
-                     :border "none" :border-radius "4px" :cursor "pointer"}}
-    (if @loading? "Saving..." "Save")]
-   [:button {:type "button" :on-click on-cancel
-             :style {:padding "0.5rem 1rem" :background "#6c757d" :color "white"
-                     :border "none" :border-radius "4px" :cursor "pointer"}}
-    "Cancel"]])
+             :style {:padding "0.75rem 1.5rem" 
+                     :background (if @loading? "#9ca3af" "#3b82f6") 
+                     :color "white" :border "none" :border-radius "8px" 
+                     :cursor (if @loading? "not-allowed" "pointer")
+                     :font-weight "500" :transition "all 0.2s ease-in-out"
+                     :opacity (if @loading? 0.7 1)
+                     :hover (when-not @loading? {:background "#2563eb"})}}
+    (if @loading? "Saving..." "Save Template")]])
 
 (defn material-template-modal
   "Modal for creating/editing material templates"
@@ -257,15 +298,22 @@
 (defn- page-header [modal-template modal-is-new?]
   "Page header with title and add button"
   [:div {:style {:display "flex" :justify-content "space-between" :align-items "center"
-                 :margin-bottom "2rem"}}
-   [:h1 "Material Templates"]
+                 :margin-bottom "2rem" :padding-bottom "1.5rem" :border-bottom "1px solid #e5e7eb"}}
+   [:div
+    [:h1 {:style {:font-size "1.875rem" :font-weight "700" :color "#111827" :margin "0"}}
+     "Material Templates"]
+    [:p {:style {:color "#6b7280" :font-size "0.875rem" :margin "0.5rem 0 0 0"}}
+     "Manage your material templates for this workspace"]]
    [:button {:type "button"
              :on-click (fn [] 
                         (reset! modal-template {:material-template/active true})
                         (reset! modal-is-new? true))
-             :style {:padding "0.5rem 1rem" :background "#28a745" :color "white"
-                     :border "none" :border-radius "4px" :cursor "pointer"}}
-    "Add Template"]])
+             :style {:padding "0.75rem 1.25rem" :background "#10b981" :color "white"
+                     :border "none" :border-radius "8px" :cursor "pointer"
+                     :font-weight "600" :font-size "0.875rem" :letter-spacing "0.025em"
+                     :transition "all 0.2s ease-in-out" :box-shadow "0 1px 2px 0 rgba(0, 0, 0, 0.05)"
+                     :hover {:background "#059669" :box-shadow "0 4px 6px -1px rgba(0, 0, 0, 0.1)"}}}
+    "+ Add New Template"]])
 
 (defn- templates-content [templates loading? modal-template modal-is-new? delete-template]
   "Main content area with loading or table"
