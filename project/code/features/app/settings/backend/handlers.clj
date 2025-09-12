@@ -3,16 +3,24 @@
   (:require [ring.util.response :as response]
             [clojure.java.io :as io]
             [clojure.string :as str]
+            [clojure.data.json :as json]
             [workspaces.backend.db :as workspace-db]))
 
 (defn upload-logo
   "Handle workspace logo upload and settings update via multipart form"
   [request]
+  (println "DEBUG: upload-logo handler called with request keys:" (keys request))
   (try
     (let [workspace-id (get-in request [:path-params :workspace-id])
           multipart-params (:multipart-params request)
           file-param (get multipart-params "file")
           workspace-name (get multipart-params "workspaceName")]
+      
+      (println "DEBUG: upload-logo called")
+      (println "DEBUG: workspace-id:" workspace-id)
+      (println "DEBUG: multipart-params keys:" (keys multipart-params))
+      (println "DEBUG: workspace-name:" workspace-name)
+      (println "DEBUG: file-param:" file-param)
       
       (when workspace-id
         (let [results (atom {:success true})]
@@ -59,12 +67,34 @@
                 (println "Error uploading file:" (.getMessage e))
                 (swap! results assoc :file-error (.getMessage e)))))
           
-          (-> (response/response @results)
+          (-> (response/response (json/write-str @results))
               (response/content-type "application/json")))))
     
     (catch Exception e
       (println "Error in upload-logo handler:" (.getMessage e))
-      (-> (response/response {:success false
-                              :error (.getMessage e)})
+      (-> (response/response (json/write-str {:success false
+                                               :error (.getMessage e)}))
           (response/status 500)
           (response/content-type "application/json")))))
+
+(defn serve-logo
+  "Serve uploaded logo files"
+  [request]
+  (try
+    (let [filename (get-in request [:path-params :filename])
+          file-path (str "uploads/logos/" filename)
+          file (io/file file-path)]
+      (if (.exists file)
+        (-> (response/response file)
+            (response/content-type (cond
+                                    (str/ends-with? filename ".jpg") "image/jpeg"
+                                    (str/ends-with? filename ".jpeg") "image/jpeg"
+                                    (str/ends-with? filename ".png") "image/png"
+                                    (str/ends-with? filename ".gif") "image/gif"
+                                    :else "application/octet-stream")))
+        (-> (response/response "File not found")
+            (response/status 404))))
+    (catch Exception e
+      (println "Error serving logo:" (.getMessage e))
+      (-> (response/response "Internal server error")
+          (response/status 500)))))

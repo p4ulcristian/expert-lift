@@ -11,12 +11,28 @@
     (println "DEBUG: workspace-id from context:" workspace-id)
     (when workspace-id
       (try
-        (let [workspace (first (workspace-db/get-workspace-by-id (java.util.UUID/fromString workspace-id)))]
+        (let [workspace (first (workspace-db/get-workspace-by-id (java.util.UUID/fromString workspace-id)))
+              ;; Check for multiple image formats
+              extensions ["jpg" "jpeg" "png" "gif"]
+              logo-info (loop [exts extensions]
+                         (if (empty? exts)
+                           {:exists? false :path nil}
+                           (let [ext (first exts)
+                                 file-path (str "uploads/logos/" workspace-id "." ext)
+                                 logo-file (java.io.File. file-path)]
+                             (if (.exists logo-file)
+                               {:exists? true :path (str "/uploads/logos/" workspace-id "." ext)}
+                               (recur (rest exts))))))
+              logo-exists? (:exists? logo-info)
+              logo-path (:path logo-info)]
           (println "DEBUG: workspace found:" workspace)
+          (println "DEBUG: logo exists:" logo-exists? "at path:" logo-path)
           {:workspace-id workspace-id
            :settings/general {:workspace/name (or (:name workspace) "My Workspace")
                              :workspace/timezone "UTC"
                              :workspace/language "en"}
+           :settings/logo {:logo-url (when logo-exists? logo-path)
+                          :has-logo? logo-exists?}
            :settings/notifications {:email-notifications true
                                    :push-notifications false}
            :settings/security {:two-factor-enabled false
@@ -28,6 +44,8 @@
            :settings/general {:workspace/name "My Workspace"
                              :workspace/timezone "UTC"
                              :workspace/language "en"}
+           :settings/logo {:logo-url nil
+                          :has-logo? false}
            :settings/notifications {:email-notifications true
                                    :push-notifications false}
            :settings/security {:two-factor-enabled false

@@ -153,7 +153,9 @@
   []
   (let [uploading? @(rf/subscribe [:settings/uploading?])
         selected-file @(rf/subscribe [:settings/selected-file])
-        preview-url @(rf/subscribe [:settings/preview-url])]
+        preview-url @(rf/subscribe [:settings/preview-url])
+        settings @(rf/subscribe [:settings/data])
+        existing-logo-url (get-in settings [:settings/logo :logo-url])]
     (cond
       uploading?
       [:div {:style {:color "#9ca3af" :font-size "0.875rem" :margin-bottom "0.5rem"}}
@@ -161,7 +163,7 @@
       
       selected-file
       [:div
-       ;; Image preview
+       ;; Image preview (new file selected)
        (when preview-url
          [:div {:style {:margin-bottom "1rem"}}
           [:img {:src preview-url
@@ -176,6 +178,23 @@
         (str "Selected: " (.-name selected-file))]
        [:div {:style {:color "#6b7280" :font-size "0.75rem"}}
         "Click to select a different file"]]
+      
+      ;; Show existing logo if available
+      existing-logo-url
+      [:div
+       [:div {:style {:margin-bottom "1rem"}}
+        [:img {:src existing-logo-url
+               :alt "Current workspace logo"
+               :style {:max-width "200px"
+                       :max-height "150px"
+                       :border-radius "8px"
+                       :box-shadow "0 2px 4px rgba(0,0,0,0.1)"
+                       :display "block"
+                       :margin "0 auto"}}]]
+       [:div {:style {:color "#6b7280" :font-size "0.875rem" :margin-bottom "0.5rem"}}
+        "Current workspace logo"]
+       [:div {:style {:color "#6b7280" :font-size "0.75rem"}}
+        "Click to upload a new logo"]]
       
       :else
       [:div
