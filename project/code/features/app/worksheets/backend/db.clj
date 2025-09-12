@@ -1,6 +1,7 @@
 (ns features.app.worksheets.backend.db
   (:require [zero.backend.state.postgres :as postgres]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [clojure.instant :as instant]))
 
 (defn- normalize-hungarian
   "Normalize Hungarian characters for search - convert accented chars to base chars"
@@ -13,6 +14,22 @@
         (str/replace #"[óÓöÖőŐ]" "o")
         (str/replace #"[úÚüÜűŰ]" "u")
         (str/lower-case))))
+
+(defn- calculate-work-duration
+  "Calculate work duration in hours from arrival and departure times, rounded up to nearest quarter hour"
+  [arrival-time departure-time]
+  (when (and arrival-time departure-time)
+    (try
+      (let [arrival (if (string? arrival-time) (instant/read-instant-date arrival-time) arrival-time)
+            departure (if (string? departure-time) (instant/read-instant-date departure-time) departure-time)]
+        (when (pos? (compare departure arrival))
+          (let [diff-ms (- (.getTime departure) (.getTime arrival))
+                diff-hours (/ diff-ms 1000.0 60 60)]
+            ;; Round up to nearest quarter hour
+            (/ (Math/ceil (* diff-hours 4)) 4))))
+      (catch Exception e
+        (println "Error calculating duration:" (.getMessage e))
+        nil))))
 
 (defn get-worksheets-by-workspace
   "Get all worksheets for a workspace (via address relationship)"
@@ -122,35 +139,37 @@
   [workspace-id serial-number creation-date work-type service-type work-description 
    material-usage notes status address-id elevator-id created-by-user-id assigned-to-user-id 
    arrival-time departure-time work-duration-hours]
-  (postgres/execute-sql 
-   "INSERT INTO expert_lift.worksheets 
-    (serial_number, creation_date, work_type, service_type, work_description, 
-     material_usage, notes, status, address_id, elevator_id, created_by_user_id, 
-     assigned_to_user_id, arrival_time, departure_time, work_duration_hours) 
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) 
-    RETURNING *"
-   {:params [serial-number creation-date work-type service-type work-description
-             material-usage notes status address-id elevator-id created-by-user-id
-             assigned-to-user-id arrival-time departure-time work-duration-hours]}))
+  (let [calculated-duration (or (calculate-work-duration arrival-time departure-time) work-duration-hours)]
+    (postgres/execute-sql 
+     "INSERT INTO expert_lift.worksheets 
+      (serial_number, creation_date, work_type, service_type, work_description, 
+       material_usage, notes, status, address_id, elevator_id, created_by_user_id, 
+       assigned_to_user_id, arrival_time, departure_time, work_duration_hours) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) 
+      RETURNING *"
+     {:params [serial-number creation-date work-type service-type work-description
+               material-usage notes status address-id elevator-id created-by-user-id
+               assigned-to-user-id arrival-time departure-time calculated-duration]})))
 
 (defn update-worksheet
   "Update existing worksheet (within workspace)"
   [worksheet-id workspace-id serial-number creation-date work-type service-type work-description 
    material-usage notes status address-id elevator-id assigned-to-user-id 
    arrival-time departure-time work-duration-hours]
-  (postgres/execute-sql 
-   "UPDATE expert_lift.worksheets w
-    SET serial_number = $1, creation_date = $2, work_type = $3, service_type = $4, 
-        work_description = $5, material_usage = $6, notes = $7, status = $8, 
-        address_id = $9, elevator_id = $10, assigned_to_user_id = $11, 
-        arrival_time = $12, departure_time = $13, work_duration_hours = $14, 
-        updated_at = NOW()
-    FROM expert_lift.addresses a
-    WHERE w.id = $15 AND w.address_id = a.id AND a.workspace_id = $16
-    RETURNING w.*"
-   {:params [serial-number creation-date work-type service-type work-description
-             material-usage notes status address-id elevator-id assigned-to-user-id
-             arrival-time departure-time work-duration-hours worksheet-id workspace-id]}))
+  (let [calculated-duration (or (calculate-work-duration arrival-time departure-time) work-duration-hours)]
+    (postgres/execute-sql 
+     "UPDATE expert_lift.worksheets w
+      SET serial_number = $1, creation_date = $2, work_type = $3, service_type = $4, 
+          work_description = $5, material_usage = $6, notes = $7, status = $8, 
+          address_id = $9, elevator_id = $10, assigned_to_user_id = $11, 
+          arrival_time = $12, departure_time = $13, work_duration_hours = $14, 
+          updated_at = NOW()
+      FROM expert_lift.addresses a
+      WHERE w.id = $15 AND w.address_id = a.id AND a.workspace_id = $16
+      RETURNING w.*"
+     {:params [serial-number creation-date work-type service-type work-description
+               material-usage notes status address-id elevator-id assigned-to-user-id
+               arrival-time departure-time calculated-duration worksheet-id workspace-id]})))
 
 (defn delete-worksheet
   "Delete worksheet (within workspace)"
