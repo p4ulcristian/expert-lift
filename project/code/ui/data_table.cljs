@@ -381,7 +381,7 @@
 (defn server-side-data-table
   "Modern data table with server-side filtering, sorting, and pagination"
   [{:keys [headers loading? empty-message actions id-key table-id show-search? show-pagination?
-           data-source query-fn on-data-change]
+           data-source data-key query-fn on-data-change]
     :or {id-key :id 
          table-id :default
          show-search? true
@@ -391,9 +391,12 @@
         sort-config (:sort table-state)
         pagination (:pagination table-state)
         
-        rows (or (:worksheets data-source) 
-                 (:addresses data-source)
-                 [])
+        rows (if data-key 
+               (get data-source data-key [])
+               (or (:worksheets data-source) 
+                   (:addresses data-source)
+                   (:teams data-source)
+                   []))
         server-pagination (:pagination data-source)
         total-count (:total-count server-pagination 0)]
     

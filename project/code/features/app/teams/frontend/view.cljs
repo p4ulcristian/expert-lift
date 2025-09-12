@@ -357,17 +357,15 @@
 (defn teams-table
   "Teams table using server-side data-table component with search, sorting, and pagination"
   [teams loading? on-edit on-delete query-fn]
-  (let [users-data (:users @teams)]
-    (println "DEBUG teams-table: Full teams data:" @teams)
-    (println "DEBUG teams-table: Users data:" users-data)
-    (println "DEBUG teams-table: Users count:" (count users-data))
-    (println "DEBUG teams-table: Loading?" @loading?)
-    [data-table/server-side-data-table
-     {:headers [{:key :user/full-name :label "Team Member" :render user-name-render :sortable? true}
-                {:key :user/role :label "Role" :render role-render :sortable? true}
-                {:key :user/active :label "Status" :render status-render :sortable? true}
-                {:key :user/phone :label "Phone" :render contact-render :sortable? false}]
-      :data-source users-data
+  (println "DEBUG teams-table: Full teams data:" @teams)
+  (println "DEBUG teams-table: Loading?" @loading?)
+  [data-table/server-side-data-table
+   {:headers [{:key :user/full-name :label "Team Member" :render user-name-render :sortable? true}
+              {:key :user/role :label "Role" :render role-render :sortable? true}
+              {:key :user/active :label "Status" :render status-render :sortable? true}
+              {:key :user/phone :label "Phone" :render contact-render :sortable? false}]
+    :data-source @teams
+    :data-key :users
       :loading? @loading?
       :empty-message "No team members found"
       :id-key :user/id
@@ -379,7 +377,7 @@
                 {:key :delete :label "Delete" :variant :danger 
                  :on-click (fn [row] 
                             (when (js/confirm "Are you sure you want to delete this team member?")
-                              (on-delete (:user/id row))))}]}]))
+                              (on-delete (:user/id row))))}]}])
 
 (defn- teams-page-header
   "Page header with title and add button using new UI component"
@@ -438,9 +436,7 @@
          :params #js[]})
       
       [:div {:style {:min-height "100vh" :background "#f9fafb"}}
-       [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
-        
-        (str @teams-data)
+       [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}} 
         [teams-page-header]
         [teams-content teams-data loading? delete-team load-teams]
         [modal-when-open save-team]]])))

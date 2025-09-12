@@ -2,8 +2,7 @@
   (:require
    [features.app.homepage.routes :as homepage-routes]
    [features.app.superadmin.routes :as superadmin-routes]
-   [features.app.login.routes :as login-routes]
-   [features.app.dashboard.routes :as dashboard-routes]
+   [features.app.login.routes :as login-routes] 
    [features.app.workspace.routes :as workspace-routes]
    [features.app.material-templates.routes :as material-templates-routes]
    [features.app.addresses.routes :as addresses-routes]
@@ -16,8 +15,7 @@
 
 (def routes (concat homepage-routes/routes
                     superadmin-routes/routes
-                    login-routes/routes
-                    dashboard-routes/routes
+                    login-routes/routes 
                     workspace-routes/routes
                     material-templates-routes/routes
                     addresses-routes/routes
