@@ -223,11 +223,11 @@
        ^{:key "form"} [form-fields template @errors]
        ^{:key "checkbox"} [active-checkbox template is-new?]
        ^{:key "footer"} [modal/modal-footer
-        [enhanced-button/enhanced-button
+        ^{:key "cancel"} [enhanced-button/enhanced-button
          {:variant :secondary
           :on-click on-cancel
           :text "Cancel"}]
-        [enhanced-button/enhanced-button
+        ^{:key "save"} [enhanced-button/enhanced-button
          {:variant :primary
           :loading? @loading?
           :on-click #(handle-save-click template loading? errors on-save)
