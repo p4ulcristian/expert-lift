@@ -151,7 +151,7 @@
      [:button {:style (tree-key-button-style expandable? expanded?)
                :on-click (if expandable?
                           #(r/dispatch [:tree-viewer/toggle-path path])
-                          #(js/console.log "Non-expandable item clicked:" key value))
+                          identity)
                :on-double-click #(let [path-string (clojure.string/join " " (map str path))]
                                   (r/dispatch [:tree-viewer/set-path-input path-string]))}
       button-text]]))

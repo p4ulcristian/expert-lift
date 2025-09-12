@@ -291,4 +291,4 @@
   (when ^boolean goog.DEBUG
     ;; Restore state from localStorage
     (r/dispatch [:re-frame-viewer/init-from-storage])
-    (js/console.log "re-frame DB Viewer initialized - Press Ctrl+M (or Cmd+M) to open")))
+    nil))

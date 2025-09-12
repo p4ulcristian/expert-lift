@@ -15,6 +15,5 @@
        :user/email email
        :user/picture-url picture-url})
     (catch Exception e
-      (println "Error creating user:" (.getMessage e))
       nil)))
 

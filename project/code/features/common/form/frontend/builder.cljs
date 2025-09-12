@@ -441,9 +441,6 @@
         current-value (if (empty? service-id)
                         nil
                         (first (filter #(= (:value %) service-id) service-options)))]
-    (js/console.log "Service select - Current service ID:" service-id)
-    (js/console.log "Service select - Current value (option object):" current-value)
-    (js/console.log "Service select - Options:" (clj->js service-options))
     [select/view {:value current-value
                   :placeholder "Select a service..."
                   :options service-options
@@ -454,10 +451,8 @@
                                               :flex-direction "column"
                                               :padding "8px"}}
                   :on-select (fn [selected-option]
-                               (js/console.log "Service selected option:" selected-option)
                                (let [service-value (:value selected-option "")
                                      new-service-id (if (empty? service-value) "" service-value)]
-                                 (js/console.log "Setting service_id to:" new-service-id)
                                  (set-state (assoc state :service_id new-service-id))))}]))
 
 (defn modifiers-editor

@@ -277,7 +277,6 @@
           (println "ERROR: get-workspace-material-templates failed:" (.getMessage e))
           []))
       (do
-        (println "ERROR: No workspace-id in context")
         []))))
 
 (defn get-workspace-material-template-by-id
@@ -427,7 +426,6 @@
           (println "ERROR: get-workspace-addresses failed:" (.getMessage e))
           []))
       (do
-        (println "ERROR: No workspace-id in context")
         []))))
 
 (defn get-workspace-addresses-paginated
@@ -481,7 +479,6 @@
           {:addresses []
            :pagination {:total-count 0 :page 0 :page-size page-size :total-pages 0}}))
       (do
-        (println "ERROR: No workspace-id in context")
         {:addresses []
          :pagination {:total-count 0 :page 0 :page-size page-size :total-pages 0}}))))
 
@@ -544,7 +541,6 @@
           (println "ERROR: get-workspace-worksheets failed:" (.getMessage e))
           []))
       (do
-        (println "ERROR: No workspace-id in context")
         []))))
 
 (defn get-workspace-worksheets-paginated
@@ -601,7 +597,6 @@
           {:worksheets []
            :pagination {:total-count 0 :page 0 :page-size page-size :total-pages 0}}))
       (do
-        (println "ERROR: No workspace-id in context")
         {:worksheets []
          :pagination {:total-count 0 :page 0 :page-size page-size :total-pages 0}}))))
 

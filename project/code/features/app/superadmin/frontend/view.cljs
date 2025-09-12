@@ -294,7 +294,6 @@
                                         (let [users-data (:users/get-all response)]
                                           (if (:error users-data)
                                             (do 
-                                              (js/console.error "Users query failed:" (:error users-data))
                                               (reset! users []))
                                             (reset! users (or users-data [])))
                                           (reset! loading? false)))}))
@@ -327,7 +326,6 @@
                                             (let [workspaces-data (:workspaces/get-all response)]
                                               (if (:error workspaces-data)
                                                 (do 
-                                                  (js/console.error "Workspaces query failed:" (:error workspaces-data))
                                                   (reset! workspaces []))
                                                 (reset! workspaces (or workspaces-data [])))
                                               (reset! workspaces-loading? false)))}))

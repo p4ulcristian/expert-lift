@@ -141,11 +141,31 @@
    (when (#{:worksheet/serial-number :worksheet/work-description :worksheet/work-type :worksheet/service-type :worksheet/status} field-key) 
      [:span {:style {:color "#ef4444" :margin-left "0.25rem"}} "*"])])
 
+(defn- format-datetime-for-input
+  "Convert ISO datetime string to datetime-local format (YYYY-MM-DDTHH:mm)"
+  [iso-datetime]
+  (when (and iso-datetime (not (empty? iso-datetime)))
+    (try
+      (let [date (js/Date. iso-datetime)
+            year (.getFullYear date)
+            month (str (.padStart (str (inc (.getMonth date))) 2 "0"))
+            day (str (.padStart (str (.getDate date)) 2 "0"))
+            hours (str (.padStart (str (.getHours date)) 2 "0"))
+            minutes (str (.padStart (str (.getMinutes date)) 2 "0"))]
+        (str year "-" month "-" day "T" hours ":" minutes))
+      (catch js/Error e
+        (println "Error formatting datetime:" e)
+        ""))))
+
 (defn- input-base-props
   "Base properties for input fields"
   [field-key has-error? attrs]
   (let [is-time-field? (#{:worksheet/arrival-time :worksheet/departure-time} field-key)
         form-data @(rf/subscribe [:worksheets/modal-form-data])
+        field-value (get form-data field-key "")
+        display-value (if (and is-time-field? (= (:type attrs) "datetime-local"))
+                        (format-datetime-for-input field-value)
+                        (str field-value))
         base-change-handler (fn [e] 
                              (let [value (.. e -target -value)]
                                (rf/dispatch [:worksheets/update-modal-form-field field-key value])
@@ -157,7 +177,7 @@
                                        calculated-duration (calculate-work-duration arrival departure)]
                                    (when calculated-duration
                                      (rf/dispatch [:worksheets/update-modal-form-field :worksheet/work-duration-hours calculated-duration]))))))]
-    {:value (str (get form-data field-key ""))
+    {:value display-value
      :on-change base-change-handler
      :style (merge {:width "100%"
                     :padding "0.75rem 1rem"
