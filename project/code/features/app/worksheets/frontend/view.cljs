@@ -82,7 +82,6 @@
         service-type (:worksheet/service-type worksheet)
         status (:worksheet/status worksheet)]
     (cond-> errors
-      (validate-serial-number serial-number) (assoc :worksheet/serial-number "Serial number is required")
       (validate-work-description work-description) (assoc :worksheet/work-description "Work description is required (min 5 characters)")
       (empty? work-type) (assoc :worksheet/work-type "Work type is required")
       (empty? service-type) (assoc :worksheet/service-type "Service type is required") 
@@ -113,7 +112,7 @@
                    :font-size "0.875rem" :letter-spacing "0.025em"
                    :color (if has-error? "#dc3545" "#374151")}}
    label 
-   (when (#{:worksheet/serial-number :worksheet/work-description :worksheet/work-type :worksheet/service-type :worksheet/status} field-key) 
+   (when (#{:worksheet/work-description :worksheet/work-type :worksheet/service-type :worksheet/status} field-key) 
      [:span {:style {:color "#ef4444" :margin-left "0.25rem"}} "*"])])
 
 (defn- format-datetime-for-input

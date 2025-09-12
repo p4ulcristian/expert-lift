@@ -134,12 +134,38 @@
     WHERE w.id = $1 AND a.workspace_id = $2"
    {:params [worksheet-id workspace-id]}))
 
+(defn- generate-next-serial-number
+  "Generate next serial number in format YYYY-MM-DD/NNN for workspace"
+  [workspace-id creation-date]
+  (let [date-str (cond
+                   (string? creation-date) 
+                   (if (.contains creation-date "T")
+                     ;; If it's an ISO datetime, extract just the date part
+                     (first (str/split creation-date #"T"))
+                     ;; If it's already just a date
+                     creation-date)
+                   
+                   (instance? java.time.LocalDate creation-date)
+                   (.format creation-date (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd"))
+                   
+                   :else
+                   (.format (java.time.LocalDate/now) (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd")))
+        count-query "SELECT COUNT(*) as count 
+                    FROM expert_lift.worksheets w
+                    JOIN expert_lift.addresses a ON w.address_id = a.id  
+                    WHERE a.workspace_id = $1 
+                      AND DATE(w.creation_date) = DATE($2)"
+        count-result (postgres/execute-sql count-query {:params [workspace-id date-str]})
+        next-number (inc (:count (first count-result)))]
+    (str date-str "/" (format "%03d" next-number))))
+
 (defn create-worksheet
-  "Create new worksheet in workspace"
-  [workspace-id serial-number creation-date work-type service-type work-description 
+  "Create new worksheet in workspace with auto-generated serial number"
+  [workspace-id creation-date work-type service-type work-description 
    material-usage notes status address-id elevator-id created-by-user-id assigned-to-user-id 
    arrival-time departure-time work-duration-hours maintainer-signature customer-signature]
-  (let [calculated-duration (or (calculate-work-duration arrival-time departure-time) work-duration-hours)]
+  (let [auto-serial-number (generate-next-serial-number workspace-id creation-date)
+        calculated-duration (or (calculate-work-duration arrival-time departure-time) work-duration-hours)]
     (postgres/execute-sql 
      "INSERT INTO expert_lift.worksheets 
       (serial_number, creation_date, work_type, service_type, work_description, 
@@ -148,7 +174,7 @@
        maintainer_signature, customer_signature) 
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) 
       RETURNING *"
-     {:params [serial-number creation-date work-type service-type work-description
+     {:params [auto-serial-number creation-date work-type service-type work-description
                material-usage notes status address-id elevator-id created-by-user-id
                assigned-to-user-id arrival-time departure-time calculated-duration
                maintainer-signature customer-signature]})))

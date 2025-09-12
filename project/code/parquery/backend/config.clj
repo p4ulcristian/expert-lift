@@ -702,7 +702,6 @@
   (if (has-admin-role? request)
     (let [workspace-id (:workspace-id context)
           user-id (get-in request [:session :user-id])
-          serial-number (:worksheet/serial-number params)
           creation-date (:worksheet/creation-date params)
           work-type (:worksheet/work-type params)
           service-type (:worksheet/service-type params)
@@ -720,9 +719,11 @@
       (if workspace-id
         (try
           (println "DEBUG: Attempting to create worksheet with workspace-id:" workspace-id)
-          (let [result (first (worksheets-db/create-worksheet workspace-id serial-number creation-date 
+          (let [material-usage (when-let [materials (:worksheet/material-usage params)]
+                                  (cheshire.core/generate-string materials))
+                result (first (worksheets-db/create-worksheet workspace-id creation-date 
                                                              work-type service-type work-description
-                                                             nil notes status address-id elevator-id 
+                                                             material-usage notes status address-id elevator-id 
                                                              user-id assigned-to-user-id
                                                              arrival-time departure-time work-duration-hours
                                                              maintainer-signature customer-signature))]
