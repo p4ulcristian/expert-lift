@@ -308,10 +308,9 @@
   (println "  Request keys:" (keys request))
   (println "  Params:" (dissoc params :parquery/request))
   (if (has-admin-role? request)
-    (let [workspace-id (:workspace-id context)
+    (let [workspace-id (get-in request [:session :workspace-id])
           {:material-template/keys [name unit category description]} params]
       (println "DEBUG: Admin role check passed")
-      (println "  Workspace ID from context:" workspace-id)
       (if workspace-id
         (try
           (println "DEBUG: Attempting to create material template with workspace-id:" workspace-id)

@@ -7,7 +7,8 @@
 (def query-request-schema
   [:map
    [:queries [:map-of :keyword :map]]
-   [:context {:optional true} [:maybe :map]]])
+   [:context {:optional true} [:maybe :map]]
+   [:parquery/context {:optional true} [:maybe :map]]])
 
 (def query-result-schema
   "Schema for individual query results"
@@ -116,7 +117,7 @@
           _ (println "  Raw context value:" (get raw-params :parquery/context))
           params (spec/validate query-request-schema raw-params "parquery request")
           queries (:queries params []) 
-          context (:context params {})
+          context (or (:parquery/context params) (:context params) {})
           initial-session (:session request)
           session-atom (atom initial-session)
           _ (println "  Initial session from request:" initial-session)
