@@ -510,6 +510,25 @@
           nil))
       nil)))
 
+(defn search-workspace-addresses
+  "Search addresses for dropdown - simplified data for UI"
+  [{:parquery/keys [context request] :as params}]
+  (let [workspace-id (:workspace-id context)
+        search-term (:search params "")
+        limit (:limit params 20)]
+    (if workspace-id
+      (try
+        (let [addresses (addresses-db/search-addresses-for-dropdown workspace-id search-term limit)]
+          (mapv (fn [address]
+                  {:address/id (str (:id address))
+                   :address/name (:name address)
+                   :address/display (str (:name address) " - " (:address_line1 address) ", " (:city address))})
+                addresses))
+        (catch Exception e
+          (println "ERROR: search-workspace-addresses failed:" (.getMessage e))
+          []))
+      [])))
+
 ;; Worksheet handlers
 (defn get-workspace-worksheets
   "Get all worksheets for workspace"
@@ -526,6 +545,7 @@
                    :worksheet/service-type (:service_type worksheet)
                    :worksheet/work-description (:work_description worksheet)
                    :worksheet/status (:status worksheet)
+                   :worksheet/address-id (str (:address_id worksheet))
                    :worksheet/address-name (:address_name worksheet)
                    :worksheet/address-city (:address_city worksheet)
                    :worksheet/created-by-name (:created_by_name worksheet)
@@ -576,6 +596,7 @@
                                           :worksheet/service-type (:service_type worksheet)
                                           :worksheet/work-description (:work_description worksheet)
                                           :worksheet/status (:status worksheet)
+                                          :worksheet/address-id (str (:address_id worksheet))
                                           :worksheet/address-name (:address_name worksheet)
                                           :worksheet/address-city (:address_city worksheet)
                                           :worksheet/created-by-name (:created_by_name worksheet)
@@ -616,6 +637,7 @@
              :worksheet/service-type (:service_type worksheet)
              :worksheet/work-description (:work_description worksheet)
              :worksheet/status (:status worksheet)
+             :worksheet/address-id (str (:address_id worksheet))
              :worksheet/address-name (:address_name worksheet)
              :worksheet/address-city (:address_city worksheet)
              :worksheet/created-by-name (:created_by_name worksheet)
@@ -849,6 +871,7 @@
    :workspace-addresses/get-all #'get-workspace-addresses
    :workspace-addresses/get-paginated #'get-workspace-addresses-paginated
    :workspace-addresses/get-by-id #'get-workspace-address-by-id
+   :workspace-addresses/search #'search-workspace-addresses
    :workspace-worksheets/get-all #'get-workspace-worksheets
    :workspace-worksheets/get-paginated #'get-workspace-worksheets-paginated
    :workspace-worksheets/get-by-id #'get-workspace-worksheet-by-id})

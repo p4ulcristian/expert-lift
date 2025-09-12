@@ -114,3 +114,22 @@
     WHERE id = $1 AND workspace_id = $2
     RETURNING id"
    {:params [address-id workspace-id]}))
+
+(defn search-addresses-for-dropdown
+  "Search addresses for dropdown - returns simplified data for UI"
+  [workspace-id search-term limit]
+  (let [has-search? (and search-term (not (str/blank? search-term)))
+        search-condition (if has-search?
+                          "AND search_normalized LIKE $2"
+                          "")
+        search-param (when has-search? (str "%" (normalize-hungarian search-term) "%"))
+        params (if has-search? 
+                [workspace-id search-param limit]
+                [workspace-id limit])
+        query (str "SELECT id, name, address_line1, city, postal_code 
+                   FROM expert_lift.addresses 
+                   WHERE workspace_id = $1 " 
+                   search-condition
+                   " ORDER BY name 
+                   LIMIT $" (if has-search? "3" "2"))]
+    (postgres/execute-sql query {:params params})))

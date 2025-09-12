@@ -9,7 +9,8 @@
             [ui.form-field :as form-field]
             [ui.data-table :as data-table]
             [ui.enhanced-button :as enhanced-button]
-            [ui.page-header :as page-header]))
+            [ui.page-header :as page-header]
+            [ui.address-search :as address-search]))
 
 (defn- get-workspace-id
   "Get workspace ID from router parameters"
@@ -36,46 +37,31 @@
                  (println "DEBUG: Worksheets array:" (:worksheets result))
                  (rf/dispatch [:worksheets/set-data result])))}))
 
-(defn- get-query-type
-  "Get appropriate query type for save operation"
-  [is-new?]
-  (if @is-new? 
-    :workspace-worksheets/create 
-    :workspace-worksheets/update))
-
-(defn- prepare-worksheet-data
-  "Prepare worksheet data for save"
-  [worksheet is-new?]
-  (if @is-new?
-    (dissoc worksheet :worksheet/id)
-    worksheet))
-
-(defn- handle-save-response
-  "Handle save response and update UI"
-  [response query-type callback modal-worksheet load-worksheets]
-  (callback)
-  (if (:success (get response query-type))
-    (do (reset! modal-worksheet nil)
-        (load-worksheets))
-    (js/alert (str "Error: " (:error (get response query-type))))))
 
 (defn- save-worksheet-query
   "Execute ParQuery to save worksheet"
   [worksheet workspace-id modal-is-new? callback modal-worksheet load-worksheets]
-  (let [query-type (get-query-type modal-is-new?)
-        worksheet-data (prepare-worksheet-data worksheet modal-is-new?)
+  (let [is-new? (if (satisfies? IDeref modal-is-new?) @modal-is-new? modal-is-new?)
+        query-type (if is-new? :workspace-worksheets/create :workspace-worksheets/update)
+        worksheet-data (if is-new? (dissoc worksheet :worksheet/id) worksheet)
         context {:workspace-id workspace-id}]
     (println "DEBUG: save-worksheet-query called")
+    (println "  Worksheet input:" worksheet)
     (println "  Workspace ID:" workspace-id)
+    (println "  Is new?:" is-new?)
     (println "  Query type:" query-type)
-    (println "  Worksheet data:" worksheet-data)
+    (println "  Prepared worksheet data:" worksheet-data)
     (println "  Context being sent:" context)
     (parquery/send-queries
      {:queries {query-type worksheet-data}
       :parquery/context context
       :callback (fn [response]
                  (println "DEBUG: save-worksheet-query response:" response)
-                 (handle-save-response response query-type callback modal-worksheet load-worksheets))})))
+                 (callback)
+                 (if (:success (get response query-type))
+                   (do (rf/dispatch [:worksheets/close-modal])
+                       (load-worksheets))
+                   (js/alert (str "Error: " (:error (get response query-type))))))})))
 
 (defn- delete-worksheet-query
   "Execute ParQuery to delete worksheet"
@@ -112,7 +98,8 @@
       (validate-work-description work-description) (assoc :worksheet/work-description "Work description is required (min 5 characters)")
       (empty? work-type) (assoc :worksheet/work-type "Work type is required")
       (empty? service-type) (assoc :worksheet/service-type "Service type is required") 
-      (empty? status) (assoc :worksheet/status "Status is required"))))
+      (empty? status) (assoc :worksheet/status "Status is required")
+      (empty? (:worksheet/address-id worksheet)) (assoc :worksheet/address-id "Address is required"))))
 
 (defn- calculate-work-duration
   "Calculate work duration in hours from arrival and departure times"
@@ -248,6 +235,23 @@
       {:type "text" :placeholder "Auto-generated" :disabled true}]
      [form-field "Creation Date" :worksheet/creation-date errors
       {:type "date"}]
+     
+     ;; Address search field
+     [:div {:style {:margin-bottom "1.5rem"}}
+      [field-label "Address" :worksheet/address-id (contains? errors :worksheet/address-id)]
+      [address-search/address-search-dropdown
+       {:component-id :worksheet-form-address
+        :workspace-id (get-workspace-id)
+        :value @(rf/subscribe [:worksheets/modal-form-field :worksheet/address])
+        :on-select (fn [address]
+                     (rf/dispatch [:worksheets/modal-form-set-field :worksheet/address address])
+                     (rf/dispatch [:worksheets/modal-form-set-field :worksheet/address-id (:address/id address)]))
+        :placeholder "Type to search addresses..."
+        :disabled false}]
+      (when-let [error (:worksheet/address-id errors)]
+        [:div {:style {:color "#dc3545" :font-size "0.875rem" :margin-top "0.25rem"}}
+         error])]
+         
      [form-field "Work Type" :worksheet/work-type errors
       {:type "select" :options [["repair" "Repair"] ["maintenance" "Maintenance"] ["other" "Other"]]}]
      [form-field "Service Type" :worksheet/service-type errors
@@ -272,11 +276,18 @@
   [on-save]
   (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
         validation-errors (validate-worksheet form-data)]
+    (println "DEBUG: handle-save-click called")
+    (println "  Form data:" form-data)
+    (println "  Validation errors:" validation-errors)
     (if (empty? validation-errors)
-      (do (rf/dispatch [:worksheets/set-modal-form-loading true])
+      (do (println "  Validation passed, starting save...")
+          (rf/dispatch [:worksheets/set-modal-form-loading true])
           (rf/dispatch [:worksheets/set-modal-form-errors {}])
-          (on-save form-data (fn [] (rf/dispatch [:worksheets/set-modal-form-loading false]))))
-      (rf/dispatch [:worksheets/set-modal-form-errors validation-errors]))))
+          (on-save form-data (fn [] 
+                              (println "  Save callback called")
+                              (rf/dispatch [:worksheets/set-modal-form-loading false]))))
+      (do (println "  Validation failed, setting errors")
+          (rf/dispatch [:worksheets/set-modal-form-errors validation-errors])))))
 
 (defn worksheet-modal
   "Modal for creating/editing worksheets using new UI components"
@@ -450,7 +461,16 @@
 (rf/reg-event-db
   :worksheets/set-modal-form-data
   (fn [db [data]]
-    (assoc-in db [:worksheets :modal-form-data] data)))
+    ;; Construct address object from address data
+    (let [enhanced-data (if (and (:worksheet/address-id data) 
+                                 (:worksheet/address-name data))
+                          (assoc data :worksheet/address
+                                 {:address/id (:worksheet/address-id data)
+                                  :address/name (:worksheet/address-name data)
+                                  :address/display (str (:worksheet/address-name data) 
+                                                        " - " (:worksheet/address-city data))})
+                          data)]
+      (assoc-in db [:worksheets :modal-form-data] enhanced-data))))
 
 (rf/reg-event-db
   :worksheets/update-modal-form-field
@@ -466,6 +486,16 @@
   :worksheets/set-modal-form-loading
   (fn [db [loading?]]
     (assoc-in db [:worksheets :modal-form-loading?] loading?)))
+
+(rf/reg-event-db
+  :worksheets/modal-form-set-field
+  (fn [db [field-key value]]
+    (assoc-in db [:worksheets :modal-form-data field-key] value)))
+
+(rf/reg-sub
+  :worksheets/modal-form-field
+  (fn [db [_ field-key]]
+    (get-in db [:worksheets :modal-form-data field-key])))
 
 (rf/reg-event-db
   :worksheets/clear-modal-form
@@ -513,8 +543,10 @@
                         (rf/dispatch [:worksheets/load-data params]))
         
         save-worksheet (fn [worksheet callback]
-                       (save-worksheet-query worksheet workspace-id (r/atom modal-is-new?) 
-                                          callback (r/atom modal-worksheet) (fn [] (load-worksheets {}))))
+                       (println "DEBUG: save-worksheet wrapper called")
+                       (println "  Worksheet data received:" worksheet)
+                       (println "  Modal is new?:" modal-is-new?)
+                       (save-worksheet-query worksheet workspace-id modal-is-new? callback modal-worksheet (fn [] (load-worksheets {}))))
         
         delete-worksheet (fn [worksheet-id]
                          (delete-worksheet-query worksheet-id workspace-id (fn [] (load-worksheets {}))))]
