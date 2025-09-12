@@ -400,17 +400,7 @@
         server-pagination (:pagination data-source)
         total-count (:total-count server-pagination 0)]
     
-    ;; Use React effect to trigger data fetch when table state changes (prevents infinite loop)
-    (zero-react/use-effect
-      {:mount (fn []
-                (println "DEBUG: table state changed, triggering query" table-state)
-                (when query-fn
-                  (query-fn {:search (or search-term "")
-                             :sort-by (:key sort-config)
-                             :sort-direction (name (:direction sort-config :asc))
-                             :page (:current-page pagination 0)
-                             :page-size (:page-size pagination 10)})))
-       :params #js [search-term (:key sort-config) (:direction sort-config) (:current-page pagination) (:page-size pagination)]})
+    ;; Use React effect to trigger data fetch when table state changes (prevents infinite loop) 
     [:div
       ;; Search input
       (when show-search?

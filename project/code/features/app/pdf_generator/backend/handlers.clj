@@ -83,6 +83,7 @@
                               (when (:address_city worksheet) 
                                 (str ", " (:address_city worksheet))))
      :work-type (get work-type-mapping (:work_type worksheet) "normal")
+     :worksheet-work-type (:work_type worksheet)
      :arrival-time (format-time-from-iso (:arrival_time worksheet))
      :departure-time (format-time-from-iso (:departure_time worksheet))
      :work-duration-hours (:work_duration_hours worksheet)

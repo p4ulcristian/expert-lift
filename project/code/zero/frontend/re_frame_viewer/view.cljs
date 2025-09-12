@@ -65,7 +65,7 @@
 
 (r/reg-event-db
   :re-frame-viewer/set-view-mode
-  (fn [db [mode]]
+  (fn [db [_ mode]]
     (save-to-local-storage "re-frame-viewer-mode" mode)
     (assoc-in db [:dev :re-frame-viewer :view-mode] mode)))
 

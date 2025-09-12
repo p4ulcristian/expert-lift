@@ -53,6 +53,7 @@
   [{:keys [institution-name
            institution-address
            work-type
+           worksheet-work-type
            arrival-time
            departure-time
            work-duration-hours
@@ -260,13 +261,13 @@
      [:div.work-type-row
       [:div.work-type-item
        [:span.checkbox-label "Javítás:"]
-       [:div.checkbox ""]]
+       [:div.checkbox (when (= worksheet-work-type "repair") "X")]]
       [:div.work-type-item
        [:span.checkbox-label "Karbantartás:"]
-       [:div.checkbox ""]]
+       [:div.checkbox (when (= worksheet-work-type "maintenance") "X")]]
       [:div.work-type-item
        [:span.checkbox-label "Egyéb:"]
-       [:div.checkbox ""]]]]
+       [:div.checkbox (when (= worksheet-work-type "other") "X")]]]]
     
     [:div
      [:label {:style "font-weight: bold;"} "Munka leírása:"]

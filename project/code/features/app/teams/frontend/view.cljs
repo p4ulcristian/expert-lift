@@ -177,7 +177,7 @@
 
 (rf/reg-event-db
   :teams/load-success
-  (fn [db [data]]
+  (fn [db [_ data]]
     (println "DEBUG: teams/load-success event called")
     (println "DEBUG: data received (after trim-v):" data)
     (println "DEBUG: data type:" (type data))
@@ -191,7 +191,7 @@
 
 (rf/reg-event-db
   :teams/open-modal
-  (fn [db [_ team is-new?]]
+  (fn [db [_ team is-new?]]  ; Standard re-frame pattern, no trim-v
     (println "DEBUG: teams/open-modal - team:" team "is-new?:" is-new?)
     (-> db
         (assoc-in [:teams :modal-team] team)
@@ -465,23 +465,24 @@
         modal-is-new? (rf/subscribe [:teams/modal-is-new?])
         
         load-teams (fn [params]
-                    (load-teams-query workspace-id (or params {})))
+                     (println ":dskahdklasjhdkjajhksdhjask")
+                     (load-teams-query workspace-id (or params {})))
         
         save-team (fn [team callback]
                     (save-team-query team workspace-id modal-is-new? 
-                                    callback (fn [] (load-teams {}))))
+                                     callback (fn [] (load-teams {}))))
         
         delete-team (fn [user-id]
-                     (delete-team-query user-id workspace-id (fn [] (load-teams {}))))]
+                      (delete-team-query user-id workspace-id (fn [] (load-teams {}))))]
     
-    (fn []
-      ;; Load teams on component mount (authentication is handled by backend)
-      (zero-react/use-effect
-        {:mount (fn [] (load-teams {}))
-         :params #js[]})
-      
-      [:div {:style {:min-height "100vh" :background "#f9fafb"}}
-       [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}} 
-        [teams-page-header]
-        [teams-content teams-data loading? delete-team load-teams]
-        [modal-when-open save-team]]])))
+    
+    ;; Load teams on component mount (authentication is handled by backend)
+    (zero-react/use-effect
+     {;:mount (fn [] (load-teams {}))
+      :params #js[]})
+    
+    [:div {:style {:min-height "100vh" :background "#f9fafb"}}
+     [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}} 
+      [teams-page-header]
+      [teams-content teams-data loading? delete-team load-teams]
+      [modal-when-open save-team]]]))

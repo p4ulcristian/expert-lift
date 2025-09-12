@@ -52,7 +52,7 @@
 
 (r/reg-event-db
   :tree-viewer/toggle-path
-  (fn [db [path]]
+  (fn [db [_ path]]
     (let [expanded (get-in db [:dev :tree-viewer :expanded] #{})]
       (assoc-in db [:dev :tree-viewer :expanded]
                 (if (contains? expanded path)
@@ -61,7 +61,7 @@
 
 (r/reg-event-db
   :tree-viewer/set-path-input
-  (fn [db [input]]
+  (fn [db [_ input]]
     (let [parsed-path (parse-path-input input)]
       (save-to-local-storage "tree-viewer-path-input" input)
       (save-to-local-storage "tree-viewer-current-path" parsed-path)

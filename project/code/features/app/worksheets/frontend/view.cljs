@@ -22,9 +22,10 @@
 (defn- load-worksheets-query
   "Execute ParQuery to load worksheets with pagination"
   [workspace-id params]
+  (println "DEBUG: load-worksheets-query called with params:" params "type:" (type params))
   (rf/dispatch [:worksheets/set-loading true])
   (parquery/send-queries
-   {:queries {:workspace-worksheets/get-paginated params}
+   {:queries {:workspace-worksheets/get-paginated (or params {})}
     :parquery/context {:workspace-id workspace-id}
     :callback (fn [response]
                (let [result (:workspace-worksheets/get-paginated response)]
@@ -393,29 +394,29 @@
 
 (rf/reg-event-db
   :worksheets/set-loading
-  (fn [db [loading?]]
+  (fn [db [_ loading?]]
     (assoc-in db [:worksheets :loading?] loading?)))
 
 (rf/reg-event-db
   :worksheets/set-data
-  (fn [db [data]]
+  (fn [db [_ data]]
     (-> db
         (assoc-in [:worksheets :data] data)
         (assoc-in [:worksheets :loading?] false))))
 
 (rf/reg-event-db
   :worksheets/set-modal-worksheet
-  (fn [db [worksheet]]
+  (fn [db [_ worksheet]]
     (assoc-in db [:worksheets :modal-worksheet] worksheet)))
 
 (rf/reg-event-db
   :worksheets/set-modal-is-new
-  (fn [db [is-new?]]
+  (fn [db [_ is-new?]]
     (assoc-in db [:worksheets :modal-is-new?] is-new?)))
 
 (rf/reg-event-db
   :worksheets/set-authenticated
-  (fn [db [authenticated?]]
+  (fn [db [_ authenticated?]]
     (assoc-in db [:worksheets :authenticated?] authenticated?)))
 
 (rf/reg-event-db
@@ -441,7 +442,7 @@
 
 (rf/reg-event-db
   :worksheets/set-modal-form-data
-  (fn [db [data]]
+  (fn [db [_ data]]
     ;; Construct address object from address data
     (let [enhanced-data (if (and (:worksheet/address-id data) 
                                  (:worksheet/address-name data))
@@ -455,22 +456,22 @@
 
 (rf/reg-event-db
   :worksheets/update-modal-form-field
-  (fn [db [field-key value]]
+  (fn [db [_ field-key value]]
     (assoc-in db [:worksheets :modal-form-data field-key] value)))
 
 (rf/reg-event-db
   :worksheets/set-modal-form-errors
-  (fn [db [errors]]
+  (fn [db [_ errors]]
     (assoc-in db [:worksheets :modal-form-errors] errors)))
 
 (rf/reg-event-db
   :worksheets/set-modal-form-loading
-  (fn [db [loading?]]
+  (fn [db [_ loading?]]
     (assoc-in db [:worksheets :modal-form-loading?] loading?)))
 
 (rf/reg-event-db
   :worksheets/modal-form-set-field
-  (fn [db [field-key value]]
+  (fn [db [_ field-key value]]
     (assoc-in db [:worksheets :modal-form-data field-key] value)))
 
 (rf/reg-sub
@@ -489,7 +490,7 @@
 ;; Event to load worksheets
 (rf/reg-event-db
   :worksheets/load-data
-  (fn [db [params]]
+  (fn [db [_ params]]
     (let [workspace-id (get-workspace-id)]
       (load-worksheets-query workspace-id (or params {}))
       db)))
