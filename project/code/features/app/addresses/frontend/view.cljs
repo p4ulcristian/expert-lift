@@ -179,6 +179,62 @@
      [field-input field-key address has-error? attrs]
      [field-error (get errors field-key)]]))
 
+(defn- elevators-field
+  "Field for managing elevators list"
+  [address errors]
+  (let [new-elevator (r/atom "")]
+    (fn [address errors]
+      (let [elevators (or (:address/elevators @address) [])
+            add-elevator (fn [elevator-id]
+                          (when (and elevator-id (not (some #(= % elevator-id) elevators)))
+                            (swap! address assoc :address/elevators (conj elevators elevator-id))))
+            remove-elevator (fn [index]
+                             (swap! address assoc :address/elevators 
+                                   (vec (concat (take index elevators) 
+                                               (drop (inc index) elevators)))))]
+        [:div {:style {:margin-bottom "1.5rem"}}
+         [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600"
+                          :font-size "0.875rem" :letter-spacing "0.025em" :color "#374151"}}
+          "Elevators (Felvonók)"]
+         
+         ;; List of current elevators
+         (when (seq elevators)
+           [:div {:style {:margin-bottom "1rem"}}
+            (for [[index elevator-id] (map-indexed vector elevators)]
+              ^{:key (str "elevator-" index)}
+              [:div {:style {:display "flex" :align-items "center" :margin-bottom "0.5rem"
+                             :padding "0.5rem" :background "#f9fafb" :border-radius "6px"}}
+               [:span {:style {:flex "1" :color "#374151" :font-size "0.875rem"}}
+                (str "Elevator: " elevator-id)]
+               [:button {:type "button"
+                         :on-click #(remove-elevator index)
+                         :style {:color "#dc3545" :background "none" :border "none"
+                                :cursor "pointer" :padding "0.25rem" :font-size "0.75rem"
+                                :border-radius "4px"}}
+                "Remove"]])])
+         
+         ;; Add new elevator input
+         [:div {:style {:display "flex" :gap "0.5rem" :align-items "flex-end"}}
+          [:div {:style {:flex "1"}}
+           [:input {:type "text"
+                    :placeholder "Enter elevator identifier (e.g. A1, B2, Main)"
+                    :value @new-elevator
+                    :on-change #(reset! new-elevator (.. % -target -value))
+                    :style {:width "100%" :padding "0.75rem 1rem" :border "1px solid #d1d5db"
+                            :border-radius "8px" :font-size "1rem"}}]]
+          [:button {:type "button"
+                    :on-click #(do (add-elevator @new-elevator) 
+                                  (reset! new-elevator ""))
+                    :disabled (empty? (str/trim @new-elevator))
+                    :style {:padding "0.75rem 1.5rem" :background "#10b981" :color "white"
+                            :border "none" :border-radius "8px" :font-size "0.875rem"
+                            :cursor (if (empty? (str/trim @new-elevator)) "not-allowed" "pointer")
+                            :opacity (if (empty? (str/trim @new-elevator)) "0.5" "1")}}
+           "+ Add"]]
+         
+         [:p {:style {:color "#6b7280" :font-size "0.75rem" :margin-top "0.5rem"}}
+          "Add elevator identifiers for this address (e.g., A1, B2, Main Elevator)"]]))))
+
 (defn- form-fields
   "All form input fields"
   [address errors]
@@ -200,7 +256,8 @@
    [form-field "Contact Phone" :address/contact-phone address errors
     {:type "text" :placeholder "Optional: Phone number"}]
    [form-field "Contact Email" :address/contact-email address errors
-    {:type "text" :placeholder "Optional: Email address"}]])
+    {:type "text" :placeholder "Optional: Email address"}]
+   [elevators-field address errors]])
 
 (defn- handle-save-click
   "Handle save button click with validation"
@@ -247,7 +304,17 @@
    [:div {:style {:color "#6b7280" :font-size "0.75rem" :margin-top "0.25rem" :line-height "1.4"}}
     (str (:address/address-line1 row)
          (when (:address/address-line2 row) (str ", " (:address/address-line2 row)))
-         ", " (:address/city row) " " (:address/postal-code row))]])
+         ", " (:address/city row) " " (:address/postal-code row))]
+   
+   ;; Display elevators if any
+   (when (seq (:address/elevators row))
+     [:div {:style {:margin-top "0.5rem"}}
+      (for [elevator (:address/elevators row)]
+        ^{:key (str "table-elevator-" elevator)}
+        [:span {:style {:display "inline-block" :margin-right "0.5rem" :margin-bottom "0.25rem"
+                        :padding "0.25rem 0.5rem" :background "#e0f2fe" :color "#0891b2"
+                        :border-radius "12px" :font-size "0.75rem" :font-weight "500"}}
+         (str "🏢 " elevator)])])])
 
 (defn- contact-render
   "Custom render function for contact info"
@@ -290,7 +357,8 @@
     :action-button [enhanced-button/enhanced-button
                     {:variant :success
                      :on-click (fn [] 
-                                (reset! modal-address {:address/country "Hungary"})
+                                (reset! modal-address {:address/country "Hungary"
+                                                      :address/elevators []})
                                 (reset! modal-is-new? true))
                      :text "+ Add New Address"}]}])
 

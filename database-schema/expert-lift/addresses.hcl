@@ -53,6 +53,12 @@ table "addresses" {
     null = true
     type = varchar(255)
   }
+
+  column "elevators" {
+    null = true
+    type = jsonb
+    comment = "Felvonok - Array of elevator identifiers (Felvono jelzese)"
+  }
   
   column "created_at" {
     null = false

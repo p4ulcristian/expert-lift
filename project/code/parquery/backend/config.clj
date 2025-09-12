@@ -4,7 +4,8 @@
    [users.backend.db :as user-db]
    [workspaces.backend.db :as workspace-db]
    [features.app.material-templates.backend.db :as material-templates-db]
-   [features.app.addresses.backend.db :as addresses-db]))
+   [features.app.addresses.backend.db :as addresses-db]
+   [cheshire.core]))
 
 ;; Error handling helpers
 (defn parse-db-error
@@ -378,6 +379,25 @@
         {:success false :error "No workspace context"}))
     {:success false :error "Insufficient permissions"}))
 
+;; Helper functions for addresses
+(defn parse-elevators-json
+  "Parse elevators JSON string to Clojure data, return empty vector if invalid"
+  [elevators-json]
+  (try
+    (if (and elevators-json (not= elevators-json "null"))
+      (cheshire.core/parse-string elevators-json true)
+      [])
+    (catch Exception e
+      (println "WARNING: Failed to parse elevators JSON:" elevators-json "Error:" (.getMessage e))
+      [])))
+
+(defn format-elevators-for-db
+  "Format elevators vector as JSON string for database storage"
+  [elevators]
+  (if (and elevators (seq elevators))
+    (cheshire.core/generate-string elevators)
+    "[]"))
+
 ;; Workspace Addresses Handlers
 (defn get-workspace-addresses
   "Get all addresses for workspace"
@@ -397,6 +417,7 @@
                   :address/contact-person (:contact_person address)
                   :address/contact-phone (:contact_phone address)
                   :address/contact-email (:contact_email address)
+                  :address/elevators (parse-elevators-json (:elevators_json address))
                   :address/workspace-id (str (:workspace_id address))
                   :address/created-at (str (:created_at address))
                   :address/updated-at (str (:updated_at address))})
@@ -427,6 +448,7 @@
              :address/contact-person (:contact_person address)
              :address/contact-phone (:contact_phone address)
              :address/contact-email (:contact_email address)
+             :address/elevators (parse-elevators-json (:elevators_json address))
              :address/workspace-id (str (:workspace_id address))
              :address/created-at (str (:created_at address))
              :address/updated-at (str (:updated_at address))}))
@@ -448,11 +470,13 @@
           country (:address/country params)
           contact-person (:address/contact-person params)
           contact-phone (:address/contact-phone params)
-          contact-email (:address/contact-email params)]
+          contact-email (:address/contact-email params)
+          elevators (:address/elevators params)
+          elevators-json (format-elevators-for-db elevators)]
       (if workspace-id
         (try
           (println "DEBUG: Attempting to create address with workspace-id:" workspace-id)
-          (let [result (first (addresses-db/create-address workspace-id name address-line1 address-line2 city postal-code country contact-person contact-phone contact-email))]
+          (let [result (first (addresses-db/create-address workspace-id name address-line1 address-line2 city postal-code country contact-person contact-phone contact-email elevators-json))]
             (println "DEBUG: Address created successfully:" result)
             {:address/id (str (:id result))
              :address/name (:name result)
@@ -464,6 +488,7 @@
              :address/contact-person (:contact_person result)
              :address/contact-phone (:contact_phone result)
              :address/contact-email (:contact_email result)
+             :address/elevators (parse-elevators-json (:elevators_json result))
              :address/workspace-id (str (:workspace_id result))
              :address/created-at (str (:created_at result))
              :address/updated-at (str (:updated_at result))
@@ -488,10 +513,12 @@
           country (:address/country params)
           contact-person (:address/contact-person params)
           contact-phone (:address/contact-phone params)
-          contact-email (:address/contact-email params)]
+          contact-email (:address/contact-email params)
+          elevators (:address/elevators params)
+          elevators-json (format-elevators-for-db elevators)]
       (if workspace-id
         (try
-          (let [result (first (addresses-db/update-address id workspace-id name address-line1 address-line2 city postal-code country contact-person contact-phone contact-email))]
+          (let [result (first (addresses-db/update-address id workspace-id name address-line1 address-line2 city postal-code country contact-person contact-phone contact-email elevators-json))]
             {:address/id (str (:id result))
              :address/name (:name result)
              :address/address-line1 (:address_line1 result)
@@ -502,6 +529,7 @@
              :address/contact-person (:contact_person result)
              :address/contact-phone (:contact_phone result)
              :address/contact-email (:contact_email result)
+             :address/elevators (parse-elevators-json (:elevators_json result))
              :address/workspace-id (str (:workspace_id result))
              :address/created-at (str (:created_at result))
              :address/updated-at (str (:updated_at result))
