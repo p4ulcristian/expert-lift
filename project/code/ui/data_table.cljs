@@ -1,7 +1,8 @@
 (ns ui.data-table
   (:require [zero.frontend.re-frame :as re-frame]
             [zero.frontend.react :as zero-react]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [translations.core :as tr]))
 
 ;; -----------------------------------------------------------------------------
 ;; ---- Re-frame Events & Subscriptions ----
@@ -161,7 +162,7 @@
   [table-id search-term]
   [:div {:style {:margin-bottom "1rem"}}
    [:input {:type "text"
-            :placeholder "Search..."
+            :placeholder (tr/tr :table/search)
             :value search-term
             :on-change #(re-frame/dispatch [:data-table/set-search table-id (.. % -target -value)])
             :style {:width "300px"
@@ -215,7 +216,7 @@
        
        ;; Info text
        [:div {:style {:color "#6b7280" :font-size "0.875rem"}}
-        (str "Showing " start-item " to " end-item " of " total-count " entries")]
+        (str (tr/tr :table/showing) " " start-item " " (tr/tr :table/to) " " end-item " " (tr/tr :table/of) " " total-count " " (tr/tr :table/entries))]
        
        ;; Navigation buttons
        [:div {:style {:display "flex" :gap "0.5rem"}}
@@ -230,7 +231,7 @@
                           :border-radius "6px"
                           :cursor (if has-prev? "pointer" "not-allowed")
                           :font-size "0.875rem"}}
-         "Previous"]
+         (tr/tr :table/previous)]
         
         ;; Page numbers (show current and nearby pages)
         (let [start-page (max 0 (- current-page 2))
@@ -260,7 +261,7 @@
                           :border-radius "6px"
                           :cursor (if has-next? "pointer" "not-allowed")
                           :font-size "0.875rem"}}
-         "Next"]]])))
+         (tr/tr :table/next)]]])))
 
 ;; ---- UI Components ----
 ;; -----------------------------------------------------------------------------
@@ -272,8 +273,8 @@
                   :background (if active? "#dcfce7" "#fee2e2")
                   :color (if active? "#166534" "#dc2626")}}
    (if active? 
-     (or active-text "Active") 
-     (or inactive-text "Inactive"))])
+     (or active-text (tr/tr :table/active)) 
+     (or inactive-text (tr/tr :table/inactive)))])
 
 (defn data-table
   "Modern styled data table with client-side search, sorting, and pagination"
@@ -305,15 +306,15 @@
           [:div {:style {:width "40px" :height "40px" :border "4px solid #f3f4f6" 
                          :border-top "4px solid #3b82f6" :border-radius "50%"
                          :animation "spin 1s linear infinite" :margin "0 auto 1rem"}}]
-          [:div {:style {:color "#6b7280" :font-weight "500"}} "Loading..."]]]
+          [:div {:style {:color "#6b7280" :font-weight "500"}} (tr/tr :table/loading)]]]
 
         (or (empty? rows) (and total-count (= total-count 0)))
         [:div {:style {:text-align "center" :padding "4rem" :background "white" 
                        :border-radius "12px" :box-shadow "0 1px 3px 0 rgba(0, 0, 0, 0.1)"}}
          [:div {:style {:color "#9ca3af" :font-size "1.125rem" :font-weight "500"}}
-          (or empty-message "No data found")]
+          (or empty-message (tr/tr :table/no-data))]
          [:div {:style {:color "#6b7280" :font-size "0.875rem" :margin-top "0.5rem"}}
-          "There are no items to display"]]
+          (tr/tr :table/no-items)]]
 
         :else
         [:div
@@ -328,7 +329,7 @@
                ^{:key (:key header)}
                [sortable-header header table-id sort-config])
              (when actions
-               [:th {:style (merge (table-header-style) {:text-align "center"})} "Actions"])]]
+               [:th {:style (merge (table-header-style) {:text-align "center"})} (tr/tr :table/actions)])]]
            [:tbody
             (for [row display-rows]
               ^{:key (get row id-key)}
@@ -418,15 +419,15 @@
           [:div {:style {:width "40px" :height "40px" :border "4px solid #f3f4f6" 
                          :border-top "4px solid #3b82f6" :border-radius "50%"
                          :animation "spin 1s linear infinite" :margin "0 auto 1rem"}}]
-          [:div {:style {:color "#6b7280" :font-weight "500"}} "Loading..."]]]
+          [:div {:style {:color "#6b7280" :font-weight "500"}} (tr/tr :table/loading)]]]
 
         (or (empty? rows) (= total-count 0))
         [:div {:style {:text-align "center" :padding "4rem" :background "white" 
                        :border-radius "12px" :box-shadow "0 1px 3px 0 rgba(0, 0, 0, 0.1)"}}
          [:div {:style {:color "#9ca3af" :font-size "1.125rem" :font-weight "500"}}
-          (or empty-message "No data found")]
+          (or empty-message (tr/tr :table/no-data))]
          [:div {:style {:color "#6b7280" :font-size "0.875rem" :margin-top "0.5rem"}}
-          "There are no items to display"]]
+          (tr/tr :table/no-items)]]
 
         :else
         [:div
@@ -441,7 +442,7 @@
                ^{:key (:key header)}
                [sortable-header header table-id sort-config])
              (when actions
-               [:th {:style (merge (table-header-style) {:text-align "center"})} "Actions"])]]
+               [:th {:style (merge (table-header-style) {:text-align "center"})} (tr/tr :table/actions)])]]
            [:tbody
             (for [row rows]  ;; Use rows directly from server
               ^{:key (get row id-key)}

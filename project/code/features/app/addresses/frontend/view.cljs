@@ -9,7 +9,8 @@
             [ui.form-field :as form-field]
             [ui.data-table :as data-table]
             [ui.enhanced-button :as enhanced-button]
-            [ui.page-header :as page-header]))
+            [ui.page-header :as page-header]
+            [translations.core :as tr]))
 
 (defn- get-workspace-id
   "Get workspace ID from router parameters"
@@ -116,10 +117,10 @@
         city (:address/city address)
         postal-code (:address/postal-code address)]
     (cond-> errors
-      (validate-name name) (assoc :address/name "Name is required")
-      (validate-address-line1 address-line1) (assoc :address/address-line1 "Address is required")
-      (validate-city city) (assoc :address/city "City is required")
-      (validate-postal-code postal-code) (assoc :address/postal-code "Postal code is required"))))
+      (validate-name name) (assoc :address/name (tr/tr :addresses/error-name))
+      (validate-address-line1 address-line1) (assoc :address/address-line1 (tr/tr :addresses/error-address-line1))
+      (validate-city city) (assoc :address/city (tr/tr :addresses/error-city))
+      (validate-postal-code postal-code) (assoc :address/postal-code (tr/tr :addresses/error-postal-code)))))
 
 (defn- field-label [label field-key has-error?]
   [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600"
@@ -198,7 +199,7 @@
         [:div {:style {:margin-bottom "1.5rem"}}
          [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600"
                           :font-size "0.875rem" :letter-spacing "0.025em" :color "#374151"}}
-          "Elevators (Felvonók)"]
+          (tr/tr :addresses/elevators)]
          
          ;; List of current elevators
          (when (seq elevators)
@@ -208,19 +209,19 @@
               [:div {:style {:display "flex" :align-items "center" :margin-bottom "0.5rem"
                              :padding "0.5rem" :background "#f9fafb" :border-radius "6px"}}
                [:span {:style {:flex "1" :color "#374151" :font-size "0.875rem"}}
-                (str "Elevator: " elevator-id)]
+                (str (tr/tr :addresses/elevator-prefix) elevator-id)]
                [:button {:type "button"
                          :on-click #(remove-elevator index)
                          :style {:color "#dc3545" :background "none" :border "none"
                                 :cursor "pointer" :padding "0.25rem" :font-size "0.75rem"
                                 :border-radius "4px"}}
-                "Remove"]])])
+                (tr/tr :addresses/remove)]])])
          
          ;; Add new elevator input
          [:div {:style {:display "flex" :gap "0.5rem" :align-items "flex-end"}}
           [:div {:style {:flex "1"}}
            [:input {:type "text"
-                    :placeholder "Enter elevator identifier (e.g. A1, B2, Main)"
+                    :placeholder (tr/tr :addresses/elevator-placeholder)
                     :value @new-elevator
                     :on-change #(reset! new-elevator (.. % -target -value))
                     :style {:width "100%" :padding "0.75rem 1rem" :border "1px solid #d1d5db"
@@ -233,33 +234,33 @@
                             :border "none" :border-radius "8px" :font-size "0.875rem"
                             :cursor (if (empty? (str/trim @new-elevator)) "not-allowed" "pointer")
                             :opacity (if (empty? (str/trim @new-elevator)) "0.5" "1")}}
-           "+ Add"]]
+           (tr/tr :addresses/add-elevator)]]
          
          [:p {:style {:color "#6b7280" :font-size "0.75rem" :margin-top "0.5rem"}}
-          "Add elevator identifiers for this address (e.g., A1, B2, Main Elevator)"]]))))
+          (tr/tr :addresses/elevator-description)]]))))
 
 (defn- form-fields
   "All form input fields"
   [address errors]
   [:div
-   [form-field "Name" :address/name address errors
-    {:type "text" :placeholder "e.g. Main Office, Warehouse 1"}]
-   [form-field "Address Line 1" :address/address-line1 address errors
-    {:type "text" :placeholder "e.g. 123 Main Street"}]
-   [form-field "Address Line 2" :address/address-line2 address errors
-    {:type "text" :placeholder "Optional: Apt, Suite, etc."}]
-   [form-field "City" :address/city address errors
-    {:type "text" :placeholder "e.g. Budapest"}]
-   [form-field "Postal Code" :address/postal-code address errors
-    {:type "text" :placeholder "e.g. 1056"}]
-   [form-field "Country" :address/country address errors
-    {:type "text" :placeholder "e.g. Hungary"}]
-   [form-field "Contact Person" :address/contact-person address errors
-    {:type "text" :placeholder "Optional: Contact name"}]
-   [form-field "Contact Phone" :address/contact-phone address errors
-    {:type "text" :placeholder "Optional: Phone number"}]
-   [form-field "Contact Email" :address/contact-email address errors
-    {:type "text" :placeholder "Optional: Email address"}]
+   [form-field (tr/tr :addresses/name) :address/name address errors
+    {:type "text" :placeholder (tr/tr :addresses/name-placeholder)}]
+   [form-field (tr/tr :addresses/address-line1) :address/address-line1 address errors
+    {:type "text" :placeholder (tr/tr :addresses/address-line1-placeholder)}]
+   [form-field (tr/tr :addresses/address-line2) :address/address-line2 address errors
+    {:type "text" :placeholder (tr/tr :addresses/address-line2-placeholder)}]
+   [form-field (tr/tr :addresses/city) :address/city address errors
+    {:type "text" :placeholder (tr/tr :addresses/city-placeholder)}]
+   [form-field (tr/tr :addresses/postal-code) :address/postal-code address errors
+    {:type "text" :placeholder (tr/tr :addresses/postal-code-placeholder)}]
+   [form-field (tr/tr :addresses/country) :address/country address errors
+    {:type "text" :placeholder (tr/tr :addresses/country-placeholder)}]
+   [form-field (tr/tr :addresses/contact-person) :address/contact-person address errors
+    {:type "text" :placeholder (tr/tr :addresses/contact-person-placeholder)}]
+   [form-field (tr/tr :addresses/contact-phone) :address/contact-phone address errors
+    {:type "text" :placeholder (tr/tr :addresses/contact-phone-placeholder)}]
+   [form-field (tr/tr :addresses/contact-email) :address/contact-email address errors
+    {:type "text" :placeholder (tr/tr :addresses/contact-email-placeholder)}]
    [elevators-field address errors]])
 
 (defn- handle-save-click
@@ -282,21 +283,21 @@
       (reset! address address-data)
       [modal/modal {:on-close on-cancel :close-on-backdrop? true}
        ^{:key "header"} [modal/modal-header
-        {:title (if is-new? "Add New Address" "Edit Address")
+        {:title (if is-new? (tr/tr :addresses/modal-add-title) (tr/tr :addresses/modal-edit-title))
          :subtitle (if is-new? 
-                     "Create a new address for your workspace"
-                     "Update the details of this address")}]
+                     (tr/tr :addresses/modal-add-subtitle)
+                     (tr/tr :addresses/modal-edit-subtitle))}]
        ^{:key "form"} [form-fields address @errors]
        ^{:key "footer"} [modal/modal-footer
         ^{:key "cancel"} [enhanced-button/enhanced-button
          {:variant :secondary
           :on-click on-cancel
-          :text "Cancel"}]
+          :text (tr/tr :addresses/cancel)}]
         ^{:key "save"} [enhanced-button/enhanced-button
          {:variant :primary
           :loading? @loading?
           :on-click #(handle-save-click address loading? errors on-save)
-          :text (if @loading? "Saving..." "Save Address")}]]])))
+          :text (if @loading? (tr/tr :addresses/saving) (tr/tr :addresses/save-address))}]]])))
 
 (defn- address-name-render
   "Custom render function for address name column with full address"
@@ -323,7 +324,7 @@
                        :border-radius "12px" :font-size "0.75rem" :font-weight "500"}}
         (str "🏢 " elevator)])
      [:span {:style {:color "#9ca3af" :font-style "italic" :font-size "0.75rem"}}
-      "No elevators"])])
+      (tr/tr :addresses/no-elevators)])])
 
 (defn- contact-render
   "Custom render function for contact info"
@@ -343,39 +344,39 @@
   "Addresses table using server-side data-table component with search, sorting, and pagination"
   [addresses loading? on-edit on-delete query-fn]
   [data-table/server-side-data-table
-   {:headers [{:key :address/name :label "Address" :render address-name-render :sortable? true}
-              {:key :address/elevators :label "Elevators" :render elevators-render :sortable? false}
-              {:key :address/contact-person :label "Contact" :render contact-render :sortable? true}
-              {:key :address/city :label "City" :sortable? true}
-              {:key :address/country :label "Country" :sortable? true}]
+   {:headers [{:key :address/name :label (tr/tr :addresses/table-header-address) :render address-name-render :sortable? true}
+              {:key :address/elevators :label (tr/tr :addresses/table-header-elevators) :render elevators-render :sortable? false}
+              {:key :address/contact-person :label (tr/tr :addresses/table-header-contact) :render contact-render :sortable? true}
+              {:key :address/city :label (tr/tr :addresses/table-header-city) :sortable? true}
+              {:key :address/country :label (tr/tr :addresses/table-header-country) :sortable? true}]
     :data-source @addresses
     :loading? @loading?
-    :empty-message "No addresses found"
+    :empty-message (tr/tr :addresses/no-addresses-found)
     :id-key :address/id
     :table-id :addresses-table
     :show-search? true
     :show-pagination? true
     :query-fn query-fn
     :on-data-change (fn [result] (reset! addresses result))
-    :actions [{:key :edit :label "Edit" :variant :primary :on-click on-edit}
-              {:key :delete :label "Delete" :variant :danger 
+    :actions [{:key :edit :label (tr/tr :addresses/action-edit) :variant :primary :on-click on-edit}
+              {:key :delete :label (tr/tr :addresses/action-delete) :variant :danger 
                :on-click (fn [row] 
-                          (when (js/confirm "Are you sure you want to delete this address?")
+                          (when (js/confirm (tr/tr :addresses/confirm-delete))
                             (on-delete (:address/id row))))}]}])
 
 (defn- addresses-page-header
   "Page header with title and add button using new UI component"
   [modal-address modal-is-new?]
   [page-header/page-header
-   {:title "Addresses"
-    :description "Manage addresses for this workspace"
+   {:title (tr/tr :addresses/page-title)
+    :description (tr/tr :addresses/page-description)
     :action-button [enhanced-button/enhanced-button
                     {:variant :success
                      :on-click (fn [] 
                                 (reset! modal-address {:address/country "Hungary"
                                                       :address/elevators []})
                                 (reset! modal-is-new? true))
-                     :text "+ Add New Address"}]}])
+                     :text (tr/tr :addresses/add-new-address)}]}])
 
 (defn- addresses-content
   "Main content area with server-side data table"

@@ -1,6 +1,7 @@
 (ns features.app.login.frontend.view
   (:require [reagent.core :as r]
-            [parquery.frontend.request :as parquery]))
+            [parquery.frontend.request :as parquery]
+            [translations.core :as tr]))
 
 (defn login-form []
   (let [form-data (r/atom {:user/username ""
@@ -13,10 +14,10 @@
                               password (:user/password data)]
                           (cond-> {}
                             (< (count (str username)) 3)
-                            (assoc :user/username "Username must be at least 3 characters")
+                            (assoc :user/username (tr/tr :login/username-min-length))
                             
                             (< (count (str password)) 1)
-                            (assoc :user/password "Password is required"))))
+                            (assoc :user/password (tr/tr :login/password-required)))))
         
         handle-login (fn []
                        (reset! loading? true)
@@ -76,7 +77,7 @@
                      :margin-bottom "1.5rem"
                      :color "#666"
                      :font-size "1rem"}}
-         "Login to your account"]
+         (tr/tr :login/title)]
         
         (when (:general @errors)
           [:div {:style {:background "#f8d7da"
@@ -95,11 +96,11 @@
                            :margin-bottom "0.5rem"
                            :font-weight "bold"
                            :color (if (:user/username @errors) "#dc3545" "inherit")}}
-           "Username"]
+           (tr/tr :login/username)]
           [:input {:type "text"
                    :value (:user/username @form-data)
                    :on-change #(swap! form-data assoc :user/username (.. % -target -value))
-                   :placeholder "Enter your username"
+                   :placeholder (tr/tr :login/username-placeholder)
                    :style {:width "100%"
                            :padding "0.75rem"
                            :border (str "1px solid " (if (:user/username @errors) "#dc3545" "#ccc"))
@@ -116,11 +117,11 @@
                            :margin-bottom "0.5rem"
                            :font-weight "bold"
                            :color (if (:user/password @errors) "#dc3545" "inherit")}}
-           "Password"]
+           (tr/tr :login/password)]
           [:input {:type "password"
                    :value (:user/password @form-data)
                    :on-change #(swap! form-data assoc :user/password (.. % -target -value))
-                   :placeholder "Enter your password"
+                   :placeholder (tr/tr :login/password-placeholder)
                    :style {:width "100%"
                            :padding "0.75rem"
                            :border (str "1px solid " (if (:user/password @errors) "#dc3545" "#ccc"))
@@ -143,7 +144,7 @@
                            :font-size "1rem"
                            :cursor (if @loading? "not-allowed" "pointer")
                            :opacity (if @loading? 0.6 1)}}
-          (if @loading? "Logging in..." "Login")]]]])))
+          (if @loading? (tr/tr :login/logging-in) (tr/tr :login/login))]]]])))
 
 (defn view []
   [login-form])

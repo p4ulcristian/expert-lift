@@ -10,7 +10,8 @@
             [ui.data-table :as data-table]
             [ui.enhanced-button :as enhanced-button]
             [ui.page-header :as page-header]
-            [ui.address-search :as address-search]))
+            [ui.address-search :as address-search]
+            [translations.core :as tr]))
 
 (defn- get-workspace-id
   "Get workspace ID from router parameters"
@@ -21,20 +22,21 @@
 
 (defn- load-worksheets-query
   "Execute ParQuery to load worksheets with pagination"
-  [workspace-id params]
-  (rf/dispatch [:worksheets/set-loading true])
+  [workspace-id params worksheets-data loading?]
+  (reset! loading? true)
   (parquery/send-queries
    {:queries {:workspace-worksheets/get-paginated (or params {})}
     :parquery/context {:workspace-id workspace-id}
     :callback (fn [response]
+               (reset! loading? false)
                (let [result (:workspace-worksheets/get-paginated response)]
-                 (rf/dispatch [:worksheets/set-data result])))}))
+                 (reset! worksheets-data result)))}))
 
 
 (defn- save-worksheet-query
   "Execute ParQuery to save worksheet"
   [worksheet workspace-id modal-is-new? callback modal-worksheet load-worksheets]
-  (let [is-new? (if (satisfies? IDeref modal-is-new?) @modal-is-new? modal-is-new?)
+  (let [is-new? @modal-is-new?
         query-type (if is-new? :workspace-worksheets/create :workspace-worksheets/update)
         worksheet-data (if is-new? (dissoc worksheet :worksheet/id) worksheet)
         context {:workspace-id workspace-id}]
@@ -44,8 +46,8 @@
       :callback (fn [response]
                  (callback)
                  (if (:success (get response query-type))
-                   (do (rf/dispatch [:worksheets/close-modal])
-                       (load-worksheets))
+                   (do (reset! modal-worksheet nil)
+                       (load-worksheets {}))
                    (js/alert (str "Error: " (:error (get response query-type))))))})))
 
 (defn- delete-worksheet-query
@@ -133,7 +135,7 @@
   "Base properties for input fields"
   [field-key has-error? attrs]
   (let [is-time-field? (#{:worksheet/arrival-time :worksheet/departure-time} field-key)
-        form-data @(rf/subscribe [:worksheets/modal-form-data])
+        form-data (or @(rf/subscribe [:worksheets/modal-form-data]) {})
         field-value (get form-data field-key "")
         display-value (if (and is-time-field? (= (:type attrs) "datetime-local"))
                         (format-datetime-for-input field-value)
@@ -214,7 +216,7 @@
 (defn- form-fields
   "All form input fields"
   []
-  (let [errors @(rf/subscribe [:worksheets/modal-form-errors])]
+  (let [errors (or @(rf/subscribe [:worksheets/modal-form-errors]) {})]
     [:div
      [form-field "Serial Number" :worksheet/serial-number errors
       {:type "text" :placeholder "Auto-generated" :disabled true}]
@@ -227,7 +229,7 @@
       [address-search/address-search-dropdown
        {:component-id :worksheet-form-address
         :workspace-id (get-workspace-id)
-        :value @(rf/subscribe [:worksheets/modal-form-field :worksheet/address])
+        :value (or @(rf/subscribe [:worksheets/modal-form-field :worksheet/address]) {})
         :on-select (fn [address]
                      (rf/dispatch [:worksheets/modal-form-set-field :worksheet/address address])
                      (rf/dispatch [:worksheets/modal-form-set-field :worksheet/address-id (:address/id address)]))
@@ -273,41 +275,50 @@
 (defn worksheet-modal
   "Modal for creating/editing worksheets using new UI components"
   [worksheet-data is-new? on-save on-cancel]
-  (let [loading? @(rf/subscribe [:worksheets/modal-form-loading?])]
+  (println "worksheet-modal called with is-new?:" is-new? "type:" (type is-new?))
+  (let [loading? @(rf/subscribe [:worksheets/modal-form-loading?])
+        is-new-resolved? (if (satisfies? IDeref is-new?) @is-new? is-new?)]
+    (println "is-new-resolved?:" is-new-resolved?)
     ;; Initialize form data when modal opens
     (zero-react/use-effect
       {:mount (fn []
+                (println "Modal use-effect mount called with worksheet-data:" (:worksheet/id worksheet-data))
                 (rf/dispatch [:worksheets/set-modal-form-data worksheet-data])
                 ;; Calculate duration for existing data
                 (let [arrival (:worksheet/arrival-time worksheet-data)
                       departure (:worksheet/departure-time worksheet-data)
                       calculated-duration (calculate-work-duration arrival departure)]
                   (when calculated-duration
-                    (rf/dispatch [:worksheets/update-modal-form-field :worksheet/work-duration-hours calculated-duration]))))
-       :params #js [worksheet-data]})
+                    (rf/dispatch [:worksheets/update-modal-form-field :worksheet/work-duration-hours calculated-duration])))
+                (println "Modal use-effect mount completed"))
+       :params [(or worksheet-data {})]})
     
     [modal/modal {:on-close (fn []
+                             (println "Modal closing...")
                              (rf/dispatch [:worksheets/clear-modal-form])
-                             (on-cancel)) 
+                             (println "About to call on-cancel")
+                             (when on-cancel (on-cancel))) 
                   :close-on-backdrop? true}
-     ^{:key "header"} [modal/modal-header
-      {:title (if is-new? "Add New Worksheet" "Edit Worksheet")
-       :subtitle (if is-new? 
-                   "Create a new worksheet for your workspace"
-                   "Update the details of this worksheet")}]
-     ^{:key "form"} [form-fields]
-     ^{:key "footer"} [modal/modal-footer
-      ^{:key "cancel"} [enhanced-button/enhanced-button
+     [modal/modal-header
+      {:title (if is-new-resolved? (tr/tr :worksheets/modal-add-title) (tr/tr :worksheets/modal-edit-title))
+       :subtitle (if is-new-resolved? 
+                   (tr/tr :worksheets/modal-add-subtitle)
+                   (tr/tr :worksheets/modal-edit-subtitle))}]
+     [:div {:style {:padding "20px"}} "Modal content would go here..."]
+     [modal/modal-footer
+      [enhanced-button/enhanced-button
        {:variant :secondary
         :on-click (fn []
+                   (println "Cancel button clicked")
                    (rf/dispatch [:worksheets/clear-modal-form])
-                   (on-cancel))
-        :text "Cancel"}]
-      ^{:key "save"} [enhanced-button/enhanced-button
+                   (println "About to call on-cancel from cancel button")
+                   (when on-cancel (on-cancel)))
+        :text (tr/tr :worksheets/cancel)}]
+      [enhanced-button/enhanced-button
        {:variant :primary
         :loading? loading?
         :on-click #(handle-save-click on-save)
-        :text (if loading? "Saving..." "Save Worksheet")}]]]))
+        :text (if loading? (tr/tr :worksheets/saving) (tr/tr :worksheets/save-worksheet))}]]]))
 
 (defn- worksheet-serial-render
   "Custom render function for worksheet serial number column"
@@ -486,13 +497,7 @@
         (assoc-in [:worksheets :modal-form-errors] {})
         (assoc-in [:worksheets :modal-form-loading?] false))))
 
-;; Event to load worksheets
-(rf/reg-event-db
-  :worksheets/load-data
-  (fn [db [_ params]]
-    (let [workspace-id (get-workspace-id)]
-      (load-worksheets-query workspace-id (or params {}))
-      db)))
+;; REMOVED: Event to load worksheets - now using direct atom manipulation
 
 ;; Event to handle authentication check
 (rf/reg-event-db
@@ -512,68 +517,73 @@
     db))
 
 (defn view []
-  (let [worksheets-data @(rf/subscribe [:worksheets/data])
-        loading? @(rf/subscribe [:worksheets/loading?])
-        modal-worksheet @(rf/subscribe [:worksheets/modal-worksheet])
-        modal-is-new? @(rf/subscribe [:worksheets/modal-is-new?])
-        
-        workspace-id (get-workspace-id)
+  (let [workspace-id (get-workspace-id)
+        worksheets-data (r/atom [])
+        loading? (r/atom false)
+        modal-worksheet (r/atom nil)
+        modal-is-new? (r/atom false)
         
         load-worksheets (fn [params]
-                        (rf/dispatch [:worksheets/load-data params]))
+                        (load-worksheets-query workspace-id params worksheets-data loading?))
         
         save-worksheet (fn [worksheet callback]
-                       (save-worksheet-query worksheet workspace-id modal-is-new? callback modal-worksheet (fn [] (load-worksheets {}))))
+                       (save-worksheet-query worksheet workspace-id modal-is-new? callback modal-worksheet load-worksheets))
         
         delete-worksheet (fn [worksheet-id]
                          (delete-worksheet-query worksheet-id workspace-id (fn [] (load-worksheets {}))))]
     
-    
-    [:div {:style {:min-height "100vh" :background "#f9fafb"}}
+    (fn []
+      ;; Load initial data
+      (when (empty? @worksheets-data)
+        (load-worksheets {}))
+      
+      [:div {:style {:min-height "100vh" :background "#f9fafb"}}
      [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
       ;; Page header with modal controls
         [page-header/page-header
-         {:title "Worksheets"
-          :description "Manage worksheets for this workspace"
+         {:title (tr/tr :worksheets/page-title)
+          :description (tr/tr :worksheets/page-description)
           :action-button [enhanced-button/enhanced-button
                           {:variant :success
                            :on-click (fn [] 
-                                      (rf/dispatch [:worksheets/set-modal-worksheet {:worksheet/status "draft"
-                                                                                    :worksheet/work-type ""
-                                                                                    :worksheet/service-type ""
-                                                                                    :worksheet/creation-date (.toISOString (js/Date.))}])
-                                      (rf/dispatch [:worksheets/set-modal-is-new true]))
-                           :text "+ Add New Worksheet"}]}]
+                                      (reset! modal-worksheet {:worksheet/status "draft"
+                                                              :worksheet/work-type ""
+                                                              :worksheet/service-type ""
+                                                              :worksheet/creation-date (.toISOString (js/Date.))})
+                                      (reset! modal-is-new? true))
+                           :text (tr/tr :worksheets/add-new-worksheet)}]}]
         
         ;; Worksheets table
         [data-table/server-side-data-table
-         {:headers [{:key :worksheet/serial-number :label "Serial Number" :render worksheet-serial-render :sortable? true}
-                    {:key :worksheet/work-type :label "Work Type" :render work-type-render :sortable? true}
-                    {:key :worksheet/status :label "Status" :render status-render :sortable? true}
-                    {:key :worksheet/address-name :label "Address" :render address-render :sortable? true}
-                    {:key :worksheet/assigned-to-name :label "Assigned To" :render assigned-to-render :sortable? true}]
-          :data-source worksheets-data
-          :loading? loading?
-          :empty-message "No worksheets found"
+         {:headers [{:key :worksheet/serial-number :label (tr/tr :worksheets/table-header-serial) :render worksheet-serial-render :sortable? true}
+                    {:key :worksheet/work-type :label (tr/tr :worksheets/table-header-work-type) :render work-type-render :sortable? true}
+                    {:key :worksheet/status :label (tr/tr :worksheets/table-header-status) :render status-render :sortable? true}
+                    {:key :worksheet/address-name :label (tr/tr :worksheets/table-header-address) :render address-render :sortable? true}
+                    {:key :worksheet/assigned-to-name :label (tr/tr :worksheets/table-header-assigned-to) :render assigned-to-render :sortable? true}]
+          :data-source @worksheets-data
+          :loading? @loading?
+          :empty-message (tr/tr :worksheets/no-worksheets-found)
           :id-key :worksheet/id
           :table-id :worksheets-table
           :show-search? true
           :show-pagination? true
           :query-fn load-worksheets
-          :actions [{:key :edit :label "Edit" :variant :primary 
+          :actions [{:key :edit :label (tr/tr :worksheets/action-edit) :variant :primary 
                      :on-click (fn [worksheet]
-                                (rf/dispatch [:worksheets/set-modal-worksheet worksheet])
-                                (rf/dispatch [:worksheets/set-modal-is-new false]))}
-                    {:key :pdf :label "PDF" :variant :secondary
+                                (println "Edit button clicked for worksheet:" (:worksheet/id worksheet))
+                                (reset! modal-worksheet worksheet)
+                                (reset! modal-is-new? false)
+                                (println "Edit button atom reset completed"))}
+                    {:key :pdf :label (tr/tr :worksheets/action-pdf) :variant :secondary
                      :on-click (fn [worksheet]
                                 (let [pdf-url (str "/pdf-generator/worksheet/" (:worksheet/id worksheet))]
                                   (js/window.open pdf-url "_blank")))}
-                    {:key :delete :label "Delete" :variant :danger 
+                    {:key :delete :label (tr/tr :worksheets/action-delete) :variant :danger 
                      :on-click (fn [row] 
-                                (when (js/confirm "Are you sure you want to delete this worksheet?")
+                                (when (js/confirm (tr/tr :worksheets/confirm-delete))
                                   (delete-worksheet (:worksheet/id row))))}]}]
         
         ;; Modal when open
-        (when modal-worksheet
-          [worksheet-modal modal-worksheet modal-is-new? save-worksheet
-           (fn [] (rf/dispatch [:worksheets/close-modal]))])]]))
+        (when @modal-worksheet
+          [worksheet-modal @modal-worksheet @modal-is-new? save-worksheet
+           (fn [] (reset! modal-worksheet nil))])]])))

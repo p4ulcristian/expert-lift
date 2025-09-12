@@ -2,7 +2,8 @@
   (:require ["react" :as react]
             [re-frame.core :as rf]
             [parquery.frontend.request :as parquery]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [translations.core :as tr]))
 
 ;; Re-frame state for address search
 (rf/reg-sub
@@ -95,7 +96,7 @@
      
      ;; Search input
      [:input {:type "text"
-              :placeholder (or placeholder "Type to search addresses...")
+              :placeholder (or placeholder (tr/tr :address-search/placeholder))
               :value search-term
               :disabled disabled
               :on-change (fn [e]
@@ -152,12 +153,12 @@
         ;; Loading indicator
         (when loading?
           [:div {:style {:padding "12px" :text-align "center" :color "#666"}}
-           "Searching..."])
+           (tr/tr :address-search/searching)])
         
         ;; No results message
         (when (and (not loading?) (empty? addresses) (seq search-term))
           [:div {:style {:padding "12px" :text-align "center" :color "#666"}}
-           "No addresses found"])
+           (tr/tr :address-search/no-results)])
         
         ;; Address options
         (for [address addresses]

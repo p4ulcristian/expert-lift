@@ -9,7 +9,8 @@
             [ui.form-field :as form-field]
             [ui.data-table :as data-table]
             [ui.enhanced-button :as enhanced-button]
-            [ui.page-header :as page-header]))
+            [ui.page-header :as page-header]
+            [translations.core :as tr]))
 
 (defn- get-workspace-id
   "Get workspace ID from router parameters"
@@ -107,10 +108,10 @@
         email (:user/email team)
         password (:user/password team)]
     (cond-> errors
-      (validate-username username) (assoc :user/username "Username is required (min 2 characters)")
-      (validate-full-name full-name) (assoc :user/full-name "Full name is required (min 2 characters)")
-      (validate-email email) (assoc :user/email "Valid email is required")
-      (validate-password password is-new?) (assoc :user/password "Password is required (min 6 characters)"))))
+      (validate-username username) (assoc :user/username (tr/tr :teams/error-username))
+      (validate-full-name full-name) (assoc :user/full-name (tr/tr :teams/error-full-name))
+      (validate-email email) (assoc :user/email (tr/tr :teams/error-email))
+      (validate-password password is-new?) (assoc :user/password (tr/tr :teams/error-password)))))
 
 ;; Re-frame events and subscriptions
 (rf/reg-sub
@@ -267,26 +268,26 @@
   "All form input fields"
   [form-data errors is-new?]
   [:div
-   [form-field "Username" :user/username form-data errors
-    {:type "text" :placeholder "e.g. johndoe"}]
-   [form-field "Full Name" :user/full-name form-data errors
-    {:type "text" :placeholder "e.g. John Doe"}]
-   [form-field "Email" :user/email form-data errors
-    {:type "email" :placeholder "e.g. john.doe@company.com"}]
-   [form-field "Phone" :user/phone form-data errors
-    {:type "tel" :placeholder "Optional: Phone number"}]
-   [form-field "Role" :user/role form-data errors
+   [form-field (tr/tr :teams/username) :user/username form-data errors
+    {:type "text" :placeholder (tr/tr :teams/username-placeholder)}]
+   [form-field (tr/tr :teams/full-name) :user/full-name form-data errors
+    {:type "text" :placeholder (tr/tr :teams/full-name-placeholder)}]
+   [form-field (tr/tr :teams/email) :user/email form-data errors
+    {:type "email" :placeholder (tr/tr :teams/email-placeholder)}]
+   [form-field (tr/tr :teams/phone) :user/phone form-data errors
+    {:type "tel" :placeholder (tr/tr :teams/phone-placeholder)}]
+   [form-field (tr/tr :teams/role) :user/role form-data errors
     {:type "select" 
-     :options [{:value "employee" :label "Employee"}
-               {:value "admin" :label "Admin"}]}]
+     :options [{:value "employee" :label (tr/tr :teams/employee)}
+               {:value "admin" :label (tr/tr :teams/admin)}]}]
    (when is-new?
-     [form-field "Password" :user/password form-data errors
-      {:type "password" :placeholder "Minimum 6 characters"}])
+     [form-field (tr/tr :teams/password) :user/password form-data errors
+      {:type "password" :placeholder (tr/tr :teams/password-placeholder)}])
    (when-not is-new?
-     [form-field "Active" :user/active form-data errors
+     [form-field (tr/tr :teams/active-field) :user/active form-data errors
       {:type "select"
-       :options [{:value true :label "Active"}
-                 {:value false :label "Inactive"}]}])])
+       :options [{:value true :label (tr/tr :teams/active)}
+                 {:value false :label (tr/tr :teams/inactive)}]}])])
 
 (defn- handle-save-click
   "Handle save button click with validation"
@@ -309,21 +310,21 @@
     (fn [team-data is-new? on-save on-cancel]
       [modal/modal {:on-close on-cancel :close-on-backdrop? true}
        ^{:key "header"} [modal/modal-header
-        {:title (if is-new? "Add New Team Member" "Edit Team Member")
+        {:title (if is-new? (tr/tr :teams/modal-add-title) (tr/tr :teams/modal-edit-title))
          :subtitle (if is-new? 
-                     "Add a new team member to your workspace"
-                     "Update the details of this team member")}]
+                     (tr/tr :teams/modal-add-subtitle)
+                     (tr/tr :teams/modal-edit-subtitle))}]
        ^{:key "form"} [form-fields @form-data @errors is-new?]
        ^{:key "footer"} [modal/modal-footer
         ^{:key "cancel"} [enhanced-button/enhanced-button
          {:variant :secondary
           :on-click on-cancel
-          :text "Cancel"}]
+          :text (tr/tr :teams/cancel)}]
         ^{:key "save"} [enhanced-button/enhanced-button
          {:variant :primary
           :loading? @loading?
           :on-click #(handle-save-click @form-data is-new? on-save)
-          :text (if @loading? "Saving..." "Save Team Member")}]]])))
+          :text (if @loading? (tr/tr :teams/saving) (tr/tr :teams/save-member))}]]])))
 
 (defn- user-name-render
   "Custom render function for user name column with username and email"
@@ -356,7 +357,7 @@
                   :background (if active "#10b981" "#ef4444")
                   :color "white"
                   :border-radius "12px" :font-size "0.75rem" :font-weight "500"}}
-   (if active "Active" "Inactive")])
+   (if active (tr/tr :teams/active) (tr/tr :teams/inactive))])
 
 (defn- contact-render
   "Custom render function for contact info"
@@ -370,37 +371,37 @@
   "Teams table using server-side data-table component with search, sorting, and pagination"
   [teams loading? on-edit on-delete query-fn]
   [data-table/server-side-data-table
-   {:headers [{:key :user/full-name :label "Team Member" :render user-name-render :sortable? true}
-              {:key :user/role :label "Role" :render role-render :sortable? true}
-              {:key :user/active :label "Status" :render status-render :sortable? true}
-              {:key :user/phone :label "Phone" :render contact-render :sortable? false}]
+   {:headers [{:key :user/full-name :label (tr/tr :teams/table-header-member) :render user-name-render :sortable? true}
+              {:key :user/role :label (tr/tr :teams/table-header-role) :render role-render :sortable? true}
+              {:key :user/active :label (tr/tr :teams/table-header-status) :render status-render :sortable? true}
+              {:key :user/phone :label (tr/tr :teams/table-header-phone) :render contact-render :sortable? false}]
     :data-source @teams
     :data-key :users
       :loading? @loading?
-      :empty-message "No team members found"
+      :empty-message (tr/tr :teams/no-members-found)
       :id-key :user/id
       :table-id :teams-table
       :show-search? true
       :show-pagination? true
       :query-fn query-fn
-      :actions [{:key :edit :label "Edit" :variant :primary :on-click on-edit}
-                {:key :delete :label "Delete" :variant :danger 
+      :actions [{:key :edit :label (tr/tr :teams/action-edit) :variant :primary :on-click on-edit}
+                {:key :delete :label (tr/tr :teams/action-delete) :variant :danger 
                  :on-click (fn [row] 
-                            (when (js/confirm "Are you sure you want to delete this team member?")
+                            (when (js/confirm (tr/tr :teams/confirm-delete))
                               (on-delete (:user/id row))))}]}])
 
 (defn- teams-page-header
   "Page header with title and add button using new UI component"
   []
   [page-header/page-header
-   {:title "Team"
-    :description "Manage team members for this workspace"
+   {:title (tr/tr :teams/page-title)
+    :description (tr/tr :teams/page-description)
     :action-button [enhanced-button/enhanced-button
                     {:variant :success
                      :on-click (fn [] 
                                 (rf/dispatch [:teams/open-modal {:user/role "employee"
                                                                 :user/active true} true]))
-                     :text "+ Add New Team Member"}]}])
+                     :text (tr/tr :teams/add-new-member)}]}])
 
 (defn- teams-content
   "Main content area with server-side data table"

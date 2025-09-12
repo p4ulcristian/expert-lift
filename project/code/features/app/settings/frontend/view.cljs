@@ -7,7 +7,8 @@
             [zero.frontend.react :as zero-react]
             [ui.form-field :as form-field]
             [ui.enhanced-button :as enhanced-button]
-            [ui.page-header :as page-header]))
+            [ui.page-header :as page-header]
+            [translations.core :as tr]))
 
 ;; Re-frame Events
 (rf/reg-event-db
@@ -92,7 +93,7 @@
     :callback (fn [response]
                 (if-let [settings-data (:workspace-settings/get response)]
                   (rf/dispatch [:settings/load-success settings-data])
-                  (rf/dispatch [:settings/load-error "No settings data received"])))}))
+                  (rf/dispatch [:settings/load-error (tr/tr :settings/error-no-data)])))}))
 
 (defn- save-settings
   "Save workspace settings"
@@ -131,8 +132,8 @@
   "Page header for settings page using consistent UI component"
   []
   [page-header/page-header
-   {:title "Settings"
-    :description "Configure your workspace settings and company details"}])
+   {:title (tr/tr :settings/title)
+    :description (tr/tr :settings/description)}])
 
 (defn- handle-file-select
   "Handle file selection for logo upload"
@@ -159,7 +160,7 @@
     (cond
       uploading?
       [:div {:style {:color "#9ca3af" :font-size "0.875rem" :margin-bottom "0.5rem"}}
-       "Uploading..."]
+       (tr/tr :settings/uploading)]
       
       selected-file
       [:div
@@ -167,7 +168,7 @@
        (when preview-url
          [:div {:style {:margin-bottom "1rem"}}
           [:img {:src preview-url
-                 :alt "Logo preview"
+                 :alt (tr/tr :settings/logo-preview)
                  :style {:max-width "200px"
                          :max-height "150px"
                          :border-radius "8px"
@@ -175,16 +176,16 @@
                          :display "block"
                          :margin "0 auto"}}]])
        [:div {:style {:color "#10b981" :font-size "0.875rem" :margin-bottom "0.5rem"}}
-        (str "Selected: " (.-name selected-file))]
+        (str (tr/tr :settings/selected) ": " (.-name selected-file))]
        [:div {:style {:color "#6b7280" :font-size "0.75rem"}}
-        "Click to select a different file"]]
+        (tr/tr :settings/click-different)]]
       
       ;; Show existing logo if available
       existing-logo-url
       [:div
        [:div {:style {:margin-bottom "1rem"}}
         [:img {:src existing-logo-url
-               :alt "Current workspace logo"
+               :alt (tr/tr :settings/current-logo-alt)
                :style {:max-width "200px"
                        :max-height "150px"
                        :border-radius "8px"
@@ -192,16 +193,16 @@
                        :display "block"
                        :margin "0 auto"}}]]
        [:div {:style {:color "#6b7280" :font-size "0.875rem" :margin-bottom "0.5rem"}}
-        "Current workspace logo"]
+        (tr/tr :settings/current-logo)]
        [:div {:style {:color "#6b7280" :font-size "0.75rem"}}
-        "Click to upload a new logo"]]
+        (tr/tr :settings/upload-new)]]
       
       :else
       [:div
        [:div {:style {:color "#9ca3af" :font-size "0.875rem" :margin-bottom "0.5rem"}}
-        "Click to upload logo"]
+        (tr/tr :settings/click-upload)]
        [:div {:style {:color "#6b7280" :font-size "0.75rem"}}
-        "Supported formats: JPG, PNG, GIF (Max 5MB)"]])))
+        (tr/tr :settings/supported-formats)]])))
 
 (defn- logo-upload-section
   "Company logo upload section"
@@ -209,9 +210,9 @@
   (let [uploading? @(rf/subscribe [:settings/uploading?])]
     [:div {:style {:margin-bottom "2.5rem" :padding "1.5rem" :border "1px solid #e5e7eb" :border-radius "12px" :background "#f9fafb"}}
      [:h4 {:style {:font-size "1.125rem" :font-weight "600" :margin-bottom "1rem" :color "#374151"}}
-      "Company Logo"]
+      (tr/tr :settings/company-logo)]
      [:p {:style {:color "#6b7280" :margin-bottom "1rem" :font-size "0.875rem"}}
-      "Upload your company logo to personalize your workspace"]
+      (tr/tr :settings/logo-description)]
      [:div {:style {:border "2px dashed #d1d5db" :border-radius "8px" :padding "2rem" :text-align "center" :background "#ffffff"}}
       [:input {:type "file"
                :id "logo-upload"
@@ -230,10 +231,10 @@
   (let [settings @(rf/subscribe [:settings/data])]
     [:div {:style {:margin-bottom "2.5rem"}}
      [:label {:style {:display "block" :font-weight "600" :margin-bottom "0.75rem" :color "#374151" :font-size "1rem"}}
-      "Workspace Name"]
+      (tr/tr :settings/workspace-name)]
      [:input {:type "text"
               :value (get-in settings [:settings/general :workspace/name] "")
-              :placeholder "Enter your company or workspace name"
+              :placeholder (tr/tr :settings/workspace-name-placeholder)
               :style {:width "100%" 
                       :padding "0.875rem 1rem" 
                       :border "1px solid #d1d5db" 
@@ -283,7 +284,7 @@
       {:variant :primary
        :loading? (or loading? uploading?)
        :on-click #(handle-save-click workspace-id)
-       :text (if (or loading? uploading?) "Saving..." "Save Settings")}]]))
+       :text (if (or loading? uploading?) (tr/tr :settings/saving) (tr/tr :settings/save-settings))}]]))
 
 (defn- settings-form-content
   "Main settings form content"
@@ -312,13 +313,13 @@
        (println "DEBUG: settings exists?" (boolean settings))
        (cond
          loading?
-         [:div "Loading settings..."]
+         [:div (tr/tr :settings/loading-settings)]
          
          settings
          [:div [settings-form-content workspace-id]]
          
          :else
-         [:div "No settings found"]))]))
+         [:div (tr/tr :settings/no-settings)]))]))
 
 (defn settings-page
   "Main settings page component"

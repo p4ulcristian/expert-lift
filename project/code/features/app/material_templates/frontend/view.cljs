@@ -9,7 +9,8 @@
             [ui.form-field :as form-field]
             [ui.data-table :as data-table]
             [ui.enhanced-button :as enhanced-button]
-            [ui.page-header :as page-header]))
+            [ui.page-header :as page-header]
+            [translations.core :as tr]))
 
 (defn- get-workspace-id
   "Get workspace ID from router parameters"
@@ -88,8 +89,8 @@
         name (:material-template/name template)
         unit (:material-template/unit template)]
     (cond-> errors
-      (validate-name name) (assoc :material-template/name "Name is required")
-      (validate-unit unit) (assoc :material-template/unit "Unit is required"))))
+      (validate-name name) (assoc :material-template/name (tr/tr :material-templates/error-name))
+      (validate-unit unit) (assoc :material-template/unit (tr/tr :material-templates/error-unit)))))
 
 (defn- field-label [label field-key has-error?]
   [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600"
@@ -156,14 +157,14 @@
   "All form input fields"
   [template errors]
   [:div
-   [form-field "Name" :material-template/name template errors
-    {:type "text" :placeholder "e.g. Steel Cable"}]
-   [form-field "Unit" :material-template/unit template errors
-    {:type "text" :placeholder "e.g. m, kg, pcs"}]
-   [form-field "Category" :material-template/category template errors
-    {:type "text" :placeholder "e.g. Cables, Hardware"}]
-   [form-field "Description" :material-template/description template errors
-    {:type "textarea" :placeholder "Optional description" :rows 3}]])
+   [form-field (tr/tr :material-templates/name) :material-template/name template errors
+    {:type "text" :placeholder (tr/tr :material-templates/name-placeholder)}]
+   [form-field (tr/tr :material-templates/unit) :material-template/unit template errors
+    {:type "text" :placeholder (tr/tr :material-templates/unit-placeholder)}]
+   [form-field (tr/tr :material-templates/category) :material-template/category template errors
+    {:type "text" :placeholder (tr/tr :material-templates/category-placeholder)}]
+   [form-field (tr/tr :material-templates/description) :material-template/description template errors
+    {:type "textarea" :placeholder (tr/tr :material-templates/description-placeholder) :rows 3}]])
 
 (defn- active-checkbox
   "Active status checkbox for existing templates"
@@ -178,9 +179,9 @@
                :on-change #(swap! template assoc :material-template/active (.. % -target -checked))
                :style {:margin-right "0.75rem" :width "1rem" :height "1rem" 
                        :accent-color "#3b82f6" :cursor "pointer"}}]
-      "Active Template"
+      (tr/tr :material-templates/active-template)
       [:span {:style {:color "#6b7280" :font-weight "normal" :margin-left "0.5rem"}}
-       "(Uncheck to disable this template)"]]]))
+       (tr/tr :material-templates/active-template-note)]]]))
 
 (defn- handle-save-click
   "Handle save button click with validation"
@@ -203,22 +204,22 @@
       (reset! template template-data)
       [modal/modal {:on-close on-cancel :close-on-backdrop? true}
        ^{:key "header"} [modal/modal-header
-        {:title (if is-new? "Add New Material Template" "Edit Material Template")
+        {:title (if is-new? (tr/tr :material-templates/modal-add-title) (tr/tr :material-templates/modal-edit-title))
          :subtitle (if is-new? 
-                     "Create a new material template for your workspace"
-                     "Update the details of this material template")}]
+                     (tr/tr :material-templates/modal-add-subtitle)
+                     (tr/tr :material-templates/modal-edit-subtitle))}]
        ^{:key "form"} [form-fields template @errors]
        ^{:key "checkbox"} [active-checkbox template is-new?]
        ^{:key "footer"} [modal/modal-footer
         ^{:key "cancel"} [enhanced-button/enhanced-button
          {:variant :secondary
           :on-click on-cancel
-          :text "Cancel"}]
+          :text (tr/tr :material-templates/cancel)}]
         ^{:key "save"} [enhanced-button/enhanced-button
          {:variant :primary
           :loading? @loading?
           :on-click #(handle-save-click template loading? errors on-save)
-          :text (if @loading? "Saving..." "Save Template")}]]])))
+          :text (if @loading? (tr/tr :material-templates/saving) (tr/tr :material-templates/save-template))}]]])))
 
 (defn- template-name-render
   "Custom render function for template name column with description"
@@ -234,7 +235,7 @@
   "Custom render function for category with fallback text"
   [category row]
   (or category 
-      [:span {:style {:color "#9ca3af" :font-style "italic"}} "No category"]))
+      [:span {:style {:color "#9ca3af" :font-style "italic"}} (tr/tr :material-templates/no-category)]))
 
 (defn material-templates-table
   "Material templates table using server-side data-table component with search, sorting, and pagination"  
@@ -244,40 +245,40 @@
   (println "DEBUG: loading?:" loading?)
   (println "DEBUG: query-fn:" query-fn)
   [data-table/server-side-data-table
-   {:headers [{:key :material-template/name :label "Material" :render template-name-render :sortable? true}
-              {:key :material-template/unit :label "Unit" :sortable? true
+   {:headers [{:key :material-template/name :label (tr/tr :material-templates/table-header-material) :render template-name-render :sortable? true}
+              {:key :material-template/unit :label (tr/tr :material-templates/table-header-unit) :sortable? true
                :cell-style {:color "#374151" :font-weight "500" :font-size "0.875rem"}}
-              {:key :material-template/category :label "Category" :render category-render :sortable? true
+              {:key :material-template/category :label (tr/tr :material-templates/table-header-category) :render category-render :sortable? true
                :cell-style {:color "#6b7280" :font-size "0.875rem"}}
-              {:key :material-template/active :label "Status" :sortable? true
+              {:key :material-template/active :label (tr/tr :material-templates/table-header-status) :sortable? true
                :render (fn [active? _] [data-table/status-badge active?])}]
     :data-source templates-data
     :data-key :material-templates
     :loading? loading?
-    :empty-message "No material templates found"
+    :empty-message (tr/tr :material-templates/no-templates-found)
     :id-key :material-template/id
     :table-id :material-templates-table
     :show-search? true
     :show-pagination? true
     :query-fn query-fn
-    :actions [{:key :edit :label "Edit" :variant :primary :on-click on-edit}
-              {:key :delete :label "Delete" :variant :danger 
+    :actions [{:key :edit :label (tr/tr :material-templates/action-edit) :variant :primary :on-click on-edit}
+              {:key :delete :label (tr/tr :material-templates/action-delete) :variant :danger 
                :on-click (fn [row] 
-                          (when (js/confirm "Are you sure you want to delete this template?")
+                          (when (js/confirm (tr/tr :material-templates/confirm-delete))
                             (on-delete (:material-template/id row))))}]}])
 
 (defn- templates-page-header
   "Page header with title and add button using new UI component"
   [modal-template modal-is-new?]
   [page-header/page-header
-   {:title "Material Templates"
-    :description "Manage your material templates for this workspace"
+   {:title (tr/tr :material-templates/page-title)
+    :description (tr/tr :material-templates/page-description)
     :action-button [enhanced-button/enhanced-button
                     {:variant :success
                      :on-click (fn [] 
                                 (reset! modal-template {:material-template/active true})
                                 (reset! modal-is-new? true))
-                     :text "+ Add New Template"}]}])
+                     :text (tr/tr :material-templates/add-new-template)}]}])
 
 (defn- templates-content
   "Main content area with server-side data table"
