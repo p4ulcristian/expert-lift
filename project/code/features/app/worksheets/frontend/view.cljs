@@ -615,8 +615,14 @@
                                  :display "block"
                                  :width "100%"}}
            :ref (fn [ref] 
-                  (rf/dispatch [(:ref-dispatch-key zoom-data) ref])
-                  (rf/dispatch [:worksheets/set-zoom-signature-ref ref]))}]]
+                  (rf/dispatch [:worksheets/set-zoom-signature-ref ref])
+                  ;; Load existing signature data into zoom canvas
+                  (when ref
+                    (let [main-ref (if (= (:ref-dispatch-key zoom-data) :worksheets/set-maintainer-signature-ref)
+                                     @(rf/subscribe [:worksheets/maintainer-signature-ref])
+                                     @(rf/subscribe [:worksheets/customer-signature-ref]))]
+                      (when (and main-ref (not (.isEmpty main-ref)))
+                        (.fromDataURL ref (.toDataURL main-ref))))))}]]
         
         ;; Action buttons
         [:div {:style {:display "flex" :justify-content "space-between" :gap "1rem"}}
@@ -643,7 +649,12 @@
     "Signatures"]
    [:div {:style {:display "grid" :grid-template-columns "1fr 1fr" :gap "1rem"}}
     [signature-display :worksheets/set-maintainer-signature-ref "Maintainer Signature"]
-    [signature-display :worksheets/set-customer-signature-ref "Customer Signature"]]])
+    [signature-display :worksheets/set-customer-signature-ref "Customer Signature"]]
+   
+   ;; Hidden signature canvases to maintain refs for saving
+   [:div {:style {:display "none"}}
+    [signature-canvas :worksheets/set-maintainer-signature-ref "Hidden Maintainer"]
+    [signature-canvas :worksheets/set-customer-signature-ref "Hidden Customer"]]])
 
 (defn- load-existing-signatures
   "Load existing signatures when refs become available"
@@ -949,12 +960,21 @@
                 {:label label
                  :ref-dispatch-key ref-dispatch-key}))))
 
-(rf/reg-event-db
+(rf/reg-event-fx
   :worksheets/close-signature-zoom
-  (fn [db _]
-    (-> db
-        (assoc-in [:worksheets :signature-zoom-data] nil)
-        (assoc-in [:worksheets :zoom-signature-ref] nil))))
+  (fn [{:keys [db]} _]
+    (let [zoom-data (get-in db [:worksheets :signature-zoom-data])
+          zoom-ref (get-in db [:worksheets :zoom-signature-ref])]
+      ;; Copy signature data from zoom canvas back to main canvas
+      (when (and zoom-data zoom-ref (not (.isEmpty zoom-ref)))
+        (let [main-ref (if (= (:ref-dispatch-key zoom-data) :worksheets/set-maintainer-signature-ref)
+                         (get-in db [:worksheets :maintainer-signature-ref])
+                         (get-in db [:worksheets :customer-signature-ref]))]
+          (when main-ref
+            (.fromDataURL main-ref (.toDataURL zoom-ref)))))
+      {:db (-> db
+               (assoc-in [:worksheets :signature-zoom-data] nil)
+               (assoc-in [:worksheets :zoom-signature-ref] nil))})))
 
 (rf/reg-event-db
   :worksheets/set-zoom-signature-ref
