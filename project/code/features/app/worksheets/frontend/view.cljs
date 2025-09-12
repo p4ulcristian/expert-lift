@@ -126,8 +126,8 @@
         (when (> (.getTime departure) (.getTime arrival))
           (let [diff-ms (- (.getTime departure) (.getTime arrival))
                 diff-hours (/ diff-ms 1000 60 60)]
-            ;; Round up to nearest quarter hour
-            (Math/ceil (* diff-hours 4)) / 4)))
+            ;; Round up to nearest full hour
+            (Math/ceil diff-hours))))
       (catch js/Error e
         (println "Error calculating duration:" e)
         nil))))
@@ -225,7 +225,7 @@
   (let [errors @(rf/subscribe [:worksheets/modal-form-errors])]
     [:div
      [form-field "Serial Number" :worksheet/serial-number errors
-      {:type "text" :placeholder "e.g. 2024-01-15/001"}]
+      {:type "text" :placeholder "Auto-generated" :disabled true}]
      [form-field "Creation Date" :worksheet/creation-date errors
       {:type "date"}]
      [form-field "Work Type" :worksheet/work-type errors
@@ -241,9 +241,9 @@
      [form-field "Departure Time" :worksheet/departure-time errors
       {:type "datetime-local"}]
      [form-field "Work Duration (Hours)" :worksheet/work-duration-hours errors
-      {:type "number" :step "0.25" :placeholder "Auto-calculated from arrival/departure" :disabled true}]
+      {:type "number" :step "1" :placeholder "Auto-calculated from arrival/departure" :disabled true}]
      [:div {:style {:margin-bottom "1.5rem" :font-size "0.75rem" :color "#6b7280"}}
-      "💡 Work duration is automatically calculated from arrival and departure times (rounded up to nearest quarter hour)"]
+      "💡 Work duration is automatically calculated from arrival and departure times (rounded up to nearest full hour)"]
      [form-field "Notes" :worksheet/notes errors
       {:type "textarea" :placeholder "Optional notes..." :rows 3}]]))
 
