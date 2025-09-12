@@ -21,9 +21,7 @@
         show-header? (not= current-path "/login")]
     [:div
      (when show-header?
-       [header/view {:current-language "en"
-                     :on-language-change (fn [lang] (println "Language changed to:" lang))
-                     :on-logout (fn [] (println "Logout clicked"))}])
+       [header/view])
      [(:view router-data)]
      [re-frame-viewer/re-frame-viewer]
      [re-frame-viewer/keyboard-listener]]))

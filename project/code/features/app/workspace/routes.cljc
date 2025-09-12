@@ -2,13 +2,15 @@
   #?(:cljs (:require [features.app.workspace.frontend.view :as workspace]
                      [features.app.material-templates.frontend.view :as material-templates]
                      [features.app.addresses.frontend.view :as addresses]
-                     [features.app.worksheets.frontend.view :as worksheets]))
+                     [features.app.worksheets.frontend.view :as worksheets]
+                     [features.app.settings.frontend.view :as settings]))
   #?(:clj  (:require [features.app.zero.backend.view :as backend-view])))
 
 (def workspace-path "/app/:workspace-id")
 (def material-templates-path "/app/:workspace-id/material-templates")
 (def addresses-path "/app/:workspace-id/addresses")
 (def worksheets-path "/app/:workspace-id/worksheets")
+(def settings-path "/app/:workspace-id/settings")
 
 (def routes
   #?(:cljs [{:path workspace-path
@@ -22,7 +24,10 @@
              :title "Addresses"}
             {:path worksheets-path
              :view #'worksheets/view
-             :title "Worksheets"}]
+             :title "Worksheets"}
+            {:path settings-path
+             :view #'settings/settings-page
+             :title "Settings"}]
      :clj  [{:path workspace-path
              :get #'backend-view/response}
             {:path material-templates-path
@@ -30,4 +35,6 @@
             {:path addresses-path
              :get #'backend-view/response}
             {:path worksheets-path
+             :get #'backend-view/response}
+            {:path settings-path
              :get #'backend-view/response}]))

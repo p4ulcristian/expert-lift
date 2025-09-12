@@ -6,6 +6,7 @@
    [features.app.material-templates.backend.db :as material-templates-db]
    [features.app.addresses.backend.db :as addresses-db]
    [features.app.worksheets.backend.db :as worksheets-db]
+   [features.app.settings.backend.db :as settings-db]
    [cheshire.core]))
 
 ;; Error handling helpers
@@ -874,7 +875,8 @@
    :workspace-addresses/search #'search-workspace-addresses
    :workspace-worksheets/get-all #'get-workspace-worksheets
    :workspace-worksheets/get-paginated #'get-workspace-worksheets-paginated
-   :workspace-worksheets/get-by-id #'get-workspace-worksheet-by-id})
+   :workspace-worksheets/get-by-id #'get-workspace-worksheet-by-id
+   :workspace-settings/get #'settings-db/get-workspace-settings})
 
 (def write-queries
   "Write operations - mapped to handler functions"  
@@ -894,7 +896,8 @@
    :workspace-addresses/delete #'delete-workspace-address
    :workspace-worksheets/create #'create-workspace-worksheet
    :workspace-worksheets/update #'update-workspace-worksheet
-   :workspace-worksheets/delete #'delete-workspace-worksheet})
+   :workspace-worksheets/delete #'delete-workspace-worksheet
+   :workspace-settings/update #'settings-db/update-workspace-settings})
 
 (defn get-query-type
   "Returns query type based on config"
