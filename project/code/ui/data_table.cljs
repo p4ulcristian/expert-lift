@@ -41,7 +41,8 @@
 
 (defn data-table
   "Modern styled data table with card appearance"
-  [{:keys [headers rows loading? empty-message actions]}]
+  [{:keys [headers rows loading? empty-message actions id-key]
+    :or {id-key :id}}]
   (cond
     loading?
     [:div {:style {:display "flex" :justify-content "center" :align-items "center" 
@@ -75,11 +76,11 @@
           [:th {:style (merge (table-header-style) {:text-align "center"})} "Actions"])]]
       [:tbody
        (for [row rows]
-         ^{:key (:id row)}
+         ^{:key (get row id-key)}
          [:tr {:style {:transition "background-color 0.15s ease-in-out"
                        :hover {:background "#f9fafb"}}}
           (for [header headers]
-            ^{:key (str (:id row) "-" (:key header))}
+            ^{:key (str (get row id-key) "-" (:key header))}
             [:td {:style (merge (table-cell-style) (:cell-style header))}
              (if (:render header)
                ((:render header) (get row (:key header)) row)

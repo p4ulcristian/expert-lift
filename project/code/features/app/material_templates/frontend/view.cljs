@@ -55,8 +55,9 @@
         (load-templates))
     (js/alert (str "Error: " (:error (get response query-type))))))
 
-(defn- save-template-query [template workspace-id modal-is-new? callback modal-template load-templates]
+(defn- save-template-query
   "Execute ParQuery to save template"
+  [template workspace-id modal-is-new? callback modal-template load-templates]
   (let [query-type (get-query-type modal-is-new?)
         template-data (prepare-template-data template modal-is-new?)
         context {:workspace-id workspace-id}]
@@ -72,8 +73,9 @@
                  (println "DEBUG: save-template-query response:" response)
                  (handle-save-response response query-type callback modal-template load-templates))})))
 
-(defn- delete-template-query [template-id workspace-id load-templates]
+(defn- delete-template-query
   "Execute ParQuery to delete template"
+  [template-id workspace-id load-templates]
   (parquery/send-queries
    {:queries {:workspace-material-templates/delete {:material-template/id template-id}}
     :parquery/context {:workspace-id workspace-id}
@@ -110,8 +112,9 @@
    (when (#{:material-template/name :material-template/unit} field-key) 
      [:span {:style {:color "#ef4444" :margin-left "0.25rem"}} "*"])])
 
-(defn- input-base-props [field-key template has-error? attrs]
+(defn- input-base-props
   "Base properties for input fields"
+  [field-key template has-error? attrs]
   {:value (str (get @template field-key ""))
    :on-change #(swap! template assoc field-key (.. % -target -value))
    :style (merge {:width "100%"
@@ -131,16 +134,19 @@
                                        "0 0 0 3px rgba(220, 53, 69, 0.1)"
                                        "0 0 0 3px rgba(59, 130, 246, 0.1)")}})})
 
-(defn- render-textarea [field-key template has-error? attrs]
+(defn- render-textarea
   "Render textarea input"
+  [field-key template has-error? attrs]
   [:textarea (merge (dissoc attrs :type) (input-base-props field-key template has-error? attrs))])
 
-(defn- render-text-input [field-key template has-error? attrs]
+(defn- render-text-input
   "Render text input"
+  [field-key template has-error? attrs]
   [:input (merge attrs (input-base-props field-key template has-error? attrs))])
 
-(defn- field-input [field-key template has-error? attrs]
+(defn- field-input
   "Render appropriate input type"
+  [field-key template has-error? attrs]
   (if (= (:type attrs) "textarea")
     (render-textarea field-key template has-error? attrs)
     (render-text-input field-key template has-error? attrs)))
@@ -150,16 +156,18 @@
     [:div {:style {:color "#dc3545" :font-size "0.875rem" :margin-top "0.25rem"}}
      error-msg]))
 
-(defn- form-field [label field-key template errors attrs]
+(defn- form-field
   "Complete form field with label, input and error"
+  [label field-key template errors attrs]
   (let [has-error? (contains? errors field-key)]
     [:div {:style {:margin-bottom "1.5rem"}}
      [field-label label field-key has-error?]
      [field-input field-key template has-error? attrs]
      [field-error (get errors field-key)]]))
 
-(defn- form-fields [template errors]
+(defn- form-fields
   "All form input fields"
+  [template errors]
   [:div
    [form-field "Name" :material-template/name template errors
     {:type "text" :placeholder "e.g. Steel Cable"}]
@@ -170,8 +178,9 @@
    [form-field "Description" :material-template/description template errors
     {:type "textarea" :placeholder "Optional description" :rows 3}]])
 
-(defn- active-checkbox [template is-new?]
+(defn- active-checkbox
   "Active status checkbox for existing templates"
+  [template is-new?]
   (when-not is-new?
     [:div {:style {:margin-bottom "1.5rem" :padding "1rem" :background "#f9fafb" 
                    :border "1px solid #e5e7eb" :border-radius "8px"}}
@@ -186,8 +195,9 @@
       [:span {:style {:color "#6b7280" :font-weight "normal" :margin-left "0.5rem"}}
        "(Uncheck to disable this template)"]]]))
 
-(defn- handle-save-click [template loading? errors on-save]
+(defn- handle-save-click
   "Handle save button click with validation"
+  [template loading? errors on-save]
   (let [validation-errors (validate-material-template @template)]
     (if (empty? validation-errors)
       (do (reset! loading? true)
@@ -223,8 +233,9 @@
           :on-click #(handle-save-click template loading? errors on-save)
           :text (if @loading? "Saving..." "Save Template")}]]])))
 
-(defn- template-name-render [name row]
+(defn- template-name-render
   "Custom render function for template name column with description"
+  [name row]
   [:div 
    [:div {:style {:font-weight "600" :color "#111827" :font-size "0.875rem"}}
     name]
@@ -232,8 +243,9 @@
      [:div {:style {:color "#6b7280" :font-size "0.75rem" :margin-top "0.25rem" :line-height "1.4"}}
       (:material-template/description row)])])
 
-(defn- category-render [category row]
+(defn- category-render
   "Custom render function for category with fallback text"
+  [category row]
   (or category 
       [:span {:style {:color "#9ca3af" :font-style "italic"}} "No category"]))
 
@@ -251,14 +263,16 @@
     :rows templates
     :loading? loading?
     :empty-message "No material templates found"
+    :id-key :material-template/id
     :actions [{:key :edit :label "Edit" :variant :primary :on-click on-edit}
               {:key :delete :label "Delete" :variant :danger 
                :on-click (fn [row] 
                           (when (js/confirm "Are you sure you want to delete this template?")
                             (on-delete (:material-template/id row))))}]}])
 
-(defn- templates-page-header [modal-template modal-is-new?]
+(defn- templates-page-header
   "Page header with title and add button using new UI component"
+  [modal-template modal-is-new?]
   [page-header/page-header
    {:title "Material Templates"
     :description "Manage your material templates for this workspace"
@@ -269,8 +283,9 @@
                                 (reset! modal-is-new? true))
                      :text "+ Add New Template"}]}])
 
-(defn- templates-content [templates loading? modal-template modal-is-new? delete-template]
+(defn- templates-content
   "Main content area with data table using new UI component"
+  [templates loading? modal-template modal-is-new? delete-template]
   [material-templates-table 
    @templates 
    @loading?
@@ -279,8 +294,9 @@
      (reset! modal-is-new? false))
    delete-template])
 
-(defn- modal-when-open [modal-template modal-is-new? save-template]
+(defn- modal-when-open
   "Render modal when template is selected"
+  [modal-template modal-is-new? save-template]
   (when @modal-template
     [material-template-modal @modal-template @modal-is-new? save-template
      (fn [] (reset! modal-template nil))]))
