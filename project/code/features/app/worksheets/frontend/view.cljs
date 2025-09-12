@@ -273,52 +273,48 @@
           (rf/dispatch [:worksheets/set-modal-form-errors validation-errors])))))
 
 (defn worksheet-modal
-  "Modal for creating/editing worksheets using new UI components"
+  "Modal for creating/editing worksheets using re-frame"
   [worksheet-data is-new? on-save on-cancel]
   (println "worksheet-modal called with is-new?:" is-new? "type:" (type is-new?))
-  (let [loading? @(rf/subscribe [:worksheets/modal-form-loading?])
-        is-new-resolved? (if (satisfies? IDeref is-new?) @is-new? is-new?)]
-    (println "is-new-resolved?:" is-new-resolved?)
-    ;; Initialize form data when modal opens
-    (zero-react/use-effect
-      {:mount (fn []
-                (println "Modal use-effect mount called with worksheet-data:" (:worksheet/id worksheet-data))
-                (rf/dispatch [:worksheets/set-modal-form-data worksheet-data])
-                ;; Calculate duration for existing data
-                (let [arrival (:worksheet/arrival-time worksheet-data)
-                      departure (:worksheet/departure-time worksheet-data)
-                      calculated-duration (calculate-work-duration arrival departure)]
-                  (when calculated-duration
-                    (rf/dispatch [:worksheets/update-modal-form-field :worksheet/work-duration-hours calculated-duration])))
-                (println "Modal use-effect mount completed"))
-       :params [(or worksheet-data {})]})
-    
+  ;; Initialize form state in re-frame only once
+  (rf/dispatch [:worksheets/set-modal-form-data worksheet-data])
+  (rf/dispatch [:worksheets/set-modal-form-errors {}])
+  (rf/dispatch [:worksheets/set-modal-form-loading false])
+  
+  (fn [worksheet-data is-new? on-save on-cancel]
+    (println "worksheet-modal render function called")
     [modal/modal {:on-close (fn []
                              (println "Modal closing...")
                              (rf/dispatch [:worksheets/clear-modal-form])
-                             (println "About to call on-cancel")
                              (when on-cancel (on-cancel))) 
                   :close-on-backdrop? true}
      [modal/modal-header
-      {:title (if is-new-resolved? (tr/tr :worksheets/modal-add-title) (tr/tr :worksheets/modal-edit-title))
-       :subtitle (if is-new-resolved? 
+      {:title (if is-new? (tr/tr :worksheets/modal-add-title) (tr/tr :worksheets/modal-edit-title))
+       :subtitle (if is-new? 
                    (tr/tr :worksheets/modal-add-subtitle)
                    (tr/tr :worksheets/modal-edit-subtitle))}]
-     [:div {:style {:padding "20px"}} "Modal content would go here..."]
+     [form-fields]
      [modal/modal-footer
       [enhanced-button/enhanced-button
        {:variant :secondary
         :on-click (fn []
                    (println "Cancel button clicked")
                    (rf/dispatch [:worksheets/clear-modal-form])
-                   (println "About to call on-cancel from cancel button")
                    (when on-cancel (on-cancel)))
         :text (tr/tr :worksheets/cancel)}]
       [enhanced-button/enhanced-button
        {:variant :primary
-        :loading? loading?
-        :on-click #(handle-save-click on-save)
-        :text (if loading? (tr/tr :worksheets/saving) (tr/tr :worksheets/save-worksheet))}]]]))
+        :loading? @(rf/subscribe [:worksheets/modal-form-loading?])
+        :on-click (fn []
+                    (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
+                          validation-errors (validate-worksheet form-data)]
+                      (if (empty? validation-errors)
+                        (do
+                          (rf/dispatch [:worksheets/set-modal-form-loading true])
+                          (rf/dispatch [:worksheets/set-modal-form-errors {}])
+                          (on-save form-data (fn [] (rf/dispatch [:worksheets/set-modal-form-loading false]))))
+                        (rf/dispatch [:worksheets/set-modal-form-errors validation-errors]))))
+        :text (if @(rf/subscribe [:worksheets/modal-form-loading?]) (tr/tr :worksheets/saving) (tr/tr :worksheets/save-worksheet))}]]]))
 
 (defn- worksheet-serial-render
   "Custom render function for worksheet serial number column"
