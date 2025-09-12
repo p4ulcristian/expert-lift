@@ -31,8 +31,8 @@
   [& buttons]
   [:div {:style {:display "flex" :gap "0.75rem" :margin-top "2.5rem" :padding-top "2rem"
                  :border-top "1px solid #e5e7eb" :justify-content "flex-end"}}
-   (for [button buttons]
-     button)])
+   (for [[index button] (map-indexed vector buttons)]
+     ^{:key index} button)])
 
 (defn modal
   "Reusable modal component with overlay, content, and optional close on backdrop click"
@@ -43,5 +43,5 @@
                       (when (= (.-target e) (.-currentTarget e))
                         (on-close))))}
    [:div {:style (modal-content-style)}
-    (for [child content]
-      child)]])
+    (for [[index child] (map-indexed vector content)]
+      ^{:key index} child)]])
