@@ -333,8 +333,6 @@
                    (tr/tr :worksheets/modal-edit-subtitle))}]
      (let [errors @(rf/subscribe [:worksheets/modal-form-errors])]
        [:div {:style {:padding "20px"}}
-        [:div (str "Errors: " errors)]
-        [:div "Testing all fields except address:"]
         [form-field "Serial Number" :worksheet/serial-number errors
          {:type "text" :placeholder "Auto-generated" :disabled true}]
         [form-field "Creation Date" :worksheet/creation-date errors
