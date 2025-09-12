@@ -166,22 +166,6 @@
    [form-field (tr/tr :material-templates/description) :material-template/description template errors
     {:type "textarea" :placeholder (tr/tr :material-templates/description-placeholder) :rows 3}]])
 
-(defn- active-checkbox
-  "Active status checkbox for existing templates"
-  [template is-new?]
-  (when-not is-new?
-    [:div {:style {:margin-bottom "1.5rem" :padding "1rem" :background "#f9fafb" 
-                   :border "1px solid #e5e7eb" :border-radius "8px"}}
-     [:label {:style {:display "flex" :align-items "center" :font-weight "600" 
-                      :color "#374151" :cursor "pointer"}}
-      [:input {:type "checkbox"
-               :checked (boolean (:material-template/active @template))
-               :on-change #(swap! template assoc :material-template/active (.. % -target -checked))
-               :style {:margin-right "0.75rem" :width "1rem" :height "1rem" 
-                       :accent-color "#3b82f6" :cursor "pointer"}}]
-      (tr/tr :material-templates/active-template)
-      [:span {:style {:color "#6b7280" :font-weight "normal" :margin-left "0.5rem"}}
-       (tr/tr :material-templates/active-template-note)]]]))
 
 (defn- handle-save-click
   "Handle save button click with validation"
@@ -209,7 +193,6 @@
                      (tr/tr :material-templates/modal-add-subtitle)
                      (tr/tr :material-templates/modal-edit-subtitle))}]
        ^{:key "form"} [form-fields template @errors]
-       ^{:key "checkbox"} [active-checkbox template is-new?]
        ^{:key "footer"} [modal/modal-footer
         ^{:key "cancel"} [enhanced-button/enhanced-button
          {:variant :secondary
@@ -249,9 +232,7 @@
               {:key :material-template/unit :label (tr/tr :material-templates/table-header-unit) :sortable? true
                :cell-style {:color "#374151" :font-weight "500" :font-size "0.875rem"}}
               {:key :material-template/category :label (tr/tr :material-templates/table-header-category) :render category-render :sortable? true
-               :cell-style {:color "#6b7280" :font-size "0.875rem"}}
-              {:key :material-template/active :label (tr/tr :material-templates/table-header-status) :sortable? true
-               :render (fn [active? _] [data-table/status-badge active?])}]
+               :cell-style {:color "#6b7280" :font-size "0.875rem"}}]
     :data-source templates-data
     :data-key :material-templates
     :loading? loading?
@@ -276,7 +257,7 @@
     :action-button [enhanced-button/enhanced-button
                     {:variant :success
                      :on-click (fn [] 
-                                (reset! modal-template {:material-template/active true})
+                                (reset! modal-template {})
                                 (reset! modal-is-new? true))
                      :text (tr/tr :material-templates/add-new-template)}]}])
 
