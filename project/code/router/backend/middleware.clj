@@ -11,12 +11,20 @@
   "Middleware that redirects to /login if user is not authenticated"
   [handler]
   (fn [request]
-    (let [user-id (get-in request [:session :user-id])]
+    (let [user-id (get-in request [:session :user-id])
+          session (get request :session)]
+      (println "DEBUG: Authentication middleware - user-id:" user-id)
+      (println "DEBUG: Authentication middleware - session keys:" (keys session))
+      (println "DEBUG: Authentication middleware - full session:" session)
       (if user-id
-        (handler request)
-        {:status 302
-         :headers {"Location" "/login"}
-         :body ""}))))
+        (do
+          (println "DEBUG: User authenticated, proceeding with request")
+          (handler request))
+        (do
+          (println "DEBUG: User not authenticated, redirecting to /login")
+          {:status 302
+           :headers {"Location" "/login"}
+           :body ""})))))
 
 (defn middleware []
   {:middleware [;#(wrap-reload           % {:dirs ["/source-code"]});watched-dirs})  
