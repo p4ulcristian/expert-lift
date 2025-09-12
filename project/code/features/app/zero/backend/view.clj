@@ -4,9 +4,11 @@
    [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]))
 
 (defn loading []
-  [:div {:style "height: 100vh; width: 100vw; display: flex; justify-content: center; align-items: center;"}
-   [:div
-    [:img {:src "/logo/logo-good-size.png" :style "width: 50vw; max-width: 500px; min-width: 100px;"}]]])
+  [:div {:style "height: 100vh; width: 100vw; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #f8f9fa; gap: 20px;"}
+   [:div {:class "loading-brand-container"}
+    [:img {:class "loading-logo" :src "/logo/logo.png" :alt "Logo"}] 
+    [:div {:class "loading-brand"} "ElevaThor"]]
+   [:div {:class "loading-spinner"}]])
 
 (defn font-awesome-include []
   [:script {:type "text/javascript"
@@ -18,7 +20,11 @@
   []
   (html5
    [:head
+    [:link {:rel "preconnect" :href "https://fonts.googleapis.com"}]
+    [:link {:rel "preconnect" :href "https://fonts.gstatic.com" :crossorigin true}]
+    [:link {:href "https://fonts.googleapis.com/css2?family=Skranji:wght@400;700&display=swap" :rel "stylesheet"}]
     (include-css "/css/normalize.css")
+    (include-css "/css/ui.css")
     (include-css "/css/app.css")]
    [:body
     (let [csrf-token (force *anti-forgery-token*)]

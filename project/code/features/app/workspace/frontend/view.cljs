@@ -57,32 +57,18 @@
                  :display "flex"
                  :align-items "center"
                  :justify-content "center"
-                 :background "#f5f5f5"}}
-   [:div {:style {:text-align "center"}}
-    "Loading..."]])
+                 :background "#c9ddd8"}}
+   [:div {:class "loading-spinner"}]])
 
 (defn- workspace-header [workspace auth-user]
   "Workspace header with title and user info"
-  [:div {:style {:display "flex" :justify-content "space-between" :align-items "center" :margin-bottom "3rem"}}
-   [:div
+  [:div {:style {:display "flex" :justify-content "center" :align-items "center" :margin-bottom "3rem"}}
+   [:div {:style {:text-align "center"}}
     [:h1 {:style {:color "#333" :margin "0" :margin-bottom "0.5rem"}}
      (:workspace/name workspace)]
     [:p {:style {:color "#666" :margin "0" :font-size "1.1rem"}}
-     (or (:workspace/description workspace) "Welcome to your workspace")]]
-   [:div {:style {:display "flex" :gap "1rem" :align-items "center"}}
-    [:span {:style {:color "#666"}}
-     (str "Welcome, " (:user/full-name auth-user))]
-    [:button {:on-click handle-logout
-              :style {:padding "0.5rem 1rem" :background "#dc3545" :color "white" :border "none" :border-radius "4px" :cursor "pointer"}}
-     "Logout"]]])
+     (:workspace/description workspace)]]])
 
-(defn- welcome-section []
-  "Welcome message and description"
-  [:div {:style {:margin-bottom "2rem"}}
-   [:div {:style {:font-size "4rem" :margin-bottom "1rem"}} "🏢"]
-   [:h2 {:style {:color "#333" :margin-bottom "1rem"}} "Workspace Dashboard"]
-   [:p {:style {:color "#666" :font-size "1.1rem" :line-height "1.6" :max-width "600px" :margin "0 auto"}}
-    "Welcome to your workspace! This is where you'll manage your elevator service operations, track maintenance, and collaborate with your team."]])
 
 (defn- feature-card 
   ([icon title description]
@@ -108,9 +94,7 @@
    [feature-card "🏗️" "Material Templates" "Manage standard materials and supplies" (str "/app/" workspace-id "/material-templates")]
    [feature-card "📍" "Addresses" "Manage workspace addresses and locations" (str "/app/" workspace-id "/addresses")]
    [feature-card "📋" "Worksheets" "Manage work orders and service reports" (str "/app/" workspace-id "/worksheets")]
-   [feature-card "⚙️" "Maintenance" "Schedule and track elevator maintenance"]
-   [feature-card "👥" "Team" "Collaborate with your service team"]
-   [feature-card "📊" "Reports" "View performance and analytics"]])
+   [feature-card "👥" "Team" "Collaborate with your service team"]])
 
 (defn- workspace-footer [workspace-id]
   "Footer with workspace ID"
@@ -121,13 +105,12 @@
 (defn- workspace-content [auth-user workspace workspace-id]
   "Main workspace dashboard content"
   [:div {:style {:min-height "100vh"
-                 :background "#f5f5f5"
+                 :background "#c9ddd8"
                  :padding "2rem"}}
    [:div {:style {:max-width "1200px"
                   :margin "0 auto"}}
     [workspace-header workspace auth-user]
     [:div {:style {:background "white" :border-radius "8px" :padding "3rem" :box-shadow "0 2px 4px rgba(0,0,0,0.1)" :text-align "center"}}
-     [welcome-section]
      [features-grid workspace-id]
      [workspace-footer workspace-id]]]])
 
@@ -137,12 +120,12 @@
                  :display "flex"
                  :align-items "center"
                  :justify-content "center"
-                 :background "#f5f5f5"}}
+                 :background "#c9ddd8"}}
    [:div {:style {:text-align "center"}}
     [:h2 "Access Denied"]
     [:p "You don't have access to this workspace or it doesn't exist."]
     [:button {:on-click #(set! (.-location js/window) "/app")
-              :style {:padding "0.5rem 1rem" :background "#007bff" :color "white" :border "none" :border-radius "4px" :cursor "pointer"}}
+              :style {:padding "0.5rem 1rem" :background "#72a9bf" :color "white" :border "none" :border-radius "4px" :cursor "pointer"}}
      "Go to Dashboard"]]])
 
 (defn view []

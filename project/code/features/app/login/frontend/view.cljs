@@ -48,17 +48,35 @@
                      :display "flex" 
                      :align-items "center"
                      :justify-content "center"
-                     :background "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"}}
+                     :background "linear-gradient(135deg, #ae6e1f 0%, #72a9bf 50%, #ae6e1f 100%)"}}
        [:div {:style {:background "white"
                       :padding "2rem"
                       :border-radius "8px"
                       :box-shadow "0 4px 6px rgba(0, 0, 0, 0.1)"
                       :width "400px"
                       :max-width "90vw"}}
-        [:h2 {:style {:text-align "center"
-                      :margin-bottom "1.5rem"
-                      :color "#333"}}
-         "Expert Lift Login"]
+        [:div {:style {:display "flex"
+                       :align-items "center"
+                       :justify-content "center"
+                       :gap "12px"
+                       :margin-bottom "1.5rem"}}
+         [:img {:src "/logo/logo.png"
+                :alt "Logo"
+                :style {:height "50px"
+                        :width "50px"
+                        :border-radius "12px"
+                        :object-fit "cover"}}]
+         [:h2 {:style {:margin "0"
+                       :color "#ae6e1f"
+                       :font-family "'Skranji', cursive"
+                       :font-size "1.8rem"
+                       :font-weight "700"}}
+          "ElevaThor"]]
+        [:p {:style {:text-align "center"
+                     :margin-bottom "1.5rem"
+                     :color "#666"
+                     :font-size "1rem"}}
+         "Login to your account"]
         
         (when (:general @errors)
           [:div {:style {:background "#f8d7da"
@@ -118,7 +136,7 @@
                    :disabled @loading?
                    :style {:width "100%"
                            :padding "0.75rem"
-                           :background (if @loading? "#6c757d" "#007bff")
+                           :background (if @loading? "#6c757d" "#72a9bf")
                            :color "white"
                            :border "none"
                            :border-radius "4px"

@@ -220,7 +220,7 @@
    [:body
     [:div.header
      [:div.title "MUNKALAP"]
-     (when-let [logo-data (encode-image-to-base64 "project/resources/public/logo/expert.png")]
+     (when-let [logo-data (encode-image-to-base64 "project/resources/public/logo/logo.png")]
        [:img.logo {:src logo-data}])]
     
     [:div.form-row

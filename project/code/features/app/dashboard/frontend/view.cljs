@@ -32,9 +32,8 @@
                  :display "flex"
                  :align-items "center"
                  :justify-content "center"
-                 :background "#f5f5f5"}}
-   [:div {:style {:text-align "center"}}
-    "Loading..."]])
+                 :background "#c9ddd8"}}
+   [:div {:class "loading-spinner"}]])
 
 (defn- header-section [auth-user]
   "Header with title and user info"
@@ -65,7 +64,7 @@
 (defn- main-content [auth-user]
   "Main dashboard content for users without workspace"
   [:div {:style {:min-height "100vh"
-                 :background "#f5f5f5"
+                 :background "#c9ddd8"
                  :padding "2rem"}}
    [:div {:style {:max-width "800px"
                   :margin "0 auto"}}
@@ -80,12 +79,12 @@
                  :display "flex"
                  :align-items "center"
                  :justify-content "center"
-                 :background "#f5f5f5"}}
+                 :background "#c9ddd8"}}
    [:div {:style {:text-align "center"}}
     [:h2 "Authentication Required"]
     [:p "Please log in to access this page."]
     [:button {:on-click #(set! (.-location js/window) "/login")
-              :style {:padding "0.5rem 1rem" :background "#007bff" :color "white" :border "none" :border-radius "4px" :cursor "pointer"}}
+              :style {:padding "0.5rem 1rem" :background "#72a9bf" :color "white" :border "none" :border-radius "4px" :cursor "pointer"}}
      "Go to Login"]]])
 
 (defn view []

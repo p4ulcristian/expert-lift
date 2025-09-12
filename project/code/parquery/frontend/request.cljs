@@ -8,10 +8,16 @@
   [query-map]
   (let [callback (:callback query-map)
         request-data (dissoc query-map :callback)]
+    (println "DEBUG: ParQuery send-queries called")
+    (println "  Request data:" request-data)
+    (println "  Queries:" (keys (:queries request-data)))
     (go
       (let [response (<! (http/post "/parquery"
                                     {:transit-params request-data
                                      :with-credentials? true}))]
+        (println "DEBUG: ParQuery response received")
+        (println "  Status:" (:status response))
+        (println "  Body:" (:body response))
         (if (= 200 (:status response))
           (callback (:body response))
           (throw (js/Error (str "ParQuery request failed with status " (:status response) ": " (:body response)))))))))
