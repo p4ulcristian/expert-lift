@@ -52,7 +52,7 @@ table "worksheets" {
   column "material_usage" {
     null = true
     type = jsonb
-    comment = "Array of {name, quantity, unit} objects"
+    comment = "Array of {name, unit, quantity} objects e.g. [{\"name\": \"acel\", \"unit\": \"meter\", \"quantity\": \"5\"}]"
   }
   
   column "notes" {

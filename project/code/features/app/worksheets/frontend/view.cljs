@@ -302,6 +302,8 @@
   (rf/dispatch [:worksheets/set-modal-form-data worksheet-data])
   (rf/dispatch [:worksheets/set-modal-form-errors {}])
   (rf/dispatch [:worksheets/set-modal-form-loading false])
+  ;; Load material templates
+  (rf/dispatch [:material-templates/load (get-workspace-id)])
   
   (fn [worksheet-data is-new? on-save on-cancel]
     (println "worksheet-modal render function called")
@@ -362,6 +364,69 @@
          "💡 Work duration is automatically calculated from arrival and departure times (rounded up to nearest full hour)"]
         [form-field "Notes" :worksheet/notes errors
          {:type "textarea" :placeholder "Optional notes..." :rows 3}]
+        
+        ;; Materials section
+        [:div {:style {:margin-bottom "1.5rem"}}
+         [:h3 {:style {:margin-bottom "1rem" :font-size "1.125rem" :font-weight "600" :color "#374151"}}
+          "Materials Used"]
+         
+         ;; Current materials list
+         (let [materials (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/material-usage [])
+               material-templates @(rf/subscribe [:material-templates/all])
+               selected-template-id (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/selected-material-template "")]
+           [:div
+            ;; Display existing materials
+            (when (seq materials)
+              [:div {:style {:margin-bottom "1rem"}}
+               [:h4 {:style {:margin-bottom "0.5rem" :font-size "0.9rem" :font-weight "500" :color "#374151"}}
+                "Added Materials:"]
+               [:div {:style {:max-height "150px" :overflow-y "auto" :border "1px solid #d1d5db" :border-radius "6px" :padding "0.5rem"}}
+                (map-indexed
+                 (fn [idx material]
+                   [:div {:key idx 
+                          :style {:display "flex" :justify-content "space-between" :align-items "center" :padding "0.25rem 0" :border-bottom "1px solid #f3f4f6"}}
+                    [:span {:style {:font-size "0.875rem"}}
+                     (str (:name material) " - " (:quantity material) " " (:unit material))]
+                    [:button {:type "button"
+                             :on-click #(rf/dispatch [:worksheets/remove-material idx])
+                             :style {:background "#ef4444" :color "white" :border "none" :border-radius "4px" :padding "0.25rem 0.5rem" :font-size "0.75rem" :cursor "pointer"}}
+                     "Remove"]])
+                 materials)]])
+            
+            ;; Add new material form
+            [:div {:style {:display "grid" :grid-template-columns "2fr 1fr auto" :gap "0.5rem" :align-items "end"}}
+             [:div
+              [:label {:style {:display "block" :margin-bottom "0.25rem" :font-weight "500" :font-size "0.75rem" :color "#374151"}}
+               "Select Material"]
+              [:select {:value selected-template-id
+                       :on-change #(rf/dispatch [:worksheets/select-material-template (.. % -target -value)])
+                       :style {:width "100%" :padding "0.5rem" :border "1px solid #d1d5db" :border-radius "6px" :font-size "0.875rem"}}
+               [:option {:value ""} "Choose material..."]
+               (map (fn [template]
+                      [:option {:key (:material-template/id template) :value (:material-template/id template)}
+                       (str (:material-template/name template) " (" (:material-template/unit template) ")")])
+                    (sort-by :material-template/name material-templates))]]
+             [:div
+              [:label {:style {:display "block" :margin-bottom "0.25rem" :font-weight "500" :font-size "0.75rem" :color "#374151"}}
+               "Quantity"]
+              [:input {:type "number"
+                      :value (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/new-material-quantity "")
+                      :on-change #(rf/dispatch [:worksheets/update-form-field :worksheet/new-material-quantity (.. % -target -value)])
+                      :placeholder "5"
+                      :disabled (empty? selected-template-id)
+                      :style {:width "100%" :padding "0.5rem" :border "1px solid #d1d5db" :border-radius "6px" :font-size "0.875rem" :opacity (if (empty? selected-template-id) 0.5 1)}}]]
+             [:button {:type "button"
+                      :on-click #(rf/dispatch [:worksheets/add-selected-material])
+                      :disabled (or (empty? selected-template-id) 
+                                   (empty? (str (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/new-material-quantity ""))))
+                      :style {:background (if (or (empty? selected-template-id) 
+                                                 (empty? (str (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/new-material-quantity ""))))
+                                           "#9ca3af" "#10b981")
+                             :color "white" :border "none" :border-radius "6px" :padding "0.5rem 1rem" :font-size "0.875rem" :cursor (if (or (empty? selected-template-id) 
+                                                                                                                                          (empty? (str (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/new-material-quantity "")))) 
+                                                                                                                                      "not-allowed" "pointer")
+                             :font-weight "500"}}
+              "Add"]]])]
         
         ;; Signature section using React components
         [:div {:style {:margin-bottom "1.5rem"}}
@@ -643,6 +708,69 @@
   :worksheets/customer-signature-ref
   (fn [db _]
     (get-in db [:worksheets :customer-signature-ref])))
+
+;; Material templates subscription
+(rf/reg-sub
+  :material-templates/all
+  (fn [db _]
+    (get-in db [:material-templates :all] [])))
+
+;; Material templates events
+(rf/reg-event-db
+  :material-templates/load
+  (fn [db [_ workspace-id]]
+    (when workspace-id
+      (parquery/send-queries
+       {:queries {:workspace-material-templates/get-all {:workspace-id workspace-id}}
+        :parquery/context {:workspace-id workspace-id}
+        :callback (fn [response]
+                   (rf/dispatch [:material-templates/loaded (:workspace-material-templates/get-all response)]))}))
+    db))
+
+(rf/reg-event-db
+  :material-templates/loaded
+  (fn [db [_ templates]]
+    (assoc-in db [:material-templates :all] (or templates []))))
+
+;; Form field update event
+(rf/reg-event-db
+  :worksheets/update-form-field
+  (fn [db [_ field-key value]]
+    (assoc-in db [:worksheets :modal-form-data field-key] value)))
+
+;; Material selection events
+(rf/reg-event-db
+  :worksheets/select-material-template
+  (fn [db [_ template-id]]
+    (assoc-in db [:worksheets :modal-form-data :worksheet/selected-material-template] template-id)))
+
+(rf/reg-event-db
+  :worksheets/add-selected-material
+  (fn [db _]
+    (let [form-data (get-in db [:worksheets :modal-form-data])
+          selected-template-id (:worksheet/selected-material-template form-data)
+          quantity (:worksheet/new-material-quantity form-data)
+          templates (get-in db [:material-templates :all] [])]
+      (if (and selected-template-id quantity (not (empty? (str quantity))))
+        (let [selected-template (first (filter #(= (:material-template/id %) selected-template-id) templates))
+              new-material {:name (:material-template/name selected-template)
+                           :unit (:material-template/unit selected-template)
+                           :quantity (str quantity)}
+              current-materials (get form-data :worksheet/material-usage [])]
+          (-> db
+              (assoc-in [:worksheets :modal-form-data :worksheet/material-usage] 
+                       (conj current-materials new-material))
+              (assoc-in [:worksheets :modal-form-data :worksheet/selected-material-template] "")
+              (assoc-in [:worksheets :modal-form-data :worksheet/new-material-quantity] "")))
+        db))))
+
+(rf/reg-event-db
+  :worksheets/remove-material
+  (fn [db [_ idx]]
+    (let [current-materials (get-in db [:worksheets :modal-form-data :worksheet/material-usage] [])]
+      (assoc-in db [:worksheets :modal-form-data :worksheet/material-usage]
+               (vec (concat (take idx current-materials)
+                           (drop (inc idx) current-materials)))))))
 
 ;; REMOVED: Event to load worksheets - now using direct atom manipulation
 
