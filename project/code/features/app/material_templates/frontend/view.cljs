@@ -250,20 +250,23 @@
       [:span {:style {:color "#9ca3af" :font-style "italic"}} "No category"]))
 
 (defn material-templates-table
-  "Material templates table using new data-table component"
+  "Material templates table using enhanced data-table component with search, sorting, and pagination"
   [templates loading? on-edit on-delete]
   [data-table/data-table
-   {:headers [{:key :material-template/name :label "Material" :render template-name-render}
-              {:key :material-template/unit :label "Unit" 
+   {:headers [{:key :material-template/name :label "Material" :render template-name-render :sortable? true}
+              {:key :material-template/unit :label "Unit" :sortable? true
                :cell-style {:color "#374151" :font-weight "500" :font-size "0.875rem"}}
-              {:key :material-template/category :label "Category" :render category-render
+              {:key :material-template/category :label "Category" :render category-render :sortable? true
                :cell-style {:color "#6b7280" :font-size "0.875rem"}}
-              {:key :material-template/active :label "Status" 
+              {:key :material-template/active :label "Status" :sortable? true
                :render (fn [active? _] [data-table/status-badge active?])}]
     :rows templates
     :loading? loading?
     :empty-message "No material templates found"
     :id-key :material-template/id
+    :table-id :material-templates-table
+    :show-search? true
+    :show-pagination? true
     :actions [{:key :edit :label "Edit" :variant :primary :on-click on-edit}
               {:key :delete :label "Delete" :variant :danger 
                :on-click (fn [row] 
