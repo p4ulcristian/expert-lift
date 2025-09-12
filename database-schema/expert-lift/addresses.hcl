@@ -59,6 +59,12 @@ table "addresses" {
     type = jsonb
     comment = "Felvonok - Array of elevator identifiers (Felvono jelzese)"
   }
+
+  column "search_normalized" {
+    null = true
+    type = text
+    comment = "Normalized search text for Hungarian character matching"
+  }
   
   column "created_at" {
     null = false
@@ -98,5 +104,10 @@ table "addresses" {
   
   index "addresses_city_idx" {
     columns = [column.city]
+  }
+  
+  index "addresses_search_normalized_idx" {
+    columns = [column.search_normalized]
+    comment = "Index for fast LIKE searches on normalized content"
   }
 }

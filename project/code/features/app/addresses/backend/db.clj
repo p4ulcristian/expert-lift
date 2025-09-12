@@ -2,6 +2,18 @@
   (:require [zero.backend.state.postgres :as postgres]
             [clojure.string :as str]))
 
+(defn- normalize-hungarian
+  "Normalize Hungarian characters for search - convert accented chars to base chars"
+  [text]
+  (when text
+    (-> text
+        (str/replace #"[áÁ]" "a")
+        (str/replace #"[éÉ]" "e") 
+        (str/replace #"[íÍ]" "i")
+        (str/replace #"[óÓöÖőŐ]" "o")
+        (str/replace #"[úÚüÜűŰ]" "u")
+        (str/lower-case))))
+
 (defn get-addresses-by-workspace
   "Get all addresses for a workspace"
   [workspace-id]
@@ -18,9 +30,9 @@
   (let [offset (* page page-size)
         has-search? (and search (not (str/blank? search)))
         search-condition (if has-search?
-                          "AND (LOWER(name) LIKE $2 OR LOWER(city) LIKE $2 OR LOWER(country) LIKE $2 OR LOWER(contact_person) LIKE $2)"
+                          "AND search_normalized LIKE $2"
                           "")
-        search-param (when has-search? (str "%" (str/lower-case search) "%"))
+        search-param (when has-search? (str "%" (normalize-hungarian search) "%"))
         order-direction (if (= sort-direction "desc") "DESC" "ASC")
         
         ;; Map frontend column names to database columns
