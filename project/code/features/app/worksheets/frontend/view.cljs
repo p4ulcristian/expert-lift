@@ -293,6 +293,413 @@
       (do
           (rf/dispatch [:worksheets/set-modal-form-errors validation-errors])))))
 
+(defn- modal-close-handler
+  "Handle modal close event"
+  [on-cancel]
+  (fn []
+    (println "Modal closing...")
+    (rf/dispatch [:worksheets/clear-modal-form])
+    (when on-cancel (on-cancel))))
+
+(defn- modal-header-config
+  "Generate modal header configuration"
+  [is-new?]
+  {:title (if is-new? (tr/tr :worksheets/modal-add-title) (tr/tr :worksheets/modal-edit-title))
+   :subtitle (if is-new? (tr/tr :worksheets/modal-add-subtitle) (tr/tr :worksheets/modal-edit-subtitle))})
+
+(defn- basic-form-fields
+  "Render basic worksheet form fields"
+  [errors]
+  [:div
+   [form-field "Serial Number" :worksheet/serial-number errors
+    {:type "text" :placeholder "Auto-generated" :disabled true}]
+   [form-field "Creation Date" :worksheet/creation-date errors
+    {:type "date"}]])
+
+(defn- address-form-field
+  "Render address selection field"
+  [errors]
+  (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
+        workspace-id (get-workspace-id)]
+    [form-field "Address" :worksheet/address-id errors
+     {:type "address-select"
+      :workspace-id workspace-id
+      :current-value (:worksheet/address-id form-data)}]))
+
+(defn- work-info-form-fields
+  "Render work information form fields"
+  [errors]
+  [:div
+   [form-field "Work Type" :worksheet/work-type errors
+    {:type "select" :options [["repair" "Repair"] ["maintenance" "Maintenance"] ["other" "Other"]]}]
+   [form-field "Service Type" :worksheet/service-type errors
+    {:type "select" :options [["normal" "Normal"] ["night" "Night"] ["weekend" "Weekend"] ["holiday" "Holiday"]]}]
+   [form-field "Work Description" :worksheet/work-description errors
+    {:type "textarea" :placeholder "Describe the work to be performed..." :rows 4}]
+   [form-field "Status" :worksheet/status errors
+    {:type "select" :options [["draft" "Draft"] ["in_progress" "In Progress"] ["completed" "Completed"] ["cancelled" "Cancelled"]]}]])
+
+(defn- time-tracking-form-fields
+  "Render time tracking form fields"
+  [errors]
+  [:div
+   [form-field "Arrival Time" :worksheet/arrival-time errors
+    {:type "datetime-local"}]
+   [form-field "Departure Time" :worksheet/departure-time errors
+    {:type "datetime-local"}]
+   [form-field "Work Duration (Hours)" :worksheet/work-duration-hours errors
+    {:type "number" :step "1" :placeholder "Auto-calculated from arrival/departure" :disabled true}]
+   [:div {:style {:margin-bottom "1.5rem" :font-size "0.75rem" :color "#6b7280"}}
+    "💡 Work duration is automatically calculated from arrival and departure times (rounded up to nearest full hour)"]])
+
+(defn- notes-form-field
+  "Render notes form field"
+  [errors]
+  [form-field "Notes" :worksheet/notes errors
+   {:type "textarea" :placeholder "Optional notes..." :rows 3}])
+
+(defn- material-item-display
+  "Render single material item with remove button"
+  [idx material]
+  [:div {:key idx 
+         :style {:display "flex" :justify-content "space-between" :align-items "center" :padding "0.25rem 0" :border-bottom "1px solid #f3f4f6"}}
+   [:span {:style {:font-size "0.875rem"}}
+    (str (:name material) " - " (:quantity material) " " (:unit material))]
+   [:button {:type "button"
+            :on-click #(rf/dispatch [:worksheets/remove-material idx])
+            :style {:background "#ef4444" :color "white" :border "none" :border-radius "4px" :padding "0.25rem 0.5rem" :font-size "0.75rem" :cursor "pointer"}}
+    "Remove"]])
+
+(defn- existing-materials-list
+  "Render list of existing materials"
+  [materials]
+  (when (seq materials)
+    [:div {:style {:margin-bottom "1rem"}}
+     [:h4 {:style {:margin-bottom "0.5rem" :font-size "0.9rem" :font-weight "500" :color "#374151"}}
+      "Added Materials:"]
+     [:div {:style {:max-height "150px" :overflow-y "auto" :border "1px solid #d1d5db" :border-radius "6px" :padding "0.5rem"}}
+      (map-indexed material-item-display materials)]]))
+
+(defn- template-material-selector
+  "Render material template selection form"
+  [material-templates selected-template-id]
+  [:div {:style {:display "grid" :grid-template-columns "2fr 1fr auto" :gap "0.5rem" :align-items "end"}}
+   [:div
+    [:label {:style {:display "block" :margin-bottom "0.25rem" :font-weight "500" :font-size "0.75rem" :color "#374151"}}
+     "Select Material"]
+    [:select {:value selected-template-id
+             :on-change #(rf/dispatch [:worksheets/select-material-template (.. % -target -value)])
+             :style {:width "100%" :padding "0.5rem" :border "1px solid #d1d5db" :border-radius "6px" :font-size "0.875rem"}}
+     [:option {:value ""} "Choose material..."]
+     (map (fn [template]
+            [:option {:key (:material-template/id template) :value (:material-template/id template)}
+             (str (:material-template/name template) " (" (:material-template/unit template) ")")])
+          (sort-by :material-template/name material-templates))]]
+   [:div
+    [:label {:style {:display "block" :margin-bottom "0.25rem" :font-weight "500" :font-size "0.75rem" :color "#374151"}}
+     "Quantity"]
+    [:input {:type "number"
+            :value (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/new-material-quantity "")
+            :on-change #(rf/dispatch [:worksheets/update-form-field :worksheet/new-material-quantity (.. % -target -value)])
+            :placeholder "5"
+            :disabled (empty? selected-template-id)
+            :style {:width "100%" :padding "0.5rem" :border "1px solid #d1d5db" :border-radius "6px" :font-size "0.875rem" :opacity (if (empty? selected-template-id) 0.5 1)}}]]
+   [:button {:type "button"
+            :on-click #(rf/dispatch [:worksheets/add-selected-material])
+            :disabled (or (empty? selected-template-id) 
+                         (empty? (str (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/new-material-quantity ""))))
+            :style {:background (if (or (empty? selected-template-id) 
+                                       (empty? (str (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/new-material-quantity ""))))
+                                 "#9ca3af" "#10b981")
+                   :color "white" :border "none" :border-radius "6px" :padding "0.5rem 1rem" :font-size "0.875rem" :cursor (if (or (empty? selected-template-id) 
+                                                                                                                                    (empty? (str (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/new-material-quantity "")))) 
+                                                                                                                                "not-allowed" "pointer")
+                   :font-weight "500"}}
+    "Add"]])
+
+(defn- custom-material-inputs
+  "Render custom material input form"
+  []
+  [:div {:style {:margin-top "1rem" :padding-top "1rem" :border-top "1px solid #e5e7eb"}}
+   [:h4 {:style {:margin-bottom "0.5rem" :font-size "0.9rem" :font-weight "500" :color "#374151"}}
+    "Add Custom Material:"]
+   [:div {:style {:display "grid" :grid-template-columns "2fr 1fr 1fr auto" :gap "0.5rem" :align-items "end"}}
+    [:div
+     [:label {:style {:display "block" :margin-bottom "0.25rem" :font-weight "500" :font-size "0.75rem" :color "#374151"}}
+      "Custom Material Name"]
+     [:input {:type "text"
+             :value (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/custom-material-name "")
+             :on-change #(rf/dispatch [:worksheets/update-form-field :worksheet/custom-material-name (.. % -target -value)])
+             :placeholder "Enter material name..."
+             :style {:width "100%" :padding "0.5rem" :border "1px solid #d1d5db" :border-radius "6px" :font-size "0.875rem"}}]]
+    [:div
+     [:label {:style {:display "block" :margin-bottom "0.25rem" :font-weight "500" :font-size "0.75rem" :color "#374151"}}
+      "Unit"]
+     [:input {:type "text"
+             :value (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/custom-material-unit "")
+             :on-change #(rf/dispatch [:worksheets/update-form-field :worksheet/custom-material-unit (.. % -target -value)])
+             :placeholder "pcs, kg, m..."
+             :style {:width "100%" :padding "0.5rem" :border "1px solid #d1d5db" :border-radius "6px" :font-size "0.875rem"}}]]
+    [:div
+     [:label {:style {:display "block" :margin-bottom "0.25rem" :font-weight "500" :font-size "0.75rem" :color "#374151"}}
+      "Quantity"]
+     [:input {:type "number"
+             :value (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/custom-material-quantity "")
+             :on-change #(rf/dispatch [:worksheets/update-form-field :worksheet/custom-material-quantity (.. % -target -value)])
+             :placeholder "5"
+             :style {:width "100%" :padding "0.5rem" :border "1px solid #d1d5db" :border-radius "6px" :font-size "0.875rem"}}]]
+    [:button {:type "button"
+             :on-click #(rf/dispatch [:worksheets/add-custom-material])
+             :disabled (or (empty? (str (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/custom-material-name "")))
+                          (empty? (str (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/custom-material-unit "")))
+                          (empty? (str (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/custom-material-quantity ""))))
+             :style {:background (if (or (empty? (str (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/custom-material-name "")))
+                                        (empty? (str (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/custom-material-unit "")))
+                                        (empty? (str (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/custom-material-quantity ""))))
+                                  "#9ca3af" "#2563eb")
+                    :color "white" :border "none" :border-radius "6px" :padding "0.5rem 1rem" :font-size "0.875rem" 
+                    :cursor (if (or (empty? (str (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/custom-material-name "")))
+                                   (empty? (str (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/custom-material-unit "")))
+                                   (empty? (str (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/custom-material-quantity ""))))
+                             "not-allowed" "pointer")
+                    :font-weight "500"}}
+     "Add"]]])
+
+(defn- materials-section
+  "Render complete materials section"
+  []
+  (let [materials (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/material-usage [])
+        material-templates @(rf/subscribe [:material-templates/all])
+        selected-template-id (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/selected-material-template "")]
+    [:div {:style {:margin-bottom "1.5rem"}}
+     [:h3 {:style {:margin-bottom "1rem" :font-size "1.125rem" :font-weight "600" :color "#374151"}}
+      "Materials Used"]
+     [:div
+      [existing-materials-list materials]
+      [template-material-selector material-templates selected-template-id]
+      [custom-material-inputs]]]))
+
+(defn- signature-display
+  "Render signature as clickable display (non-active)"
+  [ref-dispatch-key label]
+  (let [signature-ref @(rf/subscribe (if (= ref-dispatch-key :worksheets/set-maintainer-signature-ref)
+                                       [:worksheets/maintainer-signature-ref]
+                                       [:worksheets/customer-signature-ref]))]
+    [:div
+     [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600" :font-size "0.875rem" :color "#374151"}}
+      label]
+     [:div {:style {:border "1px solid #d1d5db"
+                    :border-radius "8px"
+                    :background "#ffffff"
+                    :width "100%"
+                    :max-width "300px"
+                    :height "150px"
+                    :cursor "pointer"
+                    :display "flex"
+                    :align-items "center"
+                    :justify-content "center"
+                    :position "relative"}
+            :on-click #(rf/dispatch [:worksheets/open-signature-zoom label])}
+      (if (and signature-ref (not (.isEmpty signature-ref)))
+        [:img {:src (.toDataURL signature-ref)
+               :style {:max-width "100%"
+                       :max-height "100%"
+                       :object-fit "contain"}}]
+        [:div {:style {:color "#9ca3af" :text-align "center" :font-size "0.875rem"}}
+         "Click to sign"])
+      [:div {:style {:position "absolute"
+                     :top "5px"
+                     :right "5px"
+                     :background "rgba(0,0,0,0.5)"
+                     :color "white"
+                     :border-radius "3px"
+                     :padding "2px 6px"
+                     :font-size "0.75rem"}}
+       "🔍"]]]))
+
+(defn- signature-canvas
+  "Render signature canvas for editing (used in overlay)"
+  [ref-dispatch-key label]
+  [:div
+   [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600" :font-size "0.875rem" :color "#374151"}}
+    label]
+   [:> SignatureCanvas
+    {:penColor "black"
+     :canvasProps {:width 300
+                   :height 150
+                   :style {:border "1px solid #d1d5db"
+                           :border-radius "8px"
+                           :background "#ffffff"
+                           :display "block"
+                           :width "100%"
+                           :max-width "300px"}}
+     :ref (fn [ref] (rf/dispatch [ref-dispatch-key ref]))}]])
+
+(defn- signature-clear-buttons
+  "Render signature clear buttons"
+  []
+  [:div {:style {:display "flex" :justify-content "space-between" :margin-top "0.5rem"}}
+   [:button {:type "button"
+            :on-click (fn []
+                        (when-let [ref @(rf/subscribe [:worksheets/maintainer-signature-ref])]
+                          (.clear ref)))
+            :style {:padding "0.25rem 0.75rem" :font-size "0.75rem" :color "#6b7280" :background "transparent" :border "1px solid #d1d5db" :border-radius "4px" :cursor "pointer"}}
+    "Clear Maintainer"]
+   [:button {:type "button"
+            :on-click (fn []
+                        (when-let [ref @(rf/subscribe [:worksheets/customer-signature-ref])]
+                          (.clear ref)))
+            :style {:padding "0.25rem 0.75rem" :font-size "0.75rem" :color "#6b7280" :background "transparent" :border "1px solid #d1d5db" :border-radius "4px" :cursor "pointer"}}
+    "Clear Customer"]])
+
+(defn- signature-zoom-overlay
+  "Full-screen overlay for signature editing"
+  []
+  (let [zoom-data @(rf/subscribe [:worksheets/signature-zoom-data])]
+    (when zoom-data
+      [:div {:style {:position "fixed"
+                     :top 0
+                     :left 0
+                     :width "100vw"
+                     :height "100vh"
+                     :background "rgba(0, 0, 0, 0.8)"
+                     :display "flex"
+                     :align-items "center"
+                     :justify-content "center"
+                     :z-index 9999}
+             :on-click #(rf/dispatch [:worksheets/close-signature-zoom])}
+       [:div {:style {:background "white"
+                      :border-radius "12px"
+                      :padding "2rem"
+                      :width "90vw"
+                      :max-width "600px"
+                      :height "auto"
+                      :max-height "80vh"
+                      :position "relative"
+                      :overflow "auto"}
+              :on-click (fn [e] (.stopPropagation e))}
+        ;; Close button
+        [:button {:style {:position "absolute"
+                          :top "10px"
+                          :right "10px"
+                          :background "transparent"
+                          :border "none"
+                          :font-size "1.5rem"
+                          :cursor "pointer"
+                          :color "#6b7280"
+                          :width "30px"
+                          :height "30px"
+                          :display "flex"
+                          :align-items "center"
+                          :justify-content "center"}
+                  :on-click #(rf/dispatch [:worksheets/close-signature-zoom])}
+         "×"]
+        
+        ;; Content
+        [:h2 {:style {:margin "0 0 1.5rem 0" :font-size "1.5rem" :font-weight "600" :color "#374151"}}
+         (:label zoom-data)]
+        
+        ;; Signature canvas - larger for mobile/desktop
+        [:div {:style {:margin-bottom "1.5rem"}}
+         [:> SignatureCanvas
+          {:penColor "black"
+           :canvasProps {:width (if (< js/window.innerWidth 768) 
+                                  (- js/window.innerWidth 80) 
+                                  500)
+                         :height (if (< js/window.innerWidth 768) 
+                                   250 
+                                   300)
+                         :style {:border "2px solid #d1d5db"
+                                 :border-radius "8px"
+                                 :background "#ffffff"
+                                 :display "block"
+                                 :width "100%"}}
+           :ref (fn [ref] 
+                  (rf/dispatch [(:ref-dispatch-key zoom-data) ref])
+                  (rf/dispatch [:worksheets/set-zoom-signature-ref ref]))}]]
+        
+        ;; Action buttons
+        [:div {:style {:display "flex" :justify-content "space-between" :gap "1rem"}}
+         [:button {:type "button"
+                   :on-click (fn []
+                               (when-let [ref @(rf/subscribe [:worksheets/zoom-signature-ref])]
+                                 (.clear ref)))
+                   :style {:padding "0.75rem 1.5rem" :font-size "0.875rem" :color "#6b7280" 
+                           :background "transparent" :border "1px solid #d1d5db" :border-radius "6px" 
+                           :cursor "pointer" :font-weight "500"}}
+          "Clear"]
+         [:button {:type "button"
+                   :on-click #(rf/dispatch [:worksheets/close-signature-zoom])
+                   :style {:padding "0.75rem 1.5rem" :font-size "0.875rem" :color "white"
+                           :background "#3b82f6" :border "none" :border-radius "6px"
+                           :cursor "pointer" :font-weight "500"}}
+          "Done"]]]])))
+
+(defn- signatures-section
+  "Render complete signatures section"
+  []
+  [:div {:style {:margin-bottom "1.5rem"}}
+   [:h3 {:style {:margin-bottom "1rem" :font-size "1.125rem" :font-weight "600" :color "#374151"}}
+    "Signatures"]
+   [:div {:style {:display "grid" :grid-template-columns "1fr 1fr" :gap "1rem"}}
+    [signature-display :worksheets/set-maintainer-signature-ref "Maintainer Signature"]
+    [signature-display :worksheets/set-customer-signature-ref "Customer Signature"]]])
+
+(defn- load-existing-signatures
+  "Load existing signatures when refs become available"
+  [worksheet-data]
+  (zero-react/use-effect
+   {:mount (fn []
+             (js/setTimeout
+               (fn []
+                 (when-let [maintainer-signature (:worksheet/maintainer-signature worksheet-data)]
+                   (when-let [ref @(rf/subscribe [:worksheets/maintainer-signature-ref])]
+                     (.fromDataURL ref maintainer-signature)))
+                 (when-let [customer-signature (:worksheet/customer-signature worksheet-data)]
+                   (when-let [ref @(rf/subscribe [:worksheets/customer-signature-ref])]
+                     (.fromDataURL ref customer-signature))))
+               200))
+    :params [worksheet-data]}))
+
+(defn- save-button-click-handler
+  "Handle save button click with validation and signature capture"
+  [on-save]
+  (fn []
+    (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
+          maintainer-ref @(rf/subscribe [:worksheets/maintainer-signature-ref])
+          customer-ref @(rf/subscribe [:worksheets/customer-signature-ref])
+          maintainer-signature (when (and maintainer-ref (not (.isEmpty maintainer-ref)))
+                                  (.toDataURL maintainer-ref))
+          customer-signature (when (and customer-ref (not (.isEmpty customer-ref)))
+                               (.toDataURL customer-ref))
+          form-data-with-signatures (cond-> form-data
+                                      maintainer-signature (assoc :worksheet/maintainer-signature maintainer-signature)
+                                      customer-signature (assoc :worksheet/customer-signature customer-signature))
+          validation-errors (validate-worksheet form-data-with-signatures)]
+      (if (empty? validation-errors)
+        (do
+          (rf/dispatch [:worksheets/set-modal-form-loading true])
+          (rf/dispatch [:worksheets/set-modal-form-errors {}])
+          (on-save form-data-with-signatures (fn [] (rf/dispatch [:worksheets/set-modal-form-loading false]))))
+        (rf/dispatch [:worksheets/set-modal-form-errors validation-errors])))))
+
+(defn- modal-footer-buttons
+  "Render modal footer buttons"
+  [on-cancel on-save]
+  [modal/modal-footer
+   [enhanced-button/enhanced-button
+    {:variant :secondary
+     :on-click (fn []
+                (println "Cancel button clicked")
+                (rf/dispatch [:worksheets/clear-modal-form])
+                (when on-cancel (on-cancel)))
+     :text (tr/tr :worksheets/cancel)}]
+   [enhanced-button/enhanced-button
+    {:variant :primary
+     :loading? @(rf/subscribe [:worksheets/modal-form-loading?])
+     :on-click (save-button-click-handler on-save)
+     :text (if @(rf/subscribe [:worksheets/modal-form-loading?]) (tr/tr :worksheets/saving) (tr/tr :worksheets/save-worksheet))}]])
+
 (defn worksheet-modal
   "Modal for creating/editing worksheets using re-frame"
   [worksheet-data is-new? on-save on-cancel]
@@ -301,215 +708,26 @@
   (rf/dispatch [:worksheets/set-modal-form-data worksheet-data])
   (rf/dispatch [:worksheets/set-modal-form-errors {}])
   (rf/dispatch [:worksheets/set-modal-form-loading false])
-  ;; Load material templates
   (rf/dispatch [:material-templates/load (get-workspace-id)])
   
   (fn [worksheet-data is-new? on-save on-cancel]
     (println "worksheet-modal render function called")
-    
-    ;; Load existing signatures when refs become available
-    (zero-react/use-effect
-     {:mount (fn []
-               (js/setTimeout
-                 (fn []
-                   ;; Load maintainer signature if exists
-                   (when-let [maintainer-signature (:worksheet/maintainer-signature worksheet-data)]
-                     (when-let [ref @(rf/subscribe [:worksheets/maintainer-signature-ref])]
-                       (.fromDataURL ref maintainer-signature)))
-                   ;; Load customer signature if exists
-                   (when-let [customer-signature (:worksheet/customer-signature worksheet-data)]
-                     (when-let [ref @(rf/subscribe [:worksheets/customer-signature-ref])]
-                       (.fromDataURL ref customer-signature))))
-                 200)) ;; Delay to ensure refs are set
-      :params [worksheet-data]}) ;; Re-run when worksheet data changes
-    [modal/modal {:on-close (fn []
-                             (println "Modal closing...")
-                             (rf/dispatch [:worksheets/clear-modal-form])
-                             (when on-cancel (on-cancel))) 
-                  :close-on-backdrop? true}
-     [modal/modal-header
-      {:title (if is-new? (tr/tr :worksheets/modal-add-title) (tr/tr :worksheets/modal-edit-title))
-       :subtitle (if is-new? 
-                   (tr/tr :worksheets/modal-add-subtitle)
-                   (tr/tr :worksheets/modal-edit-subtitle))}]
-     (let [errors @(rf/subscribe [:worksheets/modal-form-errors])]
-       [:div {:style {:padding "20px"}}
-        [form-field "Serial Number" :worksheet/serial-number errors
-         {:type "text" :placeholder "Auto-generated" :disabled true}]
-        [form-field "Creation Date" :worksheet/creation-date errors
-         {:type "date"}]
-        ;; Simple address dropdown field
-        (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
-              workspace-id (get-workspace-id)]
-          [form-field "Address" :worksheet/address-id errors
-           {:type "address-select"
-            :workspace-id workspace-id
-            :current-value (:worksheet/address-id form-data)}])
-        [form-field "Work Type" :worksheet/work-type errors
-         {:type "select" :options [["repair" "Repair"] ["maintenance" "Maintenance"] ["other" "Other"]]}]
-        [form-field "Service Type" :worksheet/service-type errors
-         {:type "select" :options [["normal" "Normal"] ["night" "Night"] ["weekend" "Weekend"] ["holiday" "Holiday"]]}]
-        [form-field "Work Description" :worksheet/work-description errors
-         {:type "textarea" :placeholder "Describe the work to be performed..." :rows 4}]
-        [form-field "Status" :worksheet/status errors
-         {:type "select" :options [["draft" "Draft"] ["in_progress" "In Progress"] ["completed" "Completed"] ["cancelled" "Cancelled"]]}]
-        [form-field "Arrival Time" :worksheet/arrival-time errors
-         {:type "datetime-local"}]
-        [form-field "Departure Time" :worksheet/departure-time errors
-         {:type "datetime-local"}]
-        [form-field "Work Duration (Hours)" :worksheet/work-duration-hours errors
-         {:type "number" :step "1" :placeholder "Auto-calculated from arrival/departure" :disabled true}]
-        [:div {:style {:margin-bottom "1.5rem" :font-size "0.75rem" :color "#6b7280"}}
-         "💡 Work duration is automatically calculated from arrival and departure times (rounded up to nearest full hour)"]
-        [form-field "Notes" :worksheet/notes errors
-         {:type "textarea" :placeholder "Optional notes..." :rows 3}]
-        
-        ;; Materials section
-        [:div {:style {:margin-bottom "1.5rem"}}
-         [:h3 {:style {:margin-bottom "1rem" :font-size "1.125rem" :font-weight "600" :color "#374151"}}
-          "Materials Used"]
-         
-         ;; Current materials list
-         (let [materials (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/material-usage [])
-               material-templates @(rf/subscribe [:material-templates/all])
-               selected-template-id (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/selected-material-template "")]
-           [:div
-            ;; Display existing materials
-            (when (seq materials)
-              [:div {:style {:margin-bottom "1rem"}}
-               [:h4 {:style {:margin-bottom "0.5rem" :font-size "0.9rem" :font-weight "500" :color "#374151"}}
-                "Added Materials:"]
-               [:div {:style {:max-height "150px" :overflow-y "auto" :border "1px solid #d1d5db" :border-radius "6px" :padding "0.5rem"}}
-                (map-indexed
-                 (fn [idx material]
-                   [:div {:key idx 
-                          :style {:display "flex" :justify-content "space-between" :align-items "center" :padding "0.25rem 0" :border-bottom "1px solid #f3f4f6"}}
-                    [:span {:style {:font-size "0.875rem"}}
-                     (str (:name material) " - " (:quantity material) " " (:unit material))]
-                    [:button {:type "button"
-                             :on-click #(rf/dispatch [:worksheets/remove-material idx])
-                             :style {:background "#ef4444" :color "white" :border "none" :border-radius "4px" :padding "0.25rem 0.5rem" :font-size "0.75rem" :cursor "pointer"}}
-                     "Remove"]])
-                 materials)]])
-            
-            ;; Add new material form
-            [:div {:style {:display "grid" :grid-template-columns "2fr 1fr auto" :gap "0.5rem" :align-items "end"}}
-             [:div
-              [:label {:style {:display "block" :margin-bottom "0.25rem" :font-weight "500" :font-size "0.75rem" :color "#374151"}}
-               "Select Material"]
-              [:select {:value selected-template-id
-                       :on-change #(rf/dispatch [:worksheets/select-material-template (.. % -target -value)])
-                       :style {:width "100%" :padding "0.5rem" :border "1px solid #d1d5db" :border-radius "6px" :font-size "0.875rem"}}
-               [:option {:value ""} "Choose material..."]
-               (map (fn [template]
-                      [:option {:key (:material-template/id template) :value (:material-template/id template)}
-                       (str (:material-template/name template) " (" (:material-template/unit template) ")")])
-                    (sort-by :material-template/name material-templates))]]
-             [:div
-              [:label {:style {:display "block" :margin-bottom "0.25rem" :font-weight "500" :font-size "0.75rem" :color "#374151"}}
-               "Quantity"]
-              [:input {:type "number"
-                      :value (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/new-material-quantity "")
-                      :on-change #(rf/dispatch [:worksheets/update-form-field :worksheet/new-material-quantity (.. % -target -value)])
-                      :placeholder "5"
-                      :disabled (empty? selected-template-id)
-                      :style {:width "100%" :padding "0.5rem" :border "1px solid #d1d5db" :border-radius "6px" :font-size "0.875rem" :opacity (if (empty? selected-template-id) 0.5 1)}}]]
-             [:button {:type "button"
-                      :on-click #(rf/dispatch [:worksheets/add-selected-material])
-                      :disabled (or (empty? selected-template-id) 
-                                   (empty? (str (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/new-material-quantity ""))))
-                      :style {:background (if (or (empty? selected-template-id) 
-                                                 (empty? (str (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/new-material-quantity ""))))
-                                           "#9ca3af" "#10b981")
-                             :color "white" :border "none" :border-radius "6px" :padding "0.5rem 1rem" :font-size "0.875rem" :cursor (if (or (empty? selected-template-id) 
-                                                                                                                                          (empty? (str (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/new-material-quantity "")))) 
-                                                                                                                                      "not-allowed" "pointer")
-                             :font-weight "500"}}
-              "Add"]]])]
-        
-        ;; Signature section using React components
-        [:div {:style {:margin-bottom "1.5rem"}}
-         [:h3 {:style {:margin-bottom "1rem" :font-size "1.125rem" :font-weight "600" :color "#374151"}}
-          "Signatures"]
-         [:div {:style {:display "grid" :grid-template-columns "1fr 1fr" :gap "1rem"}}
-          ;; Maintainer signature
-          [:div
-           [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600" :font-size "0.875rem" :color "#374151"}}
-            "Maintainer Signature"]
-           [:> SignatureCanvas
-            {:penColor "black"
-             :canvasProps {:width 300
-                           :height 150
-                           :style {:border "1px solid #d1d5db"
-                                   :border-radius "8px"
-                                   :background "#ffffff"
-                                   :display "block"
-                                   :width "100%"
-                                   :max-width "300px"}}
-             :ref (fn [ref]
-                    (rf/dispatch [:worksheets/set-maintainer-signature-ref ref]))}]]
-          ;; Customer signature  
-          [:div
-           [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600" :font-size "0.875rem" :color "#374151"}}
-            "Customer Signature"]
-           [:> SignatureCanvas
-            {:penColor "black"
-             :canvasProps {:width 300
-                           :height 150
-                           :style {:border "1px solid #d1d5db"
-                                   :border-radius "8px"
-                                   :background "#ffffff"
-                                   :display "block"
-                                   :width "100%"
-                                   :max-width "300px"}}
-             :ref (fn [ref]
-                    (rf/dispatch [:worksheets/set-customer-signature-ref ref]))}]]]
-         ;; Clear buttons
-         [:div {:style {:display "flex" :justify-content "space-between" :margin-top "0.5rem"}}
-          [:button {:type "button"
-                    :on-click (fn []
-                                (when-let [ref @(rf/subscribe [:worksheets/maintainer-signature-ref])]
-                                  (.clear ref)))
-                    :style {:padding "0.25rem 0.75rem" :font-size "0.75rem" :color "#6b7280" :background "transparent" :border "1px solid #d1d5db" :border-radius "4px" :cursor "pointer"}}
-           "Clear Maintainer"]
-          [:button {:type "button"
-                    :on-click (fn []
-                                (when-let [ref @(rf/subscribe [:worksheets/customer-signature-ref])]
-                                  (.clear ref)))
-                    :style {:padding "0.25rem 0.75rem" :font-size "0.75rem" :color "#6b7280" :background "transparent" :border "1px solid #d1d5db" :border-radius "4px" :cursor "pointer"}}
-           "Clear Customer"]]]])
-     [modal/modal-footer
-      [enhanced-button/enhanced-button
-       {:variant :secondary
-        :on-click (fn []
-                   (println "Cancel button clicked")
-                   (rf/dispatch [:worksheets/clear-modal-form])
-                   (when on-cancel (on-cancel)))
-        :text (tr/tr :worksheets/cancel)}]
-      [enhanced-button/enhanced-button
-       {:variant :primary
-        :loading? @(rf/subscribe [:worksheets/modal-form-loading?])
-        :on-click (fn []
-                    (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
-                          ;; Capture signature data from refs
-                          maintainer-ref @(rf/subscribe [:worksheets/maintainer-signature-ref])
-                          customer-ref @(rf/subscribe [:worksheets/customer-signature-ref])
-                          maintainer-signature (when (and maintainer-ref (not (.isEmpty maintainer-ref)))
-                                                  (.toDataURL maintainer-ref))
-                          customer-signature (when (and customer-ref (not (.isEmpty customer-ref)))
-                                               (.toDataURL customer-ref))
-                          ;; Add signature data to form
-                          form-data-with-signatures (cond-> form-data
-                                                      maintainer-signature (assoc :worksheet/maintainer-signature maintainer-signature)
-                                                      customer-signature (assoc :worksheet/customer-signature customer-signature))
-                          validation-errors (validate-worksheet form-data-with-signatures)]
-                      (if (empty? validation-errors)
-                        (do
-                          (rf/dispatch [:worksheets/set-modal-form-loading true])
-                          (rf/dispatch [:worksheets/set-modal-form-errors {}])
-                          (on-save form-data-with-signatures (fn [] (rf/dispatch [:worksheets/set-modal-form-loading false]))))
-                        (rf/dispatch [:worksheets/set-modal-form-errors validation-errors]))))
-        :text (if @(rf/subscribe [:worksheets/modal-form-loading?]) (tr/tr :worksheets/saving) (tr/tr :worksheets/save-worksheet))}]]]))
+    [load-existing-signatures worksheet-data]
+    [:div
+     [modal/modal {:on-close (modal-close-handler on-cancel) 
+                   :close-on-backdrop? true}
+      [modal/modal-header (modal-header-config is-new?)]
+      (let [errors @(rf/subscribe [:worksheets/modal-form-errors])]
+        [:div {:style {:padding "20px"}}
+         [basic-form-fields errors]
+         [address-form-field errors]
+         [work-info-form-fields errors]
+         [time-tracking-form-fields errors]
+         [notes-form-field errors]
+         [materials-section]
+         [signatures-section]])
+      [modal-footer-buttons on-cancel on-save]]
+     [signature-zoom-overlay]]))
 
 (defn- worksheet-serial-render
   "Custom render function for worksheet serial number column"
@@ -685,7 +903,9 @@
         (assoc-in [:worksheets :modal-form-errors] {})
         (assoc-in [:worksheets :modal-form-loading?] false)
         (assoc-in [:worksheets :maintainer-signature-ref] nil)
-        (assoc-in [:worksheets :customer-signature-ref] nil))))
+        (assoc-in [:worksheets :customer-signature-ref] nil)
+        (assoc-in [:worksheets :signature-zoom-data] nil)
+        (assoc-in [:worksheets :zoom-signature-ref] nil))))
 
 ;; Signature canvas ref management
 (rf/reg-event-db
@@ -707,6 +927,39 @@
   :worksheets/customer-signature-ref
   (fn [db _]
     (get-in db [:worksheets :customer-signature-ref])))
+
+;; Signature zoom overlay subscriptions and events
+(rf/reg-sub
+  :worksheets/signature-zoom-data
+  (fn [db _]
+    (get-in db [:worksheets :signature-zoom-data])))
+
+(rf/reg-sub
+  :worksheets/zoom-signature-ref
+  (fn [db _]
+    (get-in db [:worksheets :zoom-signature-ref])))
+
+(rf/reg-event-db
+  :worksheets/open-signature-zoom
+  (fn [db [_ label]]
+    (let [ref-dispatch-key (if (= label "Maintainer Signature")
+                             :worksheets/set-maintainer-signature-ref
+                             :worksheets/set-customer-signature-ref)]
+      (assoc-in db [:worksheets :signature-zoom-data]
+                {:label label
+                 :ref-dispatch-key ref-dispatch-key}))))
+
+(rf/reg-event-db
+  :worksheets/close-signature-zoom
+  (fn [db _]
+    (-> db
+        (assoc-in [:worksheets :signature-zoom-data] nil)
+        (assoc-in [:worksheets :zoom-signature-ref] nil))))
+
+(rf/reg-event-db
+  :worksheets/set-zoom-signature-ref
+  (fn [db [_ ref]]
+    (assoc-in db [:worksheets :zoom-signature-ref] ref)))
 
 ;; Material templates subscription
 (rf/reg-sub
@@ -770,6 +1023,29 @@
       (assoc-in db [:worksheets :modal-form-data :worksheet/material-usage]
                (vec (concat (take idx current-materials)
                            (drop (inc idx) current-materials)))))))
+
+(rf/reg-event-db
+  :worksheets/add-custom-material
+  (fn [db _]
+    (let [form-data (get-in db [:worksheets :modal-form-data])
+          custom-name (:worksheet/custom-material-name form-data)
+          custom-unit (:worksheet/custom-material-unit form-data)
+          custom-quantity (:worksheet/custom-material-quantity form-data)]
+      (if (and custom-name custom-unit custom-quantity 
+               (not (empty? (str custom-name)))
+               (not (empty? (str custom-unit)))
+               (not (empty? (str custom-quantity))))
+        (let [new-material {:name (str custom-name)
+                           :unit (str custom-unit)
+                           :quantity (str custom-quantity)}
+              current-materials (get form-data :worksheet/material-usage [])]
+          (-> db
+              (assoc-in [:worksheets :modal-form-data :worksheet/material-usage] 
+                       (conj current-materials new-material))
+              (assoc-in [:worksheets :modal-form-data :worksheet/custom-material-name] "")
+              (assoc-in [:worksheets :modal-form-data :worksheet/custom-material-unit] "")
+              (assoc-in [:worksheets :modal-form-data :worksheet/custom-material-quantity] "")))
+        db))))
 
 ;; REMOVED: Event to load worksheets - now using direct atom manipulation
 

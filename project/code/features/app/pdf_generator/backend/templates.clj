@@ -105,12 +105,12 @@
        margin-right: 10px; 
        min-width: 140px; 
      }
-     .form-row .dotted-line { 
-       border-bottom: 1px dotted #000; 
+     .form-row .field-value { 
        height: 20px; 
        margin-left: 5px; 
        display: inline-block;
        width: 300px;
+       font-weight: bold;
      }
      .checkbox-row { 
        margin: 10px 0; 
@@ -209,10 +209,10 @@
      .notes-section { 
        margin: 20px 0; 
      }
-     .notes-lines { 
-       border-bottom: 1px dotted #000; 
+     .notes-content { 
        height: 20px; 
        margin: 5px 0; 
+       font-weight: bold;
      }
      .disclaimer { 
        font-size: 9px; 
@@ -229,11 +229,11 @@
     
     [:div.form-row
      [:label "Intézmény neve:"]
-     [:div.dotted-line (or institution-name "")]]
+     [:div.field-value (or institution-name "")]]
     
     [:div.form-row
      [:label "Intézmény címe:"]
-     [:div.dotted-line (or institution-address "")]]
+     [:div.field-value (or institution-address "")]]
     
     [:div.checkbox-row
      [:div.checkbox-item
@@ -273,34 +273,26 @@
     
     [:div
      [:label {:style "font-weight: bold;"} "Munka leírása:"]
-     [:div.notes-lines (or work-description "")]
-     [:div.notes-lines ""]
-     [:div.notes-lines ""]]
+     [:div.notes-content (or work-description "")]]
     
-    [:table.materials-table
-     [:thead
-      [:tr
-       [:th {:colspan "2"} "Anyagfelhasználás"]]
-      [:tr  
-       [:th "megnevezés"]
-       [:th "mennyiség"]]]
-     [:tbody
-      ;; Display actual materials used
-      (if (and materials-used (seq materials-used))
+    ;; Only show materials table if there are materials used
+    (when (and materials-used (seq materials-used))
+      [:table.materials-table
+       [:thead
+        [:tr
+         [:th {:colspan "2"} "Anyagfelhasználás"]]
+        [:tr  
+         [:th "megnevezés"]
+         [:th "mennyiség"]]]
+       [:tbody
         (for [material materials-used]
           [:tr
            [:td (str (:name material) " (" (:unit material) ")")]
-           [:td (:quantity material)]])
-        ;; Show empty rows if no materials
-        (for [i (range 4)]
-          [:tr
-           [:td ""]
-           [:td ""]]))]]
+           [:td (:quantity material)]])]])
     
     [:div.notes-section
      [:label {:style "font-weight: bold;"} "Megjegyzés:"]
-     [:div.notes-lines (or notes "")]
-     [:div.notes-lines ""]]
+     [:div.notes-content (or notes "")]]
     
     [:div.signature-section
      [:div.signature-box
