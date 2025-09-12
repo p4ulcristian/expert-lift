@@ -107,8 +107,8 @@
   [:div {:style {:display "grid" :grid-template-columns "repeat(auto-fit, minmax(250px, 1fr))" :gap "2rem" :margin-top "3rem"}}
    [feature-card "🏗️" "Material Templates" "Manage standard materials and supplies" (str "/app/" workspace-id "/material-templates")]
    [feature-card "📍" "Addresses" "Manage workspace addresses and locations" (str "/app/" workspace-id "/addresses")]
+   [feature-card "📋" "Worksheets" "Manage work orders and service reports" (str "/app/" workspace-id "/worksheets")]
    [feature-card "⚙️" "Maintenance" "Schedule and track elevator maintenance"]
-   [feature-card "📋" "Work Orders" "Manage service requests and repairs"]
    [feature-card "👥" "Team" "Collaborate with your service team"]
    [feature-card "📊" "Reports" "View performance and analytics"]])
 
