@@ -69,6 +69,7 @@
      :work-type (get work-type-mapping (:work_type worksheet) "normal")
      :arrival-time (format-time-from-iso (:arrival_time worksheet))
      :departure-time (format-time-from-iso (:departure_time worksheet))
+     :work-duration-hours (:work_duration_hours worksheet)
      :work-description (or (:work_description worksheet) "")
      :materials-used [] ; TODO: Add materials when available
      :notes (or (:notes worksheet) "")

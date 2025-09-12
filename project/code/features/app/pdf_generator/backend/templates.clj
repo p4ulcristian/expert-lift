@@ -55,6 +55,7 @@
            work-type
            arrival-time
            departure-time
+           work-duration-hours
            work-description
            materials-used
            notes
@@ -248,6 +249,11 @@
     [:div.time-row
      (format-time-fields arrival-time "Érkezés")
      (format-time-fields departure-time "Távozás")]
+    
+    ;; Work duration display
+    (when work-duration-hours
+      [:div {:style "margin: 10px 0; font-weight: bold; font-size: 12px;"}
+       (str "Munkaidő: " work-duration-hours " óra")])
     
     [:div.work-type-section
      [:label {:style "font-weight: bold; display: block; margin-bottom: 10px;"} "Munka típusa:"]
