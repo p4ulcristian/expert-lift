@@ -346,7 +346,7 @@
               {:key :worksheet/status :label "Status" :render status-render :sortable? true}
               {:key :worksheet/address-name :label "Address" :render address-render :sortable? true}
               {:key :worksheet/assigned-to-name :label "Assigned To" :render assigned-to-render :sortable? true}]
-    :data-source @worksheets
+    :data-source (:worksheets @worksheets [])
     :loading? @loading?
     :empty-message "No worksheets found"
     :id-key :worksheet/id
@@ -427,8 +427,10 @@
                                  (if (and user (:user/id user))
                                    (do 
                                      (reset! authenticated? true)
-                                     ;; Load initial worksheets after authentication is confirmed
-                                     (when (empty? (:worksheets @worksheets [])) (load-worksheets {})))
+                                     ;; Load initial worksheets after authentication is confirmed  
+                                     (when (or (empty? @worksheets) 
+                                              (empty? (:worksheets @worksheets []))) 
+                                       (load-worksheets {})))
                                    (reset! authenticated? false))))}))
          :params #js[]})
       
