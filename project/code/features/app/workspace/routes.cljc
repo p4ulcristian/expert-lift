@@ -5,7 +5,8 @@
                      [features.app.teams.frontend.view :as teams]
                      [features.app.worksheets.frontend.view :as worksheets]
                      [features.app.settings.frontend.view :as settings]))
-  #?(:clj  (:require [features.app.zero.backend.view :as backend-view])))
+  #?(:clj  (:require [features.app.zero.backend.view :as backend-view]
+                     [router.backend.middleware :refer [wrap-require-authentication]])))
 
 (def workspace-path "/app/:workspace-id")
 (def material-templates-path "/app/:workspace-id/material-templates")
@@ -40,7 +41,8 @@
             {:path addresses-path
              :get #'backend-view/response}
             {:path teams-path
-             :get #'backend-view/response}
+             :get #'backend-view/response
+             :middleware [wrap-require-authentication]}
             {:path worksheets-path
              :get #'backend-view/response}
             {:path settings-path

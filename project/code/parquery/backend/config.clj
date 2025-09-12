@@ -8,6 +8,7 @@
    [features.app.teams.backend.db :as teams-db]
    [features.app.worksheets.backend.db :as worksheets-db]
    [features.app.settings.backend.db :as settings-db]
+   [features.app.pdf-generator.backend.handlers :as pdf-handlers]
    [cheshire.core]))
 
 ;; Error handling helpers
@@ -1077,6 +1078,7 @@
    :workspace-worksheets/get-all #'get-workspace-worksheets
    :workspace-worksheets/get-paginated #'get-workspace-worksheets-paginated
    :workspace-worksheets/get-by-id #'get-workspace-worksheet-by-id
+   :workspace-worksheets/generate-pdf #'pdf-handlers/generate-worksheet-pdf
    :workspace-settings/get #'settings-db/get-workspace-settings})
 
 (def write-queries

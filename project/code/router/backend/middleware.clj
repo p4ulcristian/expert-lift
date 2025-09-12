@@ -7,6 +7,17 @@
    [ring.middleware.gzip                 :refer [wrap-gzip]]
    [zero.backend.state.env :as env]))
 
+(defn wrap-require-authentication
+  "Middleware that redirects to /login if user is not authenticated"
+  [handler]
+  (fn [request]
+    (let [user-id (get-in request [:session :user-id])]
+      (if user-id
+        (handler request)
+        {:status 302
+         :headers {"Location" "/login"}
+         :body ""}))))
+
 (defn middleware []
   {:middleware [;#(wrap-reload           % {:dirs ["/source-code"]});watched-dirs})  
                 #(wrap-gzip             %)

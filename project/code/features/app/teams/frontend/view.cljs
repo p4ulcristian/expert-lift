@@ -35,7 +35,10 @@
                (let [result (:workspace-teams/get-paginated response)]
                  (println "DEBUG: ParQuery result structure:" result)
                  (println "DEBUG: Teams array:" (:users result))
-                 (rf/dispatch [:teams/set-data result])))}))
+                 (println "DEBUG: About to dispatch with result:" result)
+                 (let [event-vector [:teams/set-data result]]
+                   (println "DEBUG: Event vector to dispatch:" event-vector)
+                   (rf/dispatch event-vector))))}))
 
 (defn- get-query-type
   "Get appropriate query type for save operation"
@@ -147,10 +150,6 @@
   (fn [db _]
     (get-in db [:teams :modal-is-new?] false)))
 
-(rf/reg-sub
-  :teams/authenticated?
-  (fn [db _]
-    (get-in db [:teams :authenticated?] nil)))
 
 (rf/reg-event-db
   :teams/set-loading
@@ -160,14 +159,17 @@
 (rf/reg-event-db
   :teams/set-data
   (fn [db [_ data]]
-    (-> db
-        (assoc-in [:teams :data] data)
-        (assoc-in [:teams :loading?] false))))
+    (println "DEBUG: teams/set-data event called")
+    (println "DEBUG: event-id: :teams/set-data")
+    (println "DEBUG: data argument:" data)
+    (println "DEBUG: full event vector:" [:teams/set-data data])
+    (println "DEBUG: current teams state before update:" (get-in db [:teams]))
+    (let [updated-db (-> db
+                         (assoc-in [:teams :data] data)
+                         (assoc-in [:teams :loading?] false))]
+      (println "DEBUG: teams state after update:" (get-in updated-db [:teams]))
+      updated-db)))
 
-(rf/reg-event-db
-  :teams/set-authenticated
-  (fn [db [_ authenticated?]]
-    (assoc-in db [:teams :authenticated?] authenticated?)))
 
 (rf/reg-event-db
   :teams/open-modal
@@ -411,7 +413,6 @@
         loading? (rf/subscribe [:teams/loading?])
         modal-team (rf/subscribe [:teams/modal-team])
         modal-is-new? (rf/subscribe [:teams/modal-is-new?])
-        authenticated? (rf/subscribe [:teams/authenticated?])
         
         load-teams (fn [params]
                     (load-teams-query workspace-id (or params {})))
@@ -424,37 +425,13 @@
                      (delete-team-query user-id workspace-id (fn [] (load-teams {}))))]
     
     (fn []
-      ;; Call useEffect hook inside the render function
+      ;; Load teams on component mount (authentication is handled by backend)
       (zero-react/use-effect
-        {:mount (fn [] 
-                  ;; Check authentication first
-                  (parquery/send-queries
-                   {:queries {:user/current {}}
-                    :parquery/context {}
-                    :callback (fn [response]
-                               (let [user (:user/current response)]
-                                 (if (and user (:user/id user))
-                                   (do 
-                                     (rf/dispatch [:teams/set-authenticated true])
-                                     ;; Load initial teams after authentication is confirmed
-                                     (when (empty? (:users @teams-data [])) (load-teams {})))
-                                   (rf/dispatch [:teams/set-authenticated false]))))}))
+        {:mount (fn [] (load-teams {}))
          :params #js[]})
       
-      (cond
-        (nil? @authenticated?)
-        [:div {:style {:padding "2rem" :text-align "center"}}
-         [:div "Checking authentication..."]]
-        
-        (false? @authenticated?)
-        (do 
-          (println "User not authenticated, redirecting to login")
-          (set! (.-location js/window) "/login")
-          [:div])
-        
-        :else
-        [:div {:style {:min-height "100vh" :background "#f9fafb"}}
-         [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
-          [teams-page-header]
-          [teams-content teams-data loading? delete-team load-teams]
-          [modal-when-open save-team]]]))))
+      [:div {:style {:min-height "100vh" :background "#f9fafb"}}
+       [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
+        [teams-page-header]
+        [teams-content teams-data loading? delete-team load-teams]
+        [modal-when-open save-team]]])))

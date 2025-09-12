@@ -604,6 +604,10 @@
                      :on-click (fn [worksheet]
                                 (rf/dispatch [:worksheets/set-modal-worksheet worksheet])
                                 (rf/dispatch [:worksheets/set-modal-is-new false]))}
+                    {:key :pdf :label "PDF" :variant :secondary
+                     :on-click (fn [worksheet]
+                                (let [pdf-url (str "/pdf-generator/worksheet/" (:worksheet/id worksheet))]
+                                  (js/window.open pdf-url "_blank")))}
                     {:key :delete :label "Delete" :variant :danger 
                      :on-click (fn [row] 
                                 (when (js/confirm "Are you sure you want to delete this worksheet?")
