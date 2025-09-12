@@ -364,6 +364,7 @@
     
     
     ;; Initial load
+    (println "DEBUG: Material templates view function called - NEW VERSION")
     (zero-react/use-effect
       {:mount (fn []
                 (println "DEBUG: Initial load triggered")
