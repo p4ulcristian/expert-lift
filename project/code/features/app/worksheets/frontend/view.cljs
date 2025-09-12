@@ -11,7 +11,8 @@
             [ui.enhanced-button :as enhanced-button]
             [ui.page-header :as page-header]
             [ui.address-search :as address-search]
-            [translations.core :as tr]))
+            [translations.core :as tr]
+            ["react-signature-canvas" :default SignatureCanvas]))
 
 (defn- get-workspace-id
   "Get workspace ID from router parameters"
@@ -304,6 +305,22 @@
   
   (fn [worksheet-data is-new? on-save on-cancel]
     (println "worksheet-modal render function called")
+    
+    ;; Load existing signatures when refs become available
+    (zero-react/use-effect
+     {:mount (fn []
+               (js/setTimeout
+                 (fn []
+                   ;; Load maintainer signature if exists
+                   (when-let [maintainer-signature (:worksheet/maintainer-signature worksheet-data)]
+                     (when-let [ref @(rf/subscribe [:worksheets/maintainer-signature-ref])]
+                       (.fromDataURL ref maintainer-signature)))
+                   ;; Load customer signature if exists
+                   (when-let [customer-signature (:worksheet/customer-signature worksheet-data)]
+                     (when-let [ref @(rf/subscribe [:worksheets/customer-signature-ref])]
+                       (.fromDataURL ref customer-signature))))
+                 200)) ;; Delay to ensure refs are set
+      :params [worksheet-data]}) ;; Re-run when worksheet data changes
     [modal/modal {:on-close (fn []
                              (println "Modal closing...")
                              (rf/dispatch [:worksheets/clear-modal-form])
@@ -346,7 +363,59 @@
         [:div {:style {:margin-bottom "1.5rem" :font-size "0.75rem" :color "#6b7280"}}
          "💡 Work duration is automatically calculated from arrival and departure times (rounded up to nearest full hour)"]
         [form-field "Notes" :worksheet/notes errors
-         {:type "textarea" :placeholder "Optional notes..." :rows 3}]])
+         {:type "textarea" :placeholder "Optional notes..." :rows 3}]
+        
+        ;; Signature section using React components
+        [:div {:style {:margin-bottom "1.5rem"}}
+         [:h3 {:style {:margin-bottom "1rem" :font-size "1.125rem" :font-weight "600" :color "#374151"}}
+          "Signatures"]
+         [:div {:style {:display "grid" :grid-template-columns "1fr 1fr" :gap "1rem"}}
+          ;; Maintainer signature
+          [:div
+           [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600" :font-size "0.875rem" :color "#374151"}}
+            "Maintainer Signature"]
+           [:> SignatureCanvas
+            {:penColor "black"
+             :canvasProps {:width 300
+                           :height 150
+                           :style {:border "1px solid #d1d5db"
+                                   :border-radius "8px"
+                                   :background "#ffffff"
+                                   :display "block"
+                                   :width "100%"
+                                   :max-width "300px"}}
+             :ref (fn [ref]
+                    (rf/dispatch [:worksheets/set-maintainer-signature-ref ref]))}]]
+          ;; Customer signature  
+          [:div
+           [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600" :font-size "0.875rem" :color "#374151"}}
+            "Customer Signature"]
+           [:> SignatureCanvas
+            {:penColor "black"
+             :canvasProps {:width 300
+                           :height 150
+                           :style {:border "1px solid #d1d5db"
+                                   :border-radius "8px"
+                                   :background "#ffffff"
+                                   :display "block"
+                                   :width "100%"
+                                   :max-width "300px"}}
+             :ref (fn [ref]
+                    (rf/dispatch [:worksheets/set-customer-signature-ref ref]))}]]]
+         ;; Clear buttons
+         [:div {:style {:display "flex" :justify-content "space-between" :margin-top "0.5rem"}}
+          [:button {:type "button"
+                    :on-click (fn []
+                                (when-let [ref @(rf/subscribe [:worksheets/maintainer-signature-ref])]
+                                  (.clear ref)))
+                    :style {:padding "0.25rem 0.75rem" :font-size "0.75rem" :color "#6b7280" :background "transparent" :border "1px solid #d1d5db" :border-radius "4px" :cursor "pointer"}}
+           "Clear Maintainer"]
+          [:button {:type "button"
+                    :on-click (fn []
+                                (when-let [ref @(rf/subscribe [:worksheets/customer-signature-ref])]
+                                  (.clear ref)))
+                    :style {:padding "0.25rem 0.75rem" :font-size "0.75rem" :color "#6b7280" :background "transparent" :border "1px solid #d1d5db" :border-radius "4px" :cursor "pointer"}}
+           "Clear Customer"]]]])
      [modal/modal-footer
       [enhanced-button/enhanced-button
        {:variant :secondary
@@ -360,12 +429,23 @@
         :loading? @(rf/subscribe [:worksheets/modal-form-loading?])
         :on-click (fn []
                     (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
-                          validation-errors (validate-worksheet form-data)]
+                          ;; Capture signature data from refs
+                          maintainer-ref @(rf/subscribe [:worksheets/maintainer-signature-ref])
+                          customer-ref @(rf/subscribe [:worksheets/customer-signature-ref])
+                          maintainer-signature (when (and maintainer-ref (not (.isEmpty maintainer-ref)))
+                                                  (.toDataURL maintainer-ref))
+                          customer-signature (when (and customer-ref (not (.isEmpty customer-ref)))
+                                               (.toDataURL customer-ref))
+                          ;; Add signature data to form
+                          form-data-with-signatures (cond-> form-data
+                                                      maintainer-signature (assoc :worksheet/maintainer-signature maintainer-signature)
+                                                      customer-signature (assoc :worksheet/customer-signature customer-signature))
+                          validation-errors (validate-worksheet form-data-with-signatures)]
                       (if (empty? validation-errors)
                         (do
                           (rf/dispatch [:worksheets/set-modal-form-loading true])
                           (rf/dispatch [:worksheets/set-modal-form-errors {}])
-                          (on-save form-data (fn [] (rf/dispatch [:worksheets/set-modal-form-loading false]))))
+                          (on-save form-data-with-signatures (fn [] (rf/dispatch [:worksheets/set-modal-form-loading false]))))
                         (rf/dispatch [:worksheets/set-modal-form-errors validation-errors]))))
         :text (if @(rf/subscribe [:worksheets/modal-form-loading?]) (tr/tr :worksheets/saving) (tr/tr :worksheets/save-worksheet))}]]]))
 
@@ -541,7 +621,30 @@
     (-> db
         (assoc-in [:worksheets :modal-form-data] {})
         (assoc-in [:worksheets :modal-form-errors] {})
-        (assoc-in [:worksheets :modal-form-loading?] false))))
+        (assoc-in [:worksheets :modal-form-loading?] false)
+        (assoc-in [:worksheets :maintainer-signature-ref] nil)
+        (assoc-in [:worksheets :customer-signature-ref] nil))))
+
+;; Signature canvas ref management
+(rf/reg-event-db
+  :worksheets/set-maintainer-signature-ref
+  (fn [db [_ ref]]
+    (assoc-in db [:worksheets :maintainer-signature-ref] ref)))
+
+(rf/reg-event-db
+  :worksheets/set-customer-signature-ref
+  (fn [db [_ ref]]
+    (assoc-in db [:worksheets :customer-signature-ref] ref)))
+
+(rf/reg-sub
+  :worksheets/maintainer-signature-ref
+  (fn [db _]
+    (get-in db [:worksheets :maintainer-signature-ref])))
+
+(rf/reg-sub
+  :worksheets/customer-signature-ref
+  (fn [db _]
+    (get-in db [:worksheets :customer-signature-ref])))
 
 ;; REMOVED: Event to load worksheets - now using direct atom manipulation
 
