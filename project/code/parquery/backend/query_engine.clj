@@ -51,7 +51,10 @@
                      ;; Check for session data in the result and update session if present
                      (when (map? validated-result)
                        (when-let [session-data (:session-data validated-result)]
-                         (swap! session-atom merge session-data)))
+                         (println "DEBUG: execute-query found session-data in result:" session-data)
+                         (println "  Current session atom before merge:" @session-atom)
+                         (swap! session-atom merge session-data)
+                         (println "  Session atom after merge:" @session-atom)))
                      ;; Return result without session-data key (only for maps)
                      (if (map? validated-result)
                        (dissoc validated-result :session-data)
@@ -74,10 +77,17 @@
         unknown-queries (get grouped :unknown [])
         ;; Merge context with individual fn-params and add request
         merge-params (fn [[fn-key fn-params]]
-                       (assoc fn-params 
-                              :parquery/context (assoc context 
-                                                       :user-id (get-in request [:session :user-id]))
-                              :parquery/request request))
+                       (let [merged-context (assoc context 
+                                                   :user-id (get-in request [:session :user-id]))
+                             merged-params (assoc fn-params 
+                                                  :parquery/context merged-context
+                                                  :parquery/request request)]
+                         (println "DEBUG: merge-params for" fn-key)
+                         (println "  Original context:" context)
+                         (println "  Session user-id:" (get-in request [:session :user-id]))
+                         (println "  Merged context:" merged-context)
+                         (println "  Final params keys:" (keys merged-params))
+                         merged-params))
         ;; Execute queries and return as map
         execute-queries (fn [queries]
                           (into {} 
@@ -98,13 +108,26 @@
   "Processes the parquery request"
   [request]
   (try
-    (let [params (spec/validate query-request-schema (:transit-params request) "parquery request")
+    (let [raw-params (:transit-params request)
+          _ (println "DEBUG: handle-query starting")
+          _ (println "  Raw transit-params:" raw-params)
+          _ (println "  Transit-params keys:" (keys raw-params))
+          _ (println "  Raw context key:" (:parquery/context raw-params))
+          _ (println "  Raw context value:" (get raw-params :parquery/context))
+          params (spec/validate query-request-schema raw-params "parquery request")
           queries (:queries params []) 
           context (:context params {})
-          session-atom (atom (:session request))
+          initial-session (:session request)
+          session-atom (atom initial-session)
+          _ (println "  Initial session from request:" initial-session)
+          _ (println "  Context from params after validation:" context)
+          _ (println "  Queries:" (keys queries))
           raw-results (process-queries queries context request session-atom)
           results (spec/validate final-response-schema raw-results "parquery final response")
-          updated-session @session-atom]
+          updated-session @session-atom
+          _ (println "DEBUG: handle-query finishing")
+          _ (println "  Updated session:" updated-session)
+          _ (println "  Session changed?" (not= initial-session updated-session))]
       {:status 200
        :headers {"Content-Type" "application/json"}
        :body (json/generate-string results)

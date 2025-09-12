@@ -24,11 +24,18 @@
 
 ;; Authorization helpers
 (defn has-admin-role? [request]
-  (let [user-roles (get-in request [:session :user-roles])]
+  (let [user-roles (get-in request [:session :user-roles])
+        session-data (:session request)]
+    (println "DEBUG: has-admin-role? check")
+    (println "  Session data:" session-data)
+    (println "  User roles:" user-roles)
+    (println "  Has admin/superadmin?" (some #{"admin" "superadmin"} user-roles))
     (some #{"admin" "superadmin"} user-roles)))
 
 (defn has-superadmin-role? [request]
   (let [user-roles (get-in request [:session :user-roles])]
+    (println "DEBUG: has-superadmin-role? check")
+    (println "  User roles:" user-roles)
     (some #{"superadmin"} user-roles)))
 
 ;; User Management Handlers for Expert Lift
@@ -188,20 +195,33 @@
   "Authenticate user with username/password and create session"
   [{:parquery/keys [context request] :as params}]
   (let [{:user/keys [username password]} params]
+    (println "DEBUG: login-user called")
+    (println "  Username:" username)
+    (println "  Password length:" (when password (count password)))
     (try
       (if-let [user (user-db/verify-password username password)]
-        {:success true
-         :user/id (:id user)
-         :user/username (:username user)
-         :user/full-name (:full_name user)
-         :user/role (:role user)
-         :user/workspace-id (when (:workspace_id user) (str (:workspace_id user)))
-         :session-data {:user-id (str (:id user))
-                        :user-roles [(:role user)]
-                        :workspace-id (when (:workspace_id user) (str (:workspace_id user)))}}
-        {:success false :error "Invalid username or password"})
+        (let [session-data {:user-id (str (:id user))
+                           :user-roles [(:role user)]
+                           :workspace-id (when (:workspace_id user) (str (:workspace_id user)))}
+              response {:success true
+                       :user/id (:id user)
+                       :user/username (:username user)
+                       :user/full-name (:full_name user)
+                       :user/role (:role user)
+                       :user/workspace-id (when (:workspace_id user) (str (:workspace_id user)))
+                       :session-data session-data}]
+          (println "DEBUG: Login successful for user:" (:username user))
+          (println "  User ID:" (:id user))
+          (println "  User role:" (:role user))
+          (println "  Workspace ID:" (:workspace_id user))
+          (println "  Session data being set:" session-data)
+          response)
+        (do
+          (println "DEBUG: Login failed - invalid credentials for username:" username)
+          {:success false :error "Invalid username or password"}))
       (catch Exception e
         (println "Error during login:" (.getMessage e))
+        (.printStackTrace e)
         {:success false :error "Login failed"}))))
 
 (defn logout-user
@@ -283,12 +303,20 @@
 (defn create-workspace-material-template
   "Create new material template in workspace (admin+ only)"
   [{:parquery/keys [context request] :as params}]
+  (println "DEBUG: create-workspace-material-template called")
+  (println "  Context:" context)
+  (println "  Request keys:" (keys request))
+  (println "  Params:" (dissoc params :parquery/request))
   (if (has-admin-role? request)
     (let [workspace-id (:workspace-id context)
           {:material-template/keys [name unit category description]} params]
+      (println "DEBUG: Admin role check passed")
+      (println "  Workspace ID from context:" workspace-id)
       (if workspace-id
         (try
+          (println "DEBUG: Attempting to create material template with workspace-id:" workspace-id)
           (let [result (first (material-templates-db/create-material-template workspace-id name unit category description))]
+            (println "DEBUG: Material template created successfully:" result)
             {:material-template/id (str (:id result))
              :material-template/name (:name result)
              :material-template/unit (:unit result)
@@ -302,8 +330,12 @@
           (catch Exception e
             (println "Error creating workspace material template:" (.getMessage e))
             {:success false :error (parse-db-error (.getMessage e))}))
-        {:success false :error "No workspace context"}))
-    {:success false :error "Insufficient permissions"}))
+        (do
+          (println "DEBUG: No workspace-id in context - failing")
+          {:success false :error "No workspace context"})))
+    (do
+      (println "DEBUG: Admin role check failed - insufficient permissions")
+      {:success false :error "Insufficient permissions"})))
 
 (defn update-workspace-material-template
   "Update existing material template in workspace (admin+ only)"

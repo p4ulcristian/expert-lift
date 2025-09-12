@@ -8,7 +8,12 @@
 
 (defn- get-workspace-id []
   "Get workspace ID from router parameters"
-  (get-in @router/state [:parameters :path :workspace-id]))
+  (let [router-state @router/state
+        workspace-id (get-in router-state [:parameters :path :workspace-id])]
+    (println "DEBUG: get-workspace-id called")
+    (println "  Router state:" router-state)
+    (println "  Extracted workspace-id:" workspace-id)
+    workspace-id))
 
 (defn- load-templates-query [workspace-id loading? templates]
   "Execute ParQuery to load templates"
@@ -43,11 +48,18 @@
 (defn- save-template-query [template workspace-id modal-is-new? callback modal-template load-templates]
   "Execute ParQuery to save template"
   (let [query-type (get-query-type modal-is-new?)
-        template-data (prepare-template-data template modal-is-new?)]
+        template-data (prepare-template-data template modal-is-new?)
+        context {:workspace-id workspace-id}]
+    (println "DEBUG: save-template-query called")
+    (println "  Workspace ID:" workspace-id)
+    (println "  Query type:" query-type)
+    (println "  Template data:" template-data)
+    (println "  Context being sent:" context)
     (parquery/send-queries
      {:queries {query-type template-data}
-      :parquery/context {:workspace-id workspace-id}
+      :parquery/context context
       :callback (fn [response]
+                 (println "DEBUG: save-template-query response:" response)
                  (handle-save-response response query-type callback modal-template load-templates))})))
 
 (defn- delete-template-query [template-id workspace-id load-templates]
@@ -271,19 +283,9 @@
     [material-template-modal @modal-template @modal-is-new? save-template
      (fn [] (reset! modal-template nil))]))
 
-(defn- render-templates-view [templates loading? modal-template modal-is-new? 
-                             load-templates delete-template save-template]
-  "Main render function for templates view"
-  (zero-react/use-effect
-    {:mount (fn [] (when (empty? @templates) (load-templates)))
-     :params #js[]})
-  [:div {:style {:padding "2rem"}}
-   [page-header modal-template modal-is-new?]
-   [templates-content templates loading? modal-template modal-is-new? delete-template]
-   [modal-when-open modal-template modal-is-new? save-template]])
-
 (defn view []
-  (let [workspace-id (get-workspace-id)
+  (let [authenticated? (r/atom nil)  ; nil = checking, true = authenticated, false = not authenticated
+        workspace-id (get-workspace-id)
         templates (r/atom [])
         loading? (r/atom false)
         modal-template (r/atom nil)
@@ -301,5 +303,36 @@
                          (delete-template-query template-id workspace-id load-templates))]
     
     (fn []
-      (render-templates-view templates loading? modal-template modal-is-new? 
-                           load-templates delete-template save-template))))
+      ;; Call useEffect hook inside the render function
+      (zero-react/use-effect
+        {:mount (fn [] 
+                  ;; Check authentication first
+                  (parquery/send-queries
+                   {:queries {:user/current {}}
+                    :parquery/context {}
+                    :callback (fn [response]
+                               (let [user (:user/current response)]
+                                 (if (and user (:user/id user))
+                                   (do 
+                                     (reset! authenticated? true)
+                                     ;; Load templates after authentication is confirmed
+                                     (when (empty? @templates) (load-templates)))
+                                   (reset! authenticated? false))))}))
+         :params #js[]})
+      
+      (cond
+        (nil? @authenticated?)
+        [:div {:style {:padding "2rem" :text-align "center"}}
+         [:div "Checking authentication..."]]
+        
+        (false? @authenticated?)
+        (do 
+          (println "User not authenticated, redirecting to login")
+          (set! (.-location js/window) "/login")
+          [:div])
+        
+        :else
+        [:div {:style {:padding "2rem"}}
+         [page-header modal-template modal-is-new?]
+         [templates-content templates loading? modal-template modal-is-new? delete-template]
+         [modal-when-open modal-template modal-is-new? save-template]]))))
