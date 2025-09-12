@@ -116,7 +116,7 @@
 (defn- validate-password
   "Validate password (only for new users)"
   [password is-new?]
-  (when @is-new?
+  (when is-new?
     (< (count (str/trim (str password))) 6)))
 
 (defn validate-team-member
@@ -154,6 +154,21 @@
   (fn [db _]
     (get-in db [:teams :modal-is-new?] false)))
 
+(rf/reg-sub
+  :teams/modal-form
+  (fn [db _]
+    (get-in db [:teams :modal-form] {})))
+
+(rf/reg-sub
+  :teams/modal-errors
+  (fn [db _]
+    (get-in db [:teams :modal-errors] {})))
+
+(rf/reg-sub
+  :teams/modal-loading?
+  (fn [db _]
+    (get-in db [:teams :modal-loading?] false)))
+
 
 (rf/reg-event-db
   :teams/set-loading
@@ -176,17 +191,42 @@
 
 (rf/reg-event-db
   :teams/open-modal
-  (fn [db [_ team is-new?]]
-    (-> db
-        (assoc-in [:teams :modal-team] team)
-        (assoc-in [:teams :modal-is-new?] is-new?))))
+  (fn [db event-vec]
+    (println "DEBUG: teams/open-modal - full event vector:" event-vec)
+    (let [[_ team is-new?] event-vec]
+      (println "DEBUG: teams/open-modal - team:" team "is-new?:" is-new?)
+      (-> db
+          (assoc-in [:teams :modal-team] team)
+          (assoc-in [:teams :modal-is-new?] is-new?)))))
 
 (rf/reg-event-db
   :teams/close-modal
   (fn [db _]
     (-> db
         (assoc-in [:teams :modal-team] nil)
-        (assoc-in [:teams :modal-is-new?] false))))
+        (assoc-in [:teams :modal-is-new?] false)
+        (assoc-in [:teams :modal-form] {})
+        (assoc-in [:teams :modal-errors] {}))))
+
+(rf/reg-event-db
+  :teams/update-form-field
+  (fn [db [_ field-key value]]
+    (assoc-in db [:teams :modal-form field-key] value)))
+
+(rf/reg-event-db
+  :teams/set-form-errors
+  (fn [db [_ errors]]
+    (assoc-in db [:teams :modal-errors] errors)))
+
+(rf/reg-event-db
+  :teams/init-form
+  (fn [db [_ team-data]]
+    (assoc-in db [:teams :modal-form] (or team-data {}))))
+
+(rf/reg-event-db
+  :teams/set-modal-loading
+  (fn [db [_ loading?]]
+    (assoc-in db [:teams :modal-loading?] loading?)))
 
 (defn- field-label [label field-key has-error?]
   [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600"
@@ -199,8 +239,8 @@
 (defn- input-base-props
   "Base properties for input fields"
   [field-key team has-error? attrs]
-  {:value (str (get @team field-key ""))
-   :on-change #(swap! team assoc field-key (.. % -target -value))
+  {:value (str (get team field-key ""))
+   :on-change #(rf/dispatch [:teams/update-form-field field-key (.. % -target -value)])
    :style (merge {:width "100%"
                   :padding "0.75rem 1rem"
                   :border (if has-error? "2px solid #dc3545" "1px solid #d1d5db")
@@ -220,23 +260,23 @@
 
 (defn- render-select-input
   "Render select dropdown input"
-  [field-key team has-error? attrs options]
-  [:select (merge (dissoc attrs :type :options) (input-base-props field-key team has-error? attrs))
+  [field-key form-data has-error? attrs options]
+  [:select (merge (dissoc attrs :type :options) (input-base-props field-key form-data has-error? attrs))
    (for [option options]
      ^{:key (:value option)}
      [:option {:value (:value option)} (:label option)])])
 
 (defn- render-text-input
   "Render text input"
-  [field-key team has-error? attrs]
-  [:input (merge attrs (input-base-props field-key team has-error? attrs))])
+  [field-key form-data has-error? attrs]
+  [:input (merge attrs (input-base-props field-key form-data has-error? attrs))])
 
 (defn- field-input
   "Render appropriate input type"
-  [field-key team has-error? attrs]
+  [field-key form-data has-error? attrs]
   (if (:options attrs)
-    (render-select-input field-key team has-error? attrs (:options attrs))
-    (render-text-input field-key team has-error? attrs)))
+    (render-select-input field-key form-data has-error? attrs (:options attrs))
+    (render-text-input field-key form-data has-error? attrs)))
 
 (defn- field-error [error-msg]
   (when error-msg
@@ -245,63 +285,64 @@
 
 (defn- form-field
   "Complete form field with label, input and error"
-  [label field-key team errors attrs]
+  [label field-key form-data errors attrs]
   (let [has-error? (contains? errors field-key)]
     [:div {:style {:margin-bottom "1.5rem"}}
      [field-label label field-key has-error?]
-     [field-input field-key team has-error? attrs]
+     [field-input field-key form-data has-error? attrs]
      [field-error (get errors field-key)]]))
 
 (defn- form-fields
   "All form input fields"
-  [team errors is-new?]
+  [form-data errors is-new?]
   [:div
-   [form-field "Username" :user/username team errors
+   [form-field "Username" :user/username form-data errors
     {:type "text" :placeholder "e.g. johndoe"}]
-   [form-field "Full Name" :user/full-name team errors
+   [form-field "Full Name" :user/full-name form-data errors
     {:type "text" :placeholder "e.g. John Doe"}]
-   [form-field "Email" :user/email team errors
+   [form-field "Email" :user/email form-data errors
     {:type "email" :placeholder "e.g. john.doe@company.com"}]
-   [form-field "Phone" :user/phone team errors
+   [form-field "Phone" :user/phone form-data errors
     {:type "tel" :placeholder "Optional: Phone number"}]
-   [form-field "Role" :user/role team errors
+   [form-field "Role" :user/role form-data errors
     {:type "select" 
      :options [{:value "employee" :label "Employee"}
                {:value "admin" :label "Admin"}]}]
-   (when @is-new?
-     [form-field "Password" :user/password team errors
+   (when is-new?
+     [form-field "Password" :user/password form-data errors
       {:type "password" :placeholder "Minimum 6 characters"}])
-   (when-not @is-new?
-     [form-field "Active" :user/active team errors
+   (when-not is-new?
+     [form-field "Active" :user/active form-data errors
       {:type "select"
        :options [{:value true :label "Active"}
                  {:value false :label "Inactive"}]}])])
 
 (defn- handle-save-click
   "Handle save button click with validation"
-  [team loading? errors is-new? on-save]
-  (let [validation-errors (validate-team-member @team is-new?)]
+  [form-data is-new? on-save]
+  (let [validation-errors (validate-team-member form-data is-new?)]
     (if (empty? validation-errors)
-      (do (reset! loading? true)
-          (reset! errors {})
-          (on-save @team (fn [] (reset! loading? false))))
-      (reset! errors validation-errors))))
+      (do (rf/dispatch [:teams/set-form-errors {}])
+          (rf/dispatch [:teams/set-modal-loading true])
+          (on-save form-data (fn [] (rf/dispatch [:teams/set-modal-loading false]))))
+      (rf/dispatch [:teams/set-form-errors validation-errors]))))
 
 (defn team-modal
   "Modal for creating/editing team members using new UI components"
   [team-data is-new? on-save on-cancel]
-  (let [loading? (r/atom false)
-        errors (r/atom {})
-        team (r/atom team-data)]
+  (let [form-data (rf/subscribe [:teams/modal-form])
+        errors (rf/subscribe [:teams/modal-errors])
+        loading? (rf/subscribe [:teams/modal-loading?])]
+    ;; Initialize form when modal opens
+    (rf/dispatch [:teams/init-form team-data])
     (fn [team-data is-new? on-save on-cancel]
-      (reset! team team-data)
       [modal/modal {:on-close on-cancel :close-on-backdrop? true}
        ^{:key "header"} [modal/modal-header
         {:title (if is-new? "Add New Team Member" "Edit Team Member")
          :subtitle (if is-new? 
                      "Add a new team member to your workspace"
                      "Update the details of this team member")}]
-       ^{:key "form"} [form-fields team @errors (r/atom is-new?)]
+       ^{:key "form"} [form-fields @form-data @errors is-new?]
        ^{:key "footer"} [modal/modal-footer
         ^{:key "cancel"} [enhanced-button/enhanced-button
          {:variant :secondary
@@ -310,7 +351,7 @@
         ^{:key "save"} [enhanced-button/enhanced-button
          {:variant :primary
           :loading? @loading?
-          :on-click #(handle-save-click team loading? errors (r/atom is-new?) on-save)
+          :on-click #(handle-save-click @form-data is-new? on-save)
           :text (if @loading? "Saving..." "Save Team Member")}]]])))
 
 (defn- user-name-render
@@ -359,6 +400,7 @@
   [teams loading? on-edit on-delete query-fn]
   (println "DEBUG teams-table: Full teams data:" @teams)
   (println "DEBUG teams-table: Loading?" @loading?)
+  (println "DEBUG teams-table: Users count:" (count (:users @teams [])))
   [data-table/server-side-data-table
    {:headers [{:key :user/full-name :label "Team Member" :render user-name-render :sortable? true}
               {:key :user/role :label "Role" :render role-render :sortable? true}
@@ -399,6 +441,7 @@
    teams-data 
    loading?
    (fn [team]
+     (println "DEBUG: Edit button clicked for team:" team)
      (rf/dispatch [:teams/open-modal team false]))
    delete-team
    query-fn])
@@ -408,7 +451,9 @@
   [save-team]
   (let [modal-team (rf/subscribe [:teams/modal-team])
         modal-is-new? (rf/subscribe [:teams/modal-is-new?])]
+    (println "DEBUG: modal-when-open - modal-team:" @modal-team "is-new?:" @modal-is-new?)
     (when @modal-team
+      (println "DEBUG: Rendering modal with team data")
       [team-modal @modal-team @modal-is-new? save-team
        (fn [] (rf/dispatch [:teams/close-modal]))])))
 

@@ -38,14 +38,14 @@
          :minutes (second parts)}))))
 
 (defn format-time-fields
-  "Format time into separate hour and minute fields"
+  "Format time into separate hour and minute fields with actual data"
   [time-str label]
   (let [{:keys [hours minutes]} (parse-time time-str)]
     [:div
      [:label (str label ": ")]
-     [:span {:style "border-bottom: 1px solid #000; padding: 0 15px; display: inline-block; min-width: 30px; text-align: center;"} (or hours "")]
+     [:span {:style "border: 2px solid #000; padding: 2px 8px; display: inline-block; min-width: 30px; text-align: center; font-weight: bold;"} (or hours "")]
      [:span " óra "]
-     [:span {:style "border-bottom: 1px solid #000; padding: 0 15px; display: inline-block; min-width: 30px; text-align: center;"} (or minutes "")]
+     [:span {:style "border: 2px solid #000; padding: 2px 8px; display: inline-block; min-width: 30px; text-align: center; font-weight: bold;"} (or minutes "")]
      [:span " perc"]]))
 
 (defn work-report-template

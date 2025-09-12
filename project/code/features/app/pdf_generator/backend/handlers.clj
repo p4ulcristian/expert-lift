@@ -39,15 +39,31 @@
   (pdf/create-sample-work-report))
 
 (defn- format-time-from-iso
-  "Convert ISO datetime to HH:mm format for PDF template"
-  [iso-datetime]
-  (when iso-datetime
+  "Convert ISO datetime or OffsetDateTime to HH:mm format for PDF template"
+  [datetime-obj]
+  (println "DEBUG: format-time-from-iso called with:" datetime-obj "type:" (type datetime-obj))
+  (when datetime-obj
     (try
-      (let [date (java.time.LocalDateTime/parse 
-                  (if (.endsWith iso-datetime "Z")
-                    (.replace iso-datetime "Z" "")
-                    iso-datetime))]
-        (str (.format date (java.time.format.DateTimeFormatter/ofPattern "HH:mm"))))
+      (let [formatted (cond
+                        ;; If it's already a java.time object, format directly
+                        (instance? java.time.OffsetDateTime datetime-obj)
+                        (str (.format datetime-obj (java.time.format.DateTimeFormatter/ofPattern "HH:mm")))
+                        
+                        (instance? java.time.LocalDateTime datetime-obj)
+                        (str (.format datetime-obj (java.time.format.DateTimeFormatter/ofPattern "HH:mm")))
+                        
+                        ;; If it's a string, parse it first
+                        (string? datetime-obj)
+                        (let [date (java.time.LocalDateTime/parse 
+                                    (if (.endsWith datetime-obj "Z")
+                                      (.replace datetime-obj "Z" "")
+                                      datetime-obj))]
+                          (str (.format date (java.time.format.DateTimeFormatter/ofPattern "HH:mm"))))
+                        
+                        ;; Default case
+                        :else "")]
+        (println "DEBUG: formatted time result:" formatted)
+        formatted)
       (catch Exception e
         (println "Error formatting time:" (.getMessage e))
         ""))))
@@ -80,10 +96,18 @@
   [{:parquery/keys [context request] :as params}]
   (let [worksheet-id (:worksheet/id params)
         workspace-id (:workspace-id context)]
+    (println "DEBUG: generate-worksheet-pdf called with worksheet-id:" worksheet-id "workspace-id:" workspace-id)
     (if (and worksheet-id workspace-id)
       (let [worksheet-records (worksheets-db/get-worksheet-by-id worksheet-id workspace-id)]
+        (println "DEBUG: Found" (count worksheet-records) "worksheet records")
         (if-let [worksheet (first worksheet-records)]
-          (let [work-report-data (worksheet-to-work-report-data worksheet)]
-            (pdf/generate-work-report-pdf work-report-data))
+          (do
+            (println "DEBUG: Raw worksheet data keys:" (keys worksheet))
+            (println "DEBUG: arrival_time value:" (:arrival_time worksheet) "type:" (type (:arrival_time worksheet)))
+            (println "DEBUG: departure_time value:" (:departure_time worksheet) "type:" (type (:departure_time worksheet)))
+            (println "DEBUG: work_duration_hours:" (:work_duration_hours worksheet))
+            (let [work-report-data (worksheet-to-work-report-data worksheet)]
+              (println "DEBUG: work-report-data for PDF:" work-report-data)
+              (pdf/generate-work-report-pdf work-report-data)))
           (throw (ex-info "Worksheet not found" {:worksheet-id worksheet-id :workspace-id workspace-id}))))
       (throw (ex-info "Missing worksheet ID or workspace context" {:worksheet-id worksheet-id :workspace-id workspace-id})))))

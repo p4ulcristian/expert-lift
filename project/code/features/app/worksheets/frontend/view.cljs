@@ -17,24 +17,17 @@
   []
   (let [router-state @router/state
         workspace-id (get-in router-state [:parameters :path :workspace-id])]
-    (println "DEBUG: get-workspace-id called")
-    (println "  Router state:" router-state)
-    (println "  Extracted workspace-id:" workspace-id)
-    workspace-id))
+      workspace-id))
 
 (defn- load-worksheets-query
   "Execute ParQuery to load worksheets with pagination"
   [workspace-id params]
-  (println "DEBUG load-worksheets-query called with params:" params)
   (rf/dispatch [:worksheets/set-loading true])
   (parquery/send-queries
    {:queries {:workspace-worksheets/get-paginated params}
     :parquery/context {:workspace-id workspace-id}
     :callback (fn [response]
-               (println "DEBUG load-worksheets-query response:" response)
                (let [result (:workspace-worksheets/get-paginated response)]
-                 (println "DEBUG: ParQuery result structure:" result)
-                 (println "DEBUG: Worksheets array:" (:worksheets result))
                  (rf/dispatch [:worksheets/set-data result])))}))
 
 
@@ -45,18 +38,10 @@
         query-type (if is-new? :workspace-worksheets/create :workspace-worksheets/update)
         worksheet-data (if is-new? (dissoc worksheet :worksheet/id) worksheet)
         context {:workspace-id workspace-id}]
-    (println "DEBUG: save-worksheet-query called")
-    (println "  Worksheet input:" worksheet)
-    (println "  Workspace ID:" workspace-id)
-    (println "  Is new?:" is-new?)
-    (println "  Query type:" query-type)
-    (println "  Prepared worksheet data:" worksheet-data)
-    (println "  Context being sent:" context)
     (parquery/send-queries
      {:queries {query-type worksheet-data}
       :parquery/context context
       :callback (fn [response]
-                 (println "DEBUG: save-worksheet-query response:" response)
                  (callback)
                  (if (:success (get response query-type))
                    (do (rf/dispatch [:worksheets/close-modal])
@@ -276,17 +261,13 @@
   [on-save]
   (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
         validation-errors (validate-worksheet form-data)]
-    (println "DEBUG: handle-save-click called")
-    (println "  Form data:" form-data)
-    (println "  Validation errors:" validation-errors)
     (if (empty? validation-errors)
-      (do (println "  Validation passed, starting save...")
+      (do
           (rf/dispatch [:worksheets/set-modal-form-loading true])
           (rf/dispatch [:worksheets/set-modal-form-errors {}])
           (on-save form-data (fn [] 
-                              (println "  Save callback called")
                               (rf/dispatch [:worksheets/set-modal-form-loading false]))))
-      (do (println "  Validation failed, setting errors")
+      (do
           (rf/dispatch [:worksheets/set-modal-form-errors validation-errors])))))
 
 (defn worksheet-modal
@@ -542,9 +523,6 @@
                         (rf/dispatch [:worksheets/load-data params]))
         
         save-worksheet (fn [worksheet callback]
-                       (println "DEBUG: save-worksheet wrapper called")
-                       (println "  Worksheet data received:" worksheet)
-                       (println "  Modal is new?:" modal-is-new?)
                        (save-worksheet-query worksheet workspace-id modal-is-new? callback modal-worksheet (fn [] (load-worksheets {}))))
         
         delete-worksheet (fn [worksheet-id]
