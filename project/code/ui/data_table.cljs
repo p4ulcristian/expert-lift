@@ -8,31 +8,31 @@
 
 (re-frame/reg-event-db
   :data-table/set-search
-  (fn [db [table-id search-term]]
+  (fn [db [_ table-id search-term]]
     (-> db
         (assoc-in [:data-table table-id :search] search-term)
         (assoc-in [:data-table table-id :pagination :current-page] 0))))
 
 (re-frame/reg-event-db
   :data-table/set-sort
-  (fn [db [table-id sort-key sort-direction]]
+  (fn [db [_ table-id sort-key sort-direction]]
     (-> db
         (assoc-in [:data-table table-id :sort] {:key sort-key :direction sort-direction})
         (assoc-in [:data-table table-id :pagination :current-page] 0))))
 
 (re-frame/reg-event-db
   :data-table/set-page
-  (fn [db [table-id page]]
+  (fn [db [_ table-id page]]
     (assoc-in db [:data-table table-id :pagination :current-page] page)))
 
 (re-frame/reg-event-db
   :data-table/set-page-size
-  (fn [db [table-id page-size]]
+  (fn [db [_ table-id page-size]]
     (assoc-in db [:data-table table-id :pagination :page-size] page-size)))
 
 (re-frame/reg-event-db
   :data-table/reset-state
-  (fn [db [table-id]]
+  (fn [db [_ table-id]]
     (assoc-in db [:data-table table-id] 
               {:search ""
                :sort {:key nil :direction :asc}
@@ -40,7 +40,7 @@
 
 (re-frame/reg-sub
   :data-table/get-state
-  (fn [db [table-id]]
+  (fn [db [_ table-id]]
     (get-in db [:data-table table-id] 
             {:search ""
              :sort {:key nil :direction :asc}
@@ -48,17 +48,17 @@
 
 (re-frame/reg-sub
   :data-table/get-search
-  (fn [db [table-id]]
+  (fn [db [_ table-id]]
     (get-in db [:data-table table-id :search] "")))
 
 (re-frame/reg-sub
   :data-table/get-sort
-  (fn [db [table-id]]
+  (fn [db [_ table-id]]
     (get-in db [:data-table table-id :sort] {:key nil :direction :asc})))
 
 (re-frame/reg-sub
   :data-table/get-pagination
-  (fn [db [table-id]]
+  (fn [db [_ table-id]]
     (get-in db [:data-table table-id :pagination] {:current-page 0 :page-size 10})))
 
 ;; ---- Re-frame Events & Subscriptions ----

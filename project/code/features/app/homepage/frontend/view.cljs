@@ -1,79 +1,70 @@
 (ns features.app.homepage.frontend.view
   (:require
-   [ui.link :as link]))
+   [ui.link :as link]
+   [ui.enhanced-button :as enhanced-button]
+   [router.frontend.zero :as router]))
 
 
 (defn view []
   [:div {:style {:min-height "100vh"
-                 :background "linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #3d566e 100%)"
+                 :background "#f9fafb"
                  :display "flex"
                  :flex-direction "column"
                  :align-items "center"
                  :justify-content "center"}}
-   [:div {:style {:max-width "800px"
+   [:div {:style {:max-width "600px"
                   :margin "0 auto"
                   :padding "2rem"
                   :text-align "center"}}
     [:div {:style {:display "flex"
+                   :flex-direction "column"
                    :align-items "center"
                    :justify-content "center"
-                   :margin-bottom "2rem"
-                   :gap "1rem"}}
-     [:img {:src "/logo/logo.png" 
-            :alt "ElevaThor Logo"
-            :style {:width "80px"
-                    :height "80px"
-                    :object-fit "contain"}}]
-     [:h1 {:style {:font-size "3rem"
-                   :font-weight "bold"
-                   :color "#fff"
+                   :margin-bottom "3rem"}}
+     [:div {:style {:width "200px"
+                    :height "200px"
+                    :border-radius "50%"
+                    :background "#fff"
+                    :display "flex"
+                    :align-items "center"
+                    :justify-content "center"
+                    :margin-bottom "2rem"
+                    :box-shadow "0 10px 25px rgba(0, 0, 0, 0.1)"
+                    :border "4px solid #3b82f6"
+                    :overflow "hidden"}}
+      [:img {:src "/logo/logo.png" 
+             :alt "ElevaThor Logo"
+             :style {:width "180px"
+                     :height "180px"
+                     :object-fit "cover"
+                     :border-radius "50%"}}]]
+     [:h1 {:style {:font-size "3.5rem"
+                   :font-weight "700"
+                   :color "#1f2937"
+                   :margin "0 0 1rem 0"
+                   :font-family "'Skranji', cursive"
+                   :letter-spacing "0px"}}
+      "ElevaThor"]
+     [:h2 {:style {:font-size "1.25rem"
+                   :color "#6b7280"
+                   :font-weight "400"
                    :margin "0"}}
-      "ElevaThor"]]
-    [:p {:style {:font-size "1.5rem"
-                 :color "#ecf0f1"
-                 :margin-bottom "3rem"
-                 :line-height "1.4"}}
-     "Professional elevator services for modern buildings"]
-    [:div {:style {:background "rgba(255, 255, 255, 0.1)"
-                   :border-radius "12px"
-                   :padding "2rem"
-                   :margin-bottom "2rem"}}
-     [:h2 {:style {:font-size "1.8rem"
-                   :color "#fff"
-                   :margin-bottom "1.5rem"}}
-      "What We Do"]
-     [:div {:style {:display "grid"
-                    :grid-template-columns "repeat(auto-fit, minmax(250px, 1fr))"
-                    :gap "1.5rem"
-                    :margin-top "1rem"}}
-      [:div {:style {:text-align "left"}}
-       [:h3 {:style {:color "#3498db"
-                     :margin-bottom "0.5rem"
-                     :font-size "1.1rem"}}
-        "🔧 Installation"]
-       [:p {:style {:color "#bdc3c7"
-                    :font-size "0.95rem"
-                    :line-height "1.5"}}
-        "Expert installation of passenger and freight elevators"]]
-      [:div {:style {:text-align "left"}}
-       [:h3 {:style {:color "#3498db"
-                     :margin-bottom "0.5rem"
-                     :font-size "1.1rem"}}
-        "🛠️ Maintenance"]
-       [:p {:style {:color "#bdc3c7"
-                    :font-size "0.95rem"
-                    :line-height "1.5"}}
-        "Regular maintenance and safety inspections"]]
-      [:div {:style {:text-align "left"}}
-       [:h3 {:style {:color "#3498db"
-                     :margin-bottom "0.5rem"
-                     :font-size "1.1rem"}}
-        "⚡ Emergency Service"]
-       [:p {:style {:color "#bdc3c7"
-                    :font-size "0.95rem"
-                    :line-height "1.5"}}
-        "24/7 emergency repairs and technical support"]]]]
-    [:div {:style {:color "#95a5a6"
-                   :font-size "1rem"
-                   :margin-top "2rem"}}
-     "Serving commercial and residential buildings since 1985"]]])
+      "Elevator Maintenance Software"]]
+    [:p {:style {:font-size "1.125rem"
+                 :color "#4b5563"
+                 :line-height "1.6"
+                 :max-width "500px"
+                 :margin "0 auto 2rem auto"}}
+     "Streamline your elevator maintenance operations with our comprehensive software solution. Manage worksheets, track materials, coordinate teams, and ensure compliance - all in one integrated platform."]
+    [:div {:style {:margin-top "2rem"}}
+     [:a {:href "/login"
+          :style {:display "inline-block"
+                  :padding "12px 24px"
+                  :background "#3b82f6"
+                  :color "white"
+                  :text-decoration "none"
+                  :border-radius "8px"
+                  :font-weight "600"
+                  :font-size "1.125rem"
+                  :transition "background-color 0.2s"}}
+      "Login to ElevaThor"]]]])
