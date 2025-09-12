@@ -213,26 +213,6 @@
           (on-save @template (fn [] (reset! loading? false))))
       (reset! errors validation-errors))))
 
-(defn- modal-buttons [template loading? errors on-save on-cancel]
-  "Save and Cancel buttons"
-  [:div {:style {:display "flex" :gap "0.75rem" :margin-top "2.5rem" :padding-top "2rem"
-                 :border-top "1px solid #e5e7eb" :justify-content "flex-end"}}
-   [:button {:type "button" :on-click on-cancel
-             :style {:padding "0.75rem 1.5rem" :background "white" :color "#374151"
-                     :border "1px solid #d1d5db" :border-radius "8px" :cursor "pointer"
-                     :font-weight "500" :transition "all 0.2s ease-in-out"
-                     :hover {:background "#f9fafb" :border-color "#9ca3af"}}}
-    "Cancel"]
-   [:button {:type "button" :disabled @loading?
-             :on-click #(handle-save-click template loading? errors on-save)
-             :style {:padding "0.75rem 1.5rem" 
-                     :background (if @loading? "#9ca3af" "#3b82f6") 
-                     :color "white" :border "none" :border-radius "8px" 
-                     :cursor (if @loading? "not-allowed" "pointer")
-                     :font-weight "500" :transition "all 0.2s ease-in-out"
-                     :opacity (if @loading? 0.7 1)
-                     :hover (when-not @loading? {:background "#2563eb"})}}
-    (if @loading? "Saving..." "Save Template")]])
 
 (defn material-template-modal
   "Modal for creating/editing material templates using new UI components"
@@ -261,70 +241,39 @@
           :on-click #(handle-save-click template loading? errors on-save)
           :text (if @loading? "Saving..." "Save Template")}]]])))
 
-(defn- table-header-style []
-  {:padding "1rem 1.25rem" :text-align "left" :font-weight "600" 
-   :font-size "0.75rem" :letter-spacing "0.05em" :text-transform "uppercase"
-   :color "#374151" :background "#f9fafb" :border-bottom "1px solid #e5e7eb"})
+(defn- template-name-render [name row]
+  "Custom render function for template name column with description"
+  [:div 
+   [:div {:style {:font-weight "600" :color "#111827" :font-size "0.875rem"}}
+    name]
+   (when (:material-template/description row)
+     [:div {:style {:color "#6b7280" :font-size "0.75rem" :margin-top "0.25rem" :line-height "1.4"}}
+      (:material-template/description row)])])
 
-(defn- table-cell-style []
-  {:padding "1rem 1.25rem" :border-bottom "1px solid #f3f4f6" :vertical-align "top"})
+(defn- category-render [category row]
+  "Custom render function for category with fallback text"
+  (or category 
+      [:span {:style {:color "#9ca3af" :font-style "italic"}} "No category"]))
 
-(defn- template-name-cell [template]
-  [:td {:style (table-cell-style)}
-   [:div 
-    [:div {:style {:font-weight "600" :color "#111827" :font-size "0.875rem"}}
-     (:material-template/name template)]
-    (when (:material-template/description template)
-      [:div {:style {:color "#6b7280" :font-size "0.75rem" :margin-top "0.25rem" :line-height "1.4"}}
-       (:material-template/description template)])]])
-
-(defn material-template-table
-  "Table displaying material templates"
-  [templates on-edit on-delete]
-  [:div {:style {:background "white" :border-radius "12px" :overflow "hidden"
-                 :box-shadow "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)"
-                 :border "1px solid #e5e7eb"}}
-   [:table {:style {:width "100%" :border-collapse "collapse"}}
-    [:thead
-     [:tr
-      [:th {:style (table-header-style)} "Material"]
-      [:th {:style (table-header-style)} "Unit"]
-      [:th {:style (table-header-style)} "Category"]
-      [:th {:style (table-header-style)} "Status"]
-      [:th {:style (merge (table-header-style) {:text-align "center"})} "Actions"]]]
-    [:tbody
-     (for [template templates]
-       ^{:key (:material-template/id template)}
-       [:tr {:style {:transition "background-color 0.15s ease-in-out"
-                     :hover {:background "#f9fafb"}}}
-        [template-name-cell template]
-        [:td {:style (merge (table-cell-style) {:color "#374151" :font-weight "500" :font-size "0.875rem"})}
-         (:material-template/unit template)]
-        [:td {:style (merge (table-cell-style) {:color "#6b7280" :font-size "0.875rem"})}
-         (or (:material-template/category template) 
-             [:span {:style {:color "#9ca3af" :font-style "italic"}} "No category"])]
-        [:td {:style (table-cell-style)}
-         [:span {:style {:padding "0.25rem 0.75rem" :border-radius "9999px" :font-size "0.75rem" :font-weight "500"
-                         :background (if (:material-template/active template) "#dcfce7" "#fee2e2")
-                         :color (if (:material-template/active template) "#166534" "#dc2626")}}
-          (if (:material-template/active template) "Active" "Inactive")]]
-        [:td {:style (merge (table-cell-style) {:text-align "center"})}
-         [:div {:style {:display "flex" :gap "0.5rem" :justify-content "center"}}
-          [:button {:type "button"
-                    :on-click #(on-edit template)
-                    :style {:padding "0.5rem 0.75rem" :background "#f3f4f6" :color "#374151"
-                            :border "1px solid #d1d5db" :border-radius "6px" :cursor "pointer"
-                            :font-size "0.75rem" :font-weight "500" :transition "all 0.15s ease-in-out"
-                            :hover {:background "#e5e7eb" :border-color "#9ca3af"}}}
-           "Edit"]
-          [:button {:type "button"
-                    :on-click (fn [] (when (js/confirm "Are you sure you want to delete this template?")
-                                      (on-delete (:material-template/id template))))
-                    :style {:padding "0.5rem 0.75rem" :background "#fef2f2" :color "#dc2626"
-                            :border "1px solid #fecaca" :border-radius "6px" :cursor "pointer"
-                            :font-size "0.75rem" :font-weight "500" :transition "all 0.15s ease-in-out"
-                            :hover {:background "#fee2e2" :border-color "#fca5a5"}}}
-           "Delete"]]]])]]])
+(defn material-templates-table
+  "Material templates table using new data-table component"
+  [templates loading? on-edit on-delete]
+  [data-table/data-table
+   {:headers [{:key :material-template/name :label "Material" :render template-name-render}
+              {:key :material-template/unit :label "Unit" 
+               :cell-style {:color "#374151" :font-weight "500" :font-size "0.875rem"}}
+              {:key :material-template/category :label "Category" :render category-render
+               :cell-style {:color "#6b7280" :font-size "0.875rem"}}
+              {:key :material-template/active :label "Status" 
+               :render (fn [active? _] [data-table/status-badge active?])}]
+    :rows templates
+    :loading? loading?
+    :empty-message "No material templates found"
+    :actions [{:key :edit :label "Edit" :variant :primary :on-click on-edit}
+              {:key :delete :label "Delete" :variant :danger 
+               :on-click (fn [row] 
+                          (when (js/confirm "Are you sure you want to delete this template?")
+                            (on-delete (:material-template/id row))))}]}])
 
 (defn- templates-page-header [modal-template modal-is-new?]
   "Page header with title and add button using new UI component"
@@ -339,28 +288,14 @@
                      :text "+ Add New Template"}]}])
 
 (defn- templates-content [templates loading? modal-template modal-is-new? delete-template]
-  "Main content area with loading or table"
-  (if @loading?
-    [:div {:style {:display "flex" :justify-content "center" :align-items "center" 
-                   :padding "4rem" :background "white" :border-radius "12px"
-                   :box-shadow "0 1px 3px 0 rgba(0, 0, 0, 0.1)"}}
-     [:div {:style {:text-align "center"}}
-      [:div {:style {:width "40px" :height "40px" :border "4px solid #f3f4f6" 
-                     :border-top "4px solid #3b82f6" :border-radius "50%"
-                     :animation "spin 1s linear infinite" :margin "0 auto 1rem"}}]
-      [:div {:style {:color "#6b7280" :font-weight "500"}} "Loading templates..."]]]
-    (if (empty? @templates)
-      [:div {:style {:text-align "center" :padding "4rem" :background "white" 
-                     :border-radius "12px" :box-shadow "0 1px 3px 0 rgba(0, 0, 0, 0.1)"}}
-       [:div {:style {:color "#9ca3af" :font-size "1.125rem" :font-weight "500"}}
-        "No material templates found"]
-       [:div {:style {:color "#6b7280" :font-size "0.875rem" :margin-top "0.5rem"}}
-        "Create your first material template to get started"]]
-      [material-template-table @templates
-       (fn [template]
-         (reset! modal-template template)
-         (reset! modal-is-new? false))
-       delete-template])))
+  "Main content area with data table using new UI component"
+  [material-templates-table 
+   @templates 
+   @loading?
+   (fn [template]
+     (reset! modal-template template)
+     (reset! modal-is-new? false))
+   delete-template])
 
 (defn- modal-when-open [modal-template modal-is-new? save-template]
   "Render modal when template is selected"
