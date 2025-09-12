@@ -485,6 +485,7 @@
   (let [signature-ref @(rf/subscribe (if (= ref-dispatch-key :worksheets/set-maintainer-signature-ref)
                                        [:worksheets/maintainer-signature-ref]
                                        [:worksheets/customer-signature-ref]))]
+    (println "DEBUG signature-display:" label "signature-ref:" signature-ref)
     [:div
      [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600" :font-size "0.875rem" :color "#374151"}}
       label]
@@ -501,10 +502,12 @@
                     :position "relative"}
             :on-click #(rf/dispatch [:worksheets/open-signature-zoom label])}
       (if (and signature-ref (not (.isEmpty signature-ref)))
-        [:img {:src (.toDataURL signature-ref)
-               :style {:max-width "100%"
-                       :max-height "100%"
-                       :object-fit "contain"}}]
+        (do
+          (println "DEBUG signature-display: showing existing signature for" label)
+          [:img {:src (.toDataURL signature-ref)
+                 :style {:max-width "100%"
+                         :max-height "100%"
+                         :object-fit "contain"}}])
         [:div {:style {:color "#9ca3af" :text-align "center" :font-size "0.875rem"}}
          "Click to sign"])
       [:div {:style {:position "absolute"
@@ -652,7 +655,7 @@
     [signature-display :worksheets/set-customer-signature-ref "Customer Signature"]]
    
    ;; Hidden signature canvases to maintain refs for saving
-   [:div {:style {:display "none"}}
+   [:div {:style {:position "absolute" :left "-9999px" :top "-9999px" :width "1px" :height "1px" :overflow "hidden"}}
     [signature-canvas :worksheets/set-maintainer-signature-ref "Hidden Maintainer"]
     [signature-canvas :worksheets/set-customer-signature-ref "Hidden Customer"]]])
 
