@@ -388,15 +388,11 @@
   "Full-screen overlay for signature editing with mobile-optimized canvas"
   []
   (let [zoom-data @(rf/subscribe [:worksheets/signature-zoom-data])
-        ;; Calculate dimensions accounting for devicePixelRatio
-        device-pixel-ratio (or js/window.devicePixelRatio 1)
+        ;; Use same size for canvas and CSS to avoid coordinate offset
         base-width (if (< js/window.innerWidth 768)
                      (- js/window.innerWidth 80)
                      500)
-        base-height (if (< js/window.innerWidth 768) 250 300)
-        ;; Scale canvas for HiDPI displays
-        canvas-width (* base-width device-pixel-ratio)
-        canvas-height (* base-height device-pixel-ratio)]
+        base-height (if (< js/window.innerWidth 768) 250 300)]
     (when zoom-data
       [:div {:style {:position "fixed"
                      :top 0
@@ -444,14 +440,12 @@
         [:div {:style {:margin-bottom "1.5rem"}}
          [:> SignatureCanvas
           {:penColor "black"
-           :canvasProps {:width canvas-width
-                         :height canvas-height
+           :canvasProps {:width base-width
+                         :height base-height
                          :style {:border "2px solid #d1d5db"
                                  :border-radius "8px"
                                  :background "#ffffff"
                                  :display "block"
-                                 :width (str base-width "px")
-                                 :height (str base-height "px")
                                  ;; Prevent page scroll while signing on mobile
                                  :touch-action "none"}}
            :ref (fn [ref]
