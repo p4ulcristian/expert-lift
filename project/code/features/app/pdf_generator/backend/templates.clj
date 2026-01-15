@@ -2,6 +2,7 @@
   "PDF templates based on Expert Lift work report forms"
   (:require
    [hiccup.core :as hiccup]
+   [hiccup.util :as hiccup-util]
    [clojure.java.io :as io]
    [clojure.string :as str])
   (:import
@@ -39,10 +40,10 @@
     [:div.signature-line ""]
 
     ;; SVG format - embed directly in HTML (works with OpenHTMLtoPDF)
-    ;; Use hiccup.core/raw to inject SVG as raw HTML
+    ;; Use hiccup.util/raw-string to inject SVG as raw HTML
     (str/starts-with? signature-data "<svg")
     [:div {:style "width: 150px; height: 60px; border: 2px solid #000; background: #f9f9f9; overflow: hidden;"}
-     (hiccup/raw signature-data)]
+     (hiccup-util/raw-string signature-data)]
 
     ;; Base64 image format (legacy PNG/JPEG)
     (str/starts-with? signature-data "data:image")

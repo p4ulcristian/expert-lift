@@ -382,7 +382,8 @@
                                                   {:queries {:users/logout {}}
                                                    :parquery/context {}
                                                    :callback (fn [response]
-                                                               (:success (:users/logout response)))})
+                                                               (when (:success (:users/logout response))
+                                                                 (set! (.-location js/window) "/login")))})
                         :style {:padding "0.5rem 1rem" :background "#dc3545" :color "white" :border "none" :border-radius "4px" :cursor "pointer"}}
                "Logout"]]]
             
