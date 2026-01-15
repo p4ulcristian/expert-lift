@@ -1,13 +1,13 @@
 (ns features.app.pdf-generator.backend.templates
   "PDF templates based on Expert Lift work report forms"
   (:require
-   [hiccup.core :as hiccup]
-   [hiccup.util :as hiccup-util]
+   [hiccup2.core :as hiccup]
    [clojure.java.io :as io]
    [clojure.string :as str])
   (:import
    [java.util Base64]
-   [java.io ByteArrayOutputStream]))
+   [java.io ByteArrayOutputStream]
+   [java.nio.charset StandardCharsets]))
 
 (defn encode-image-to-base64
   "Convert image file to base64 data URI for embedding in PDF"
@@ -40,10 +40,10 @@
     [:div.signature-line ""]
 
     ;; SVG format - embed directly in HTML (works with OpenHTMLtoPDF)
-    ;; Use hiccup.util/raw-string to inject SVG as raw HTML
+    ;; Use hiccup2.core/raw to inject SVG as raw HTML
     (str/starts-with? signature-data "<svg")
     [:div {:style "width: 150px; height: 60px; border: 2px solid #000; background: #f9f9f9; overflow: hidden;"}
-     (hiccup-util/raw-string signature-data)]
+     (hiccup/raw signature-data)]
 
     ;; Base64 image format (legacy PNG/JPEG)
     (str/starts-with? signature-data "data:image")
@@ -338,4 +338,4 @@
 (defn generate-work-report-html
   "Generate HTML for work report PDF"
   [data]
-  (hiccup/html (work-report-template data)))
+  (str (hiccup/html (work-report-template data))))
