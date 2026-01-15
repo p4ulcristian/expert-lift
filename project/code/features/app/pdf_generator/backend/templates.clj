@@ -2,7 +2,8 @@
   "PDF templates based on Expert Lift work report forms"
   (:require
    [hiccup.core :as hiccup]
-   [clojure.java.io :as io])
+   [clojure.java.io :as io]
+   [clojure.string :as str])
   (:import
    [java.util Base64]
    [java.io ByteArrayOutputStream]))
@@ -28,11 +29,36 @@
       (println "Warning: Could not load logo image:" (.getMessage e))
       nil)))
 
+(defn render-signature
+  "Render signature - handles both SVG strings and base64 image data URLs.
+   SVG signatures are smaller and scale better for PDF generation."
+  [signature-data]
+  (cond
+    ;; No signature
+    (or (nil? signature-data) (empty? signature-data))
+    [:div.signature-line ""]
+
+    ;; SVG format - embed directly in HTML (works with OpenHTMLtoPDF)
+    ;; Use hiccup.core/raw to inject SVG as raw HTML
+    (str/starts-with? signature-data "<svg")
+    [:div {:style "width: 150px; height: 60px; border: 2px solid #000; background: #f9f9f9; overflow: hidden;"}
+     (hiccup/raw signature-data)]
+
+    ;; Base64 image format (legacy PNG/JPEG)
+    (str/starts-with? signature-data "data:image")
+    [:img {:src signature-data
+           :style "width: 150px; height: 60px; border: 2px solid #000; object-fit: contain; background: #f9f9f9;"}]
+
+    ;; Fallback - try as image
+    :else
+    [:img {:src signature-data
+           :style "width: 150px; height: 60px; border: 2px solid #000; object-fit: contain; background: #f9f9f9;"}]))
+
 (defn parse-time
   "Parse time string like '08:30' into hours and minutes"
   [time-str]
   (when time-str
-    (let [parts (clojure.string/split time-str #":")]
+    (let [parts (str/split time-str #":")]
       (when (= 2 (count parts))
         {:hours (first parts)
          :minutes (second parts)}))))
@@ -299,14 +325,10 @@
       [:div.signature-line ""]
       [:div "Dátum"]]
      [:div.signature-box
-      (if client-signature
-        [:img {:src client-signature :style "width: 150px; height: 60px; border: 2px solid #000; object-fit: contain; background: #f9f9f9;"}]
-        [:div.signature-line ""])
+      (render-signature client-signature)
       [:div "Átvevő aláírása"]]
      [:div.signature-box
-      (if technician-signature
-        [:img {:src technician-signature :style "width: 150px; height: 60px; border: 2px solid #000; object-fit: contain; background: #f9f9f9;"}]
-        [:div.signature-line ""])
+      (render-signature technician-signature)
       [:div "Szerelő aláírása"]]]
     
     [:div.disclaimer

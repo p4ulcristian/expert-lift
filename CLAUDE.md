@@ -305,6 +305,73 @@ Use component namespace for local state:
 
 ---
 
+## Feature Module Structure
+
+For complex features (>300 lines), split into multiple files following this pattern:
+
+```
+features/app/{feature}/frontend/
+├── view.cljs          # Main component, page layout, orchestration
+├── events.cljs        # All rf/reg-event-db, rf/reg-event-fx handlers
+├── subscriptions.cljs # All rf/reg-sub subscriptions
+├── components.cljs    # Reusable UI components (forms, modals, etc.)
+├── table.cljs         # Table column renderers and config (if applicable)
+├── queries.cljs       # ParQuery operations (load, save, delete)
+└── utils.cljs         # Validation, helpers, constants
+```
+
+### File Responsibilities
+
+| File | Contains | Imports |
+|------|----------|---------|
+| `view.cljs` | Main `view` fn, page structure | All other modules |
+| `events.cljs` | State mutations, side effects | `parquery`, `rf` |
+| `subscriptions.cljs` | Data selectors from app-db | `rf` only |
+| `components.cljs` | Form fields, modals, sections | `utils`, `queries`, `rf` |
+| `table.cljs` | Column renderers, table config | `utils`, `tr` |
+| `queries.cljs` | `parquery/send-queries` calls | `parquery` only |
+| `utils.cljs` | Pure functions, constants | Minimal deps |
+
+### Example: Worksheets Feature
+
+```clojure
+;; view.cljs - slim orchestration layer
+(ns features.app.worksheets.frontend.view
+  (:require
+   [features.app.worksheets.frontend.utils :as utils]
+   [features.app.worksheets.frontend.queries :as queries]
+   [features.app.worksheets.frontend.table :as table]
+   [features.app.worksheets.frontend.components :as components]
+   [features.app.worksheets.frontend.events]        ; load to register
+   [features.app.worksheets.frontend.subscriptions] ; load to register
+   ...))
+
+(defn view []
+  (let [workspace-id (utils/get-workspace-id)
+        ...]
+    [:div
+     [page-header ...]
+     [data-table {:headers (table/get-columns) ...}]
+     (when @modal-open?
+       [components/worksheet-modal ...])]))
+```
+
+### When to Split
+
+**Split into modules when:**
+- File exceeds 300 lines
+- Multiple re-frame events/subscriptions (>5 each)
+- Complex forms with validation
+- Signature/canvas handling
+- Nested state management (materials, line items)
+
+**Keep single file when:**
+- Simple CRUD with <300 lines
+- Few re-frame events (<5)
+- No complex UI components
+
+---
+
 ## =📋 Log Analysis
 
 ### Reading Development Logs

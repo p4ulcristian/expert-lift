@@ -132,9 +132,29 @@ expert-lift/
 │   ├── code/
 │   │   ├── app/               # Main application entry points
 │   │   ├── features/          # Feature modules
-│   │   │   └── app/          # Core app features
-│   │   │       ├── homepage/  # Landing page
-│   │   │       └── zero/      # Framework integration
+│   │   │   ├── app/          # Core app features
+│   │   │   │   ├── addresses/     # Address management
+│   │   │   │   ├── homepage/      # Landing page
+│   │   │   │   ├── login/         # Authentication
+│   │   │   │   ├── material_templates/  # Material library
+│   │   │   │   ├── pdf_generator/ # PDF generation
+│   │   │   │   ├── settings/      # System settings
+│   │   │   │   ├── teams/         # Team management
+│   │   │   │   ├── worksheets/    # Worksheet management (modular)
+│   │   │   │   │   ├── backend/
+│   │   │   │   │   │   └── db.clj
+│   │   │   │   │   ├── frontend/
+│   │   │   │   │   │   ├── view.cljs          # Main component
+│   │   │   │   │   │   ├── events.cljs        # Re-frame events
+│   │   │   │   │   │   ├── subscriptions.cljs # Re-frame subs
+│   │   │   │   │   │   ├── components.cljs    # Form/UI components
+│   │   │   │   │   │   ├── table.cljs         # Table renderers
+│   │   │   │   │   │   ├── queries.cljs       # ParQuery ops
+│   │   │   │   │   │   └── utils.cljs         # Helpers/constants
+│   │   │   │   │   └── routes.cljc
+│   │   │   │   ├── workspace/     # Workspace selection
+│   │   │   │   └── zero/          # Framework integration
+│   │   │   └── common/       # Shared feature code
 │   │   ├── zero/             # Custom web framework
 │   │   ├── ui/               # Reusable UI components
 │   │   ├── parquery/         # Data layer
@@ -143,6 +163,20 @@ expert-lift/
 │       └── public/           # Static assets and compiled JS
 └── database-schema/          # Database migrations and schema
 ```
+
+### Feature Module Pattern
+
+Complex features follow a modular structure (see `worksheets/frontend/`):
+
+| File | Purpose |
+|------|---------|
+| `view.cljs` | Main component, page layout |
+| `events.cljs` | Re-frame event handlers |
+| `subscriptions.cljs` | Re-frame subscriptions |
+| `components.cljs` | Forms, modals, UI sections |
+| `table.cljs` | Table column renderers |
+| `queries.cljs` | ParQuery operations |
+| `utils.cljs` | Validation, helpers, constants |
 
 ## Development Commands
 
