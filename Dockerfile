@@ -54,7 +54,7 @@ RUN         ./start-prod.sh
 #  Running project      #
 #########################
 
-FROM      openjdk:23-slim
+FROM      eclipse-temurin:21-jre-jammy
 COPY      --from=compiler /root                  /root/
 WORKDIR   /root/
 # JAR is already built, just run it
