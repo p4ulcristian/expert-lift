@@ -467,13 +467,13 @@
                       ;; SVG signatures start fresh (can't load into canvas)
                       (when (and signature-data
                                  (str/starts-with? signature-data "data:image"))
-                        (.fromDataURL ref signature-data)))))}]]
+                        (.fromDataURL ^js ref signature-data)))))}]]
 
         ;; Action buttons
         [:div {:style {:display "flex" :justify-content "space-between" :gap "1rem"}}
          [:button {:type "button"
                    :on-click (fn []
-                               (when-let [ref @(rf/subscribe [:worksheets/zoom-signature-ref])]
+                               (when-let [^js ref @(rf/subscribe [:worksheets/zoom-signature-ref])]
                                  (.clear ref)))
                    :style {:padding "0.75rem 1.5rem" :font-size "0.875rem" :color "#6b7280"
                            :background "transparent" :border "1px solid #d1d5db" :border-radius "6px"

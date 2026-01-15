@@ -131,8 +131,8 @@
          zoom-ref (get-in db [:worksheets :zoom-signature-ref])]
      ;; Store signature data directly in re-frame state
      ;; Using .toSVG() for smaller file size and resolution independence
-     (let [new-db (if (and zoom-data zoom-ref (not (.isEmpty zoom-ref)))
-                    (let [signature-data (.toSVG zoom-ref)  ;; SVG output instead of base64 PNG
+     (let [new-db (if (and zoom-data ^js zoom-ref (not (.isEmpty ^js zoom-ref)))
+                    (let [signature-data (.toSVG ^js zoom-ref)  ;; SVG output instead of base64 PNG
                           signature-key (if (= (:ref-dispatch-key zoom-data) :worksheets/set-maintainer-signature-ref)
                                           :worksheet/maintainer-signature
                                           :worksheet/customer-signature)]
