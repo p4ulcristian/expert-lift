@@ -23,3 +23,5 @@ democode3d
 .vscode/settings.json
 .clerk
 log.txt
+.env.local
+log.txt.tmp
