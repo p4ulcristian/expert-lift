@@ -80,7 +80,8 @@
          (tr/tr :login/title)]
         
         (when (:general @errors)
-          [:div {:style {:background "#f8d7da"
+          [:div {:data-testid "login-error"
+                 :style {:background "#f8d7da"
                          :border "1px solid #f5c6cb"
                          :color "#721c24"
                          :padding "0.75rem"
@@ -98,6 +99,9 @@
                            :color (if (:user/username @errors) "#dc3545" "inherit")}}
            (tr/tr :login/username)]
           [:input {:type "text"
+                   :name "username"
+                   :autocomplete "username"
+                   :data-testid "login-username-input"
                    :value (:user/username @form-data)
                    :on-change #(swap! form-data assoc :user/username (.. % -target -value))
                    :placeholder (tr/tr :login/username-placeholder)
@@ -119,6 +123,9 @@
                            :color (if (:user/password @errors) "#dc3545" "inherit")}}
            (tr/tr :login/password)]
           [:input {:type "password"
+                   :name "password"
+                   :autocomplete "current-password"
+                   :data-testid "login-password-input"
                    :value (:user/password @form-data)
                    :on-change #(swap! form-data assoc :user/password (.. % -target -value))
                    :placeholder (tr/tr :login/password-placeholder)
@@ -135,6 +142,7 @@
          
          [:button {:type "submit"
                    :disabled @loading?
+                   :data-testid "login-submit-button"
                    :style {:width "100%"
                            :padding "0.75rem"
                            :background (if @loading? "#6c757d" "#72a9bf")

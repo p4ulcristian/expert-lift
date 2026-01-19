@@ -21,18 +21,22 @@
 (defn modal-header
   "Modal header with title and optional subtitle"
   [{:keys [title subtitle]}]
-  [:div {:style {:margin-bottom "2rem" :padding-bottom "1rem" :border-bottom "1px solid #e5e7eb"}}
-   [:h3 {:style {:font-size "1.5rem" :font-weight "600" :color "#111827" :margin "0"}}
+  [:div {:style {:margin-bottom "2rem" :padding-bottom "1rem" :border-bottom "1px solid #e5e7eb"}
+         :data-testid "modal-header"}
+   [:h3 {:style {:font-size "1.5rem" :font-weight "600" :color "#111827" :margin "0"}
+         :data-testid "modal-title"}
     title]
    (when subtitle
-     [:p {:style {:color "#6b7280" :font-size "0.875rem" :margin "0.5rem 0 0 0"}}
+     [:p {:style {:color "#6b7280" :font-size "0.875rem" :margin "0.5rem 0 0 0"}
+          :data-testid "modal-subtitle"}
       subtitle])])
 
 (defn modal-footer
   "Modal footer with action buttons"
   [& buttons]
   [:div {:style {:display "flex" :gap "0.75rem" :margin-top "2.5rem" :padding-top "2rem"
-                 :border-top "1px solid #e5e7eb" :justify-content "flex-end"}}
+                 :border-top "1px solid #e5e7eb" :justify-content "flex-end"}
+         :data-testid "modal-footer"}
    (for [[index button] (map-indexed vector buttons)]
      ^{:key index} button)])
 
@@ -45,15 +49,18 @@
 
 (defn modal
   "Reusable modal component with overlay, content, and optional close on backdrop click"
-  [{:keys [on-close close-on-backdrop?]} & content]
+  [{:keys [on-close close-on-backdrop? data-testid]} & content]
   [:div {:style (modal-overlay-style)
+         :data-testid (or data-testid "modal")
          :on-click (when (and close-on-backdrop? on-close)
                     (fn [e]
                       (when (= (.-target e) (.-currentTarget e))
                         (on-close))))}
-   [:div {:style (modal-content-style)}
+   [:div {:style (modal-content-style)
+          :data-testid "modal-content"}
     (when on-close
       [:button {:style (close-button-style)
+                :data-testid "modal-close-button"
                 :on-click on-close}
        [:i {:class "fa-solid fa-xmark"}]])
     (for [[index child] (map-indexed vector content)]

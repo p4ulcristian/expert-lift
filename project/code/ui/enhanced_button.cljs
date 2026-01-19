@@ -35,7 +35,7 @@
 
 (defn enhanced-button
   "Enhanced button component with variants, loading states, and icons"
-  [{:keys [variant on-click disabled? loading? icon children text size full-width?]
+  [{:keys [variant on-click disabled? loading? icon children text size full-width? data-testid]
     :or {variant :secondary size :md}}]
   (let [size-styles (case size
                       :sm {:padding "0.5rem 0.75rem" :font-size "0.75rem"}
@@ -44,10 +44,11 @@
         button-styles (merge (button-variant-styles variant disabled? loading?)
                             size-styles
                             (when full-width? {:width "100%"}))]
-    [:button {:type "button"
-              :disabled (or disabled? loading?)
-              :on-click (when (and on-click (not disabled?) (not loading?)) on-click)
-              :style button-styles}
+    [:button (cond-> {:type "button"
+                      :disabled (or disabled? loading?)
+                      :on-click (when (and on-click (not disabled?) (not loading?)) on-click)
+                      :style button-styles}
+               data-testid (assoc :data-testid data-testid))
      [:div {:style {:display "flex" :align-items "center" :justify-content "center" :gap "0.5rem"}}
       (when loading?
         [:div {:style {:width "1rem" :height "1rem" :border "2px solid transparent"

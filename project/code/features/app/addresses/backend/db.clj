@@ -79,21 +79,25 @@
 (defn create-address
   "Create new address in workspace"
   [workspace-id name address-line1 address-line2 city postal-code country contact-person contact-phone contact-email elevators-json]
-  (postgres/execute-sql 
-   "INSERT INTO expert_lift.addresses (workspace_id, name, address_line1, address_line2, city, postal_code, country, contact_person, contact_phone, contact_email, elevators) 
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb) 
-    RETURNING *, elevators::text as elevators_json"
-   {:params [workspace-id name address-line1 address-line2 city postal-code country contact-person contact-phone contact-email elevators-json]}))
+  (let [search-text (str name " " address-line1 " " (or address-line2 "") " " city " " postal-code " " country)
+        search-normalized (normalize-hungarian search-text)]
+    (postgres/execute-sql
+     "INSERT INTO expert_lift.addresses (workspace_id, name, address_line1, address_line2, city, postal_code, country, contact_person, contact_phone, contact_email, elevators, search_normalized)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12)
+      RETURNING *, elevators::text as elevators_json"
+     {:params [workspace-id name address-line1 address-line2 city postal-code country contact-person contact-phone contact-email elevators-json search-normalized]})))
 
 (defn update-address
   "Update existing address (within workspace)"
   [address-id workspace-id name address-line1 address-line2 city postal-code country contact-person contact-phone contact-email elevators-json]
-  (postgres/execute-sql 
-   "UPDATE expert_lift.addresses 
-    SET name = $1, address_line1 = $2, address_line2 = $3, city = $4, postal_code = $5, country = $6, contact_person = $7, contact_phone = $8, contact_email = $9, elevators = $10::jsonb, updated_at = NOW()
-    WHERE id = $11 AND workspace_id = $12
-    RETURNING *, elevators::text as elevators_json"
-   {:params [name address-line1 address-line2 city postal-code country contact-person contact-phone contact-email elevators-json address-id workspace-id]}))
+  (let [search-text (str name " " address-line1 " " (or address-line2 "") " " city " " postal-code " " country)
+        search-normalized (normalize-hungarian search-text)]
+    (postgres/execute-sql
+     "UPDATE expert_lift.addresses
+      SET name = $1, address_line1 = $2, address_line2 = $3, city = $4, postal_code = $5, country = $6, contact_person = $7, contact_phone = $8, contact_email = $9, elevators = $10::jsonb, search_normalized = $11, updated_at = NOW()
+      WHERE id = $12 AND workspace_id = $13
+      RETURNING *, elevators::text as elevators_json"
+     {:params [name address-line1 address-line2 city postal-code country contact-person contact-phone contact-email elevators-json search-normalized address-id workspace-id]})))
 
 (defn delete-address
   "Delete address (within workspace)"

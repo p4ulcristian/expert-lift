@@ -1,0 +1,10 @@
+{
+  "name": "Addresses CRUD",
+  "description": "Add, edit, and delete an address",
+  "steps": [
+    { "module": "workspace.login" },
+    { "module": "addresses.add" },
+    { "module": "addresses.edit", "config": { "name": "Updated Address" } },
+    { "module": "addresses.delete" }
+  ]
+}

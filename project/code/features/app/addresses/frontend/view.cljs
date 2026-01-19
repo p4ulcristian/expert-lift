@@ -172,10 +172,11 @@
 (defn- form-field
   "Complete form field with label, input and error"
   [label field-key address errors attrs]
-  (let [has-error? (contains? errors field-key)]
+  (let [has-error? (contains? errors field-key)
+        testid (str "address-" (name field-key) "-input")]
     [:div {:style {:margin-bottom "1.5rem"}}
      [field-label label field-key has-error?]
-     [field-input field-key address has-error? attrs]
+     [field-input field-key address has-error? (assoc attrs :data-testid testid)]
      [field-error (get errors field-key)]]))
 
 (defn- elevators-field
@@ -286,10 +287,12 @@
        ^{:key "footer"} [modal/modal-footer
         ^{:key "cancel"} [enhanced-button/enhanced-button
          {:variant :secondary
+          :data-testid "address-cancel-button"
           :on-click on-cancel
           :text (tr/tr :addresses/cancel)}]
         ^{:key "save"} [enhanced-button/enhanced-button
          {:variant :primary
+          :data-testid "address-submit-button"
           :loading? @loading?
           :on-click #(handle-save-click address loading? errors on-save)
           :text (if @loading? (tr/tr :addresses/saving) (tr/tr :addresses/save-address))}]]])))
@@ -367,6 +370,7 @@
     :description (tr/tr :addresses/page-description)
     :action-button [enhanced-button/enhanced-button
                     {:variant :success
+                     :data-testid "add-address-button"
                      :on-click (fn []
                                 (reset! modal-address {:address/country "Hungary"
                                                       :address/elevators []})
@@ -447,6 +451,7 @@
          :loading? @loading?
          :pagination @pagination
          :entity {:name "address" :name-plural "addresses"}
+         :data-testid "addresses-table"
          :on-edit on-edit
          :on-delete on-delete
          ;; Pagination handler

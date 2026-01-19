@@ -1,0 +1,10 @@
+{
+  "name": "Worksheets CRUD",
+  "description": "Add, edit, and delete a worksheet",
+  "steps": [
+    { "module": "workspace.login" },
+    { "module": "worksheets.add" },
+    { "module": "worksheets.edit", "config": { "status": "in_progress", "workDescription": "Updated work description" } },
+    { "module": "worksheets.delete" }
+  ]
+}

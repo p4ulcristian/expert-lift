@@ -1,0 +1,9 @@
+{
+  "name": "Full CRUD Suite",
+  "description": "Complete CRUD tests for all entities: material templates, addresses, and worksheets",
+  "workflows": [
+    "material-templates.crud",
+    "addresses.crud",
+    "worksheets.crud"
+  ]
+}

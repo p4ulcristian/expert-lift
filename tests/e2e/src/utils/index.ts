@@ -1,0 +1,12 @@
+export { TIMEOUT } from './timeout';
+export { locator } from './locator';
+export { click } from './click';
+export { fill, fillTextarea } from './fill';
+export { waitFor } from './wait-for';
+export { waitForGone } from './wait-for-gone';
+export { getText } from './get-text';
+export { isVisible } from './is-visible';
+export { exists } from './exists';
+export { check } from './check';
+export { uncheck } from './uncheck';
+export { select } from './select';

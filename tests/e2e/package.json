@@ -1,0 +1,26 @@
+{
+  "name": "elevathor-e2e-tests",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "End-to-end tests for Elevathor application",
+  "scripts": {
+    "test": "bunx playwright test",
+    "test:headed": "bunx playwright test --headed",
+    "test:debug": "bunx playwright test --debug",
+    "test:ui": "bunx playwright test --ui",
+    "workflows:list": "bun runner.ts --list",
+    "modules:list": "bun run-module.ts --list",
+    "module": "bun run-module.ts",
+    "report": "bunx playwright show-report",
+    "trace": "bunx playwright show-trace test-results/*/trace.zip",
+    "install-browsers": "bunx playwright install"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3"
+  }
+}

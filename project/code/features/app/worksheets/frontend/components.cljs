@@ -114,10 +114,11 @@
 (defn form-field
   "Complete form field with label, input and error"
   [label field-key errors attrs]
-  (let [has-error? (contains? errors field-key)]
+  (let [has-error? (contains? errors field-key)
+        testid (str "worksheet-" (name field-key) "-input")]
     [:div {:style {:margin-bottom "1.5rem"}}
      [field-label label field-key has-error?]
-     [field-input field-key has-error? attrs]
+     [field-input field-key has-error? (assoc attrs :data-testid testid)]
      [field-error (get errors field-key)]]))
 
 ;; =============================================================================
@@ -535,12 +536,14 @@
   [modal/modal-footer
    [enhanced-button/enhanced-button
     {:variant :secondary
+     :data-testid "worksheet-cancel-button"
      :on-click (fn []
                  (rf/dispatch [:worksheets/clear-modal-form])
                  (when on-cancel (on-cancel)))
      :text (tr/tr :worksheets/cancel)}]
    [enhanced-button/enhanced-button
     {:variant :primary
+     :data-testid "worksheet-submit-button"
      :loading? @(rf/subscribe [:worksheets/modal-form-loading?])
      :on-click (save-button-click-handler on-save)
      :text (if @(rf/subscribe [:worksheets/modal-form-loading?])

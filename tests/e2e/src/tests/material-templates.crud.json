@@ -1,0 +1,10 @@
+{
+  "name": "Material Templates CRUD",
+  "description": "Add, edit, and delete a material template",
+  "steps": [
+    { "module": "workspace.login" },
+    { "module": "material-templates.add" },
+    { "module": "material-templates.edit" },
+    { "module": "material-templates.delete" }
+  ]
+}

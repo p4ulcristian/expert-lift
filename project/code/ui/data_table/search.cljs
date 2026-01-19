@@ -26,31 +26,35 @@
     :on-search           - (fn [value]) called when search should execute (debounced)
     :placeholder         - Optional placeholder text (default: 'Search by name or description...')
     :container-class     - Optional container CSS class (default: 'data-table-search-container')
-    :input-class         - Optional input CSS class (default: 'data-table-search-input')"
+    :input-class         - Optional input CSS class (default: 'data-table-search-input')
+    :data-testid         - Optional data-testid attribute for the container"
   [{:keys [search-term
            on-search-change
            on-search
            placeholder
            container-class
-           input-class]}]
+           input-class
+           data-testid]}]
   (let [placeholder     (or placeholder "Search by name or description...")
         container-class (or container-class "data-table-search-container")
         input-class     (or input-class "data-table-search-input")]
-    [:div {:class container-class}
+    [:div (cond-> {:class container-class}
+            data-testid (assoc :data-testid data-testid))
      [text-field/view
-       {:class           input-class
-        :placeholder     placeholder
-        :value           (or search-term "")
-        :on-change       on-search-change
-        :on-type-ended   on-search
-        :left-adornment  [:i {:class (icons/icon :search)}]
-        :right-adornment [search-clear-button
-                          {:value    search-term
-                           :on-clear #(do
-                                        (when on-search-change
-                                          (on-search-change ""))
-                                        (when on-search
-                                          (on-search "")))}]}]]))
+       (cond-> {:class           input-class
+                :placeholder     placeholder
+                :value           (or search-term "")
+                :on-change       on-search-change
+                :on-type-ended   on-search
+                :left-adornment  [:i {:class (icons/icon :search)}]
+                :right-adornment [search-clear-button
+                                  {:value    search-term
+                                   :on-clear #(do
+                                                (when on-search-change
+                                                  (on-search-change ""))
+                                                (when on-search
+                                                  (on-search "")))}]}
+         data-testid (assoc :override {:data-testid (str data-testid "-input")}))]]))
 
 (defn view
   "Main entry point for search field component.

@@ -35,16 +35,16 @@
                 [workspace-id search-param page-size offset]
                 [workspace-id page-size offset])
         
-        query (str "SELECT * FROM expert_lift.material_templates 
-                   WHERE workspace_id = $1 " 
+        query (str "SELECT * FROM expert_lift.material_templates
+                   WHERE workspace_id = $1 AND active = true "
                    search-condition
                    " ORDER BY " db-column " " order-direction
                    " LIMIT $" (if has-search? "3" "2")
                    " OFFSET $" (if has-search? "4" "3"))
-        
-        count-query (str "SELECT COUNT(*) as total 
-                         FROM expert_lift.material_templates 
-                         WHERE workspace_id = $1 " 
+
+        count-query (str "SELECT COUNT(*) as total
+                         FROM expert_lift.material_templates
+                         WHERE workspace_id = $1 AND active = true "
                          search-condition)
         count-params (if has-search? [workspace-id search-param] [workspace-id])]
     

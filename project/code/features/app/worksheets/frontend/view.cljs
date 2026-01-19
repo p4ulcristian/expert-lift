@@ -104,6 +104,7 @@
          :description (tr/tr :worksheets/page-description)
          :action-button [enhanced-button/enhanced-button
                          {:variant :success
+                          :data-testid "add-worksheet-button"
                           :on-click #(handle-add-new modal-worksheet modal-is-new?)
                           :text (tr/tr :worksheets/add-new-worksheet)}]}]
 
@@ -127,6 +128,7 @@
          :loading? @loading?
          :pagination @pagination
          :entity {:name "worksheet" :name-plural "worksheets"}
+         :data-testid "worksheets-table"
          ;; Custom actions (edit, pdf, delete)
          :custom-actions (fn [row _config]
                            [table/actions-cell row {:on-edit on-edit

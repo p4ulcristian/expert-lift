@@ -115,22 +115,26 @@
 (defn actions-cell
   "Custom actions cell with edit, PDF, and delete buttons"
   [row {:keys [on-edit on-pdf on-delete]}]
-  [:div {:style {:display "flex" :gap "8px"}}
-   ;; Edit button
-   [:button {:class    "input-button button-outlined input-primary"
-             :title    (tr/tr :worksheets/action-edit)
-             :style    {:padding "4px 8px"}
-             :on-click #(on-edit row)}
-    [:i {:class "fa-solid fa-pen"}]]
-   ;; PDF button
-   [:button {:class    "input-button button-outlined input-secondary"
-             :title    (tr/tr :worksheets/action-pdf)
-             :style    {:padding "4px 8px"}
-             :on-click #(on-pdf row)}
-    [:i {:class "fa-solid fa-file-pdf"}]]
-   ;; Delete button
-   [:button {:class    "input-button button-outlined input-warning"
-             :title    (tr/tr :worksheets/action-delete)
-             :style    {:padding "4px 8px"}
-             :on-click #(on-delete row)}
-    [:i {:class "fa-solid fa-trash"}]]])
+  (let [worksheet-id (:worksheet/id row)]
+    [:div {:style {:display "flex" :gap "8px"}}
+     ;; Edit button
+     [:button {:class       "input-button button-outlined input-primary"
+               :title       (tr/tr :worksheets/action-edit)
+               :data-testid (str "edit-worksheet-" worksheet-id)
+               :style       {:padding "4px 8px"}
+               :on-click    #(on-edit row)}
+      [:i {:class "fa-solid fa-pen"}]]
+     ;; PDF button
+     [:button {:class       "input-button button-outlined input-secondary"
+               :title       (tr/tr :worksheets/action-pdf)
+               :data-testid (str "pdf-worksheet-" worksheet-id)
+               :style       {:padding "4px 8px"}
+               :on-click    #(on-pdf row)}
+      [:i {:class "fa-solid fa-file-pdf"}]]
+     ;; Delete button
+     [:button {:class       "input-button button-outlined input-warning"
+               :title       (tr/tr :worksheets/action-delete)
+               :data-testid (str "delete-worksheet-" worksheet-id)
+               :style       {:padding "4px 8px"}
+               :on-click    #(on-delete row)}
+      [:i {:class "fa-solid fa-trash"}]]]))

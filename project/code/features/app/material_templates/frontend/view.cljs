@@ -158,10 +158,11 @@
 (defn- form-field
   "Complete form field with label, input and error"
   [label field-key template errors attrs]
-  (let [has-error? (contains? errors field-key)]
+  (let [has-error? (contains? errors field-key)
+        testid (str "material-template-" (name field-key) "-input")]
     [:div {:style {:margin-bottom "1.5rem"}}
      [field-label label field-key has-error?]
-     [field-input field-key template has-error? attrs]
+     [field-input field-key template has-error? (assoc attrs :data-testid testid)]
      [field-error (get errors field-key)]]))
 
 (defn- form-fields
@@ -207,10 +208,12 @@
        ^{:key "footer"} [modal/modal-footer
         ^{:key "cancel"} [enhanced-button/enhanced-button
          {:variant :secondary
+          :data-testid "material-template-cancel-button"
           :on-click on-cancel
           :text (tr/tr :material-templates/cancel)}]
         ^{:key "save"} [enhanced-button/enhanced-button
          {:variant :primary
+          :data-testid "material-template-submit-button"
           :loading? @loading?
           :on-click #(handle-save-click template loading? errors on-save)
           :text (if @loading? (tr/tr :material-templates/saving) (tr/tr :material-templates/save-template))}]]])))
@@ -266,6 +269,7 @@
     :description (tr/tr :material-templates/page-description)
     :action-button [enhanced-button/enhanced-button
                     {:variant :success
+                     :data-testid "add-material-template-button"
                      :on-click (fn []
                                 (reset! modal-template {})
                                 (reset! modal-is-new? true))
@@ -331,6 +335,7 @@
         [data-table-search/view
          {:search-term @search-term
           :placeholder (tr/tr :material-templates/search-placeholder)
+          :data-testid "material-templates-search"
           :on-search-change (fn [value]
                               (reset! search-term value))
           :on-search (fn [value]
@@ -345,6 +350,7 @@
          :loading? @loading?
          :pagination @pagination
          :entity {:name "material-template" :name-plural "material templates"}
+         :data-testid "material-templates-table"
          :on-edit on-edit
          :on-delete on-delete
          ;; Pagination handler
