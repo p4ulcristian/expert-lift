@@ -6,6 +6,9 @@
 (def translations
   {:en {:header/logout "Logout"
         :header/brand "ElevaThor"
+        :header/role-employee "Team Member"
+        :header/role-admin "Team Leader"
+        :header/role-superadmin "Big Boss"
         :dashboard/title "Dashboard"
         :dashboard/welcome "Welcome back!"
         :dashboard/access-denied "Access Denied"
@@ -253,6 +256,9 @@
         :worksheets/search-placeholder "Search worksheets..."}
    :hu {:header/logout "Kijelentkezés"
         :header/brand "ElevaThor"
+        :header/role-employee "Csapattag"
+        :header/role-admin "Csapatvezető"
+        :header/role-superadmin "Nagyfőnök"
         :dashboard/title "Irányítópult"
         :dashboard/welcome "Üdvözlünk újra!"
         :dashboard/access-denied "Hozzáférés megtagadva"
