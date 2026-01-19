@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Load .env.local if it exists
+if [ -f .env.local ]; then
+  export $(grep -v '^#' .env.local | grep -v '^$' | xargs)
+fi
+
 if [ $# -eq 0 ]; then
   echo "Error: No FRONTEND_CONFIG(s) provided."
   echo "Usage: $0 <FRONTEND_CONFIG1> [FRONTEND_CONFIG2] ..."

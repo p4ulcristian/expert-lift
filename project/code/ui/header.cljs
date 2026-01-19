@@ -43,28 +43,11 @@
   (parquery/send-queries
     {:queries {:users/logout {}}
      :callback (fn [response]
-                 (:success (:users/logout response)))}))
-
-(defn handle-language-toggle [current-language]
-  "Toggle language between en and hu"
-  (let [new-language (if (= current-language :en) :hu :en)]
-    (println "DEBUG: Toggling language from" current-language "to" new-language)
-    (rf/dispatch [:header/set-language new-language])
-    (println "DEBUG: Dispatched event")))
-
-(defn language-toggle
-  "Language toggle between English and Hungarian"
-  []
-  (let [current-language (rf/subscribe [:header/current-language])]
-    [:div.language-toggle
-     [button/view 
-      {:type :secondary
-       :class "language-toggle-btn"
-       :on-click #(handle-language-toggle @current-language)}
-      (if (= @current-language :en) "EN" "HU")]]))
+                 (when (:success (:users/logout response))
+                   (set! (.-location js/window) "/login")))}))
 
 (defn header
-  "Main application header with logo, language toggle, and logout button"
+  "Main application header with logo and logout button"
   []
   [:header.app-header
    [:div.header-content
@@ -74,12 +57,11 @@
      [:img.logo {:src "/logo/logo-256.webp" :alt "Logo"}]
      [:span.brand-name (tr/tr :header/brand)]]
     [:div.header-right
-     [button/view 
+     [button/view
       {:type :secondary
        :on-click handle-logout
        :class "logout-btn"}
-      @(rf/subscribe [:translate :header/logout])]
-     [language-toggle]]]])
+      [:i {:class "fa-solid fa-right-from-bracket"}]]]]])
 
 (defn view
   "Header component view function"

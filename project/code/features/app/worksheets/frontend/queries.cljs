@@ -5,15 +5,19 @@
 
 (defn load-worksheets
   "Execute ParQuery to load worksheets with pagination"
-  [workspace-id params worksheets-data loading?]
+  [workspace-id params worksheets-atom pagination-atom loading?]
   (reset! loading? true)
   (parquery/send-queries
-   {:queries {:workspace-worksheets/get-paginated (or params {})}
+   {:queries {:workspace-worksheets/get-paginated params}
     :parquery/context {:workspace-id workspace-id}
     :callback (fn [response]
                 (reset! loading? false)
-                (let [result (:workspace-worksheets/get-paginated response)]
-                  (reset! worksheets-data result)))}))
+                (let [result (:workspace-worksheets/get-paginated response)
+                      items (:worksheets result [])
+                      pag (:pagination result)]
+                  (reset! worksheets-atom items)
+                  (when pag
+                    (reset! pagination-atom pag))))}))
 
 (defn save-worksheet
   "Execute ParQuery to save worksheet (create or update)"
@@ -29,7 +33,7 @@
                   (callback)
                   (if (:success (get response query-type))
                     (do (reset! modal-worksheet nil)
-                        (load-worksheets-fn {}))
+                        (load-worksheets-fn))
                     (js/alert (str "Error: " (:error (get response query-type))))))})))
 
 (defn delete-worksheet

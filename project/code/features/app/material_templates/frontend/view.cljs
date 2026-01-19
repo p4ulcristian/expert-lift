@@ -7,9 +7,11 @@
             [zero.frontend.react :as zero-react]
             [ui.modal :as modal]
             [ui.form-field :as form-field]
-            [ui.data-table :as data-table]
+            [ui.data-table.core :as data-table]
+            [ui.data-table.search :as data-table-search]
             [ui.enhanced-button :as enhanced-button]
-            [ui.page-header :as page-header]
+            [ui.subheader :as subheader]
+            [ui.content-section :as content-section]
             [translations.core :as tr]))
 
 (defn- get-workspace-id
@@ -19,12 +21,27 @@
         workspace-id (get-in router-state [:parameters :path :workspace-id])]
     workspace-id))
 
+(defn- load-templates-query
+  "Execute ParQuery to load material templates with pagination"
+  [workspace-id params templates-atom pagination-atom loading-atom]
+  (reset! loading-atom true)
+  (parquery/send-queries
+   {:queries {:workspace-material-templates/get-paginated params}
+    :parquery/context {:workspace-id workspace-id}
+    :callback (fn [response]
+               (reset! loading-atom false)
+               (let [result (:workspace-material-templates/get-paginated response)
+                     items (:material-templates result [])
+                     pag (:pagination result)]
+                 (reset! templates-atom items)
+                 (when pag
+                   (reset! pagination-atom pag))))}))
 
 (defn- get-query-type
   "Get appropriate query type for save operation"
   [is-new?]
-  (if @is-new? 
-    :workspace-material-templates/create 
+  (if @is-new?
+    :workspace-material-templates/create
     :workspace-material-templates/update))
 
 (defn- prepare-template-data
@@ -49,16 +66,10 @@
   (let [query-type (get-query-type modal-is-new?)
         template-data (prepare-template-data template modal-is-new?)
         context {:workspace-id workspace-id}]
-    (println "DEBUG: save-template-query called")
-    (println "  Workspace ID:" workspace-id)
-    (println "  Query type:" query-type)
-    (println "  Template data:" template-data)
-    (println "  Context being sent:" context)
     (parquery/send-queries
      {:queries {query-type template-data}
       :parquery/context context
       :callback (fn [response]
-                 (println "DEBUG: save-template-query response:" response)
                  (handle-save-response response query-type callback modal-template load-templates))})))
 
 (defn- delete-template-query
@@ -96,8 +107,8 @@
   [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600"
                    :font-size "0.875rem" :letter-spacing "0.025em"
                    :color (if has-error? "#dc3545" "#374151")}}
-   label 
-   (when (#{:material-template/name :material-template/unit} field-key) 
+   label
+   (when (#{:material-template/name :material-template/unit} field-key)
      [:span {:style {:color "#ef4444" :margin-left "0.25rem"}} "*"])])
 
 (defn- input-base-props
@@ -112,13 +123,13 @@
                   :font-size "1rem"
                   :line-height "1.5"
                   :transition "border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out"
-                  :box-shadow (if has-error? 
-                                "0 0 0 3px rgba(220, 53, 69, 0.1)" 
+                  :box-shadow (if has-error?
+                                "0 0 0 3px rgba(220, 53, 69, 0.1)"
                                 "0 1px 2px 0 rgba(0, 0, 0, 0.05)")
                   :outline "none"}
                  (:style attrs)
                  {:focus {:border-color (if has-error? "#dc3545" "#3b82f6")
-                         :box-shadow (if has-error? 
+                         :box-shadow (if has-error?
                                        "0 0 0 3px rgba(220, 53, 69, 0.1)"
                                        "0 0 0 3px rgba(59, 130, 246, 0.1)")}})})
 
@@ -189,7 +200,7 @@
       [modal/modal {:on-close on-cancel :close-on-backdrop? true}
        ^{:key "header"} [modal/modal-header
         {:title (if is-new? (tr/tr :material-templates/modal-add-title) (tr/tr :material-templates/modal-edit-title))
-         :subtitle (if is-new? 
+         :subtitle (if is-new?
                      (tr/tr :material-templates/modal-add-subtitle)
                      (tr/tr :material-templates/modal-edit-subtitle))}]
        ^{:key "form"} [form-fields template @errors]
@@ -204,74 +215,61 @@
           :on-click #(handle-save-click template loading? errors on-save)
           :text (if @loading? (tr/tr :material-templates/saving) (tr/tr :material-templates/save-template))}]]])))
 
-(defn- template-name-render
-  "Custom render function for template name column with description"
-  [name row]
-  [:div 
+;; =============================================================================
+;; Column Renderers for react-data-table-component
+;; =============================================================================
+
+(defn- template-name-cell
+  "Custom cell for template name column with description"
+  [row]
+  [:div
    [:div {:style {:font-weight "600" :color "#111827" :font-size "0.875rem"}}
-    name]
+    (:material-template/name row)]
    (when (:material-template/description row)
      [:div {:style {:color "#6b7280" :font-size "0.75rem" :margin-top "0.25rem" :line-height "1.4"}}
       (:material-template/description row)])])
 
-(defn- category-render
-  "Custom render function for category with fallback text"
-  [category row]
-  (or category 
-      [:span {:style {:color "#9ca3af" :font-style "italic"}} (tr/tr :material-templates/no-category)]))
+(defn- category-cell
+  "Custom cell for category with fallback text"
+  [row]
+  (let [category (:material-template/category row)]
+    (if category
+      [:span {:style {:color "#374151" :font-size "0.875rem"}} category]
+      [:span {:style {:color "#9ca3af" :font-style "italic"}} (tr/tr :material-templates/no-category)])))
 
-(defn material-templates-table
-  "Material templates table using server-side data-table component with search, sorting, and pagination"  
-  [templates-data loading? on-edit on-delete query-fn]
-  (println "DEBUG: material-templates-table called")
-  (println "DEBUG: templates-data:" templates-data)
-  (println "DEBUG: loading?:" loading?)
-  (println "DEBUG: query-fn:" query-fn)
-  [data-table/server-side-data-table
-   {:headers [{:key :material-template/name :label (tr/tr :material-templates/table-header-material) :render template-name-render :sortable? true}
-              {:key :material-template/unit :label (tr/tr :material-templates/table-header-unit) :sortable? true
-               :cell-style {:color "#374151" :font-weight "500" :font-size "0.875rem"}}
-              {:key :material-template/category :label (tr/tr :material-templates/table-header-category) :render category-render :sortable? true
-               :cell-style {:color "#6b7280" :font-size "0.875rem"}}]
-    :data-source templates-data
-    :data-key :material-templates
-    :loading? loading?
-    :empty-message (tr/tr :material-templates/no-templates-found)
-    :id-key :material-template/id
-    :table-id :material-templates-table
-    :show-search? true
-    :show-pagination? true
-    :query-fn query-fn
-    :actions [{:key :edit :label (tr/tr :material-templates/action-edit) :variant :primary :on-click on-edit}
-              {:key :delete :label (tr/tr :material-templates/action-delete) :variant :danger 
-               :on-click (fn [row] 
-                          (when (js/confirm (tr/tr :material-templates/confirm-delete))
-                            (on-delete (:material-template/id row))))}]}])
+(defn- get-columns
+  "Get column configuration for material templates table (react-data-table format)"
+  []
+  [{:name      (tr/tr :material-templates/table-header-material)
+    :selector  :material-template/name
+    :sortField :material-template/name
+    :sortable  true
+    :cell      template-name-cell
+    :width     "300px"}
+   {:name      (tr/tr :material-templates/table-header-unit)
+    :selector  :material-template/unit
+    :sortField :material-template/unit
+    :sortable  true
+    :width     "100px"}
+   {:name      (tr/tr :material-templates/table-header-category)
+    :selector  :material-template/category
+    :sortField :material-template/category
+    :sortable  true
+    :cell      category-cell
+    :width     "150px"}])
 
-(defn- templates-page-header
-  "Page header with title and add button using new UI component"
+(defn- templates-subheader
+  "Subheader with title and add button"
   [modal-template modal-is-new?]
-  [page-header/page-header
+  [subheader/subheader
    {:title (tr/tr :material-templates/page-title)
     :description (tr/tr :material-templates/page-description)
     :action-button [enhanced-button/enhanced-button
                     {:variant :success
-                     :on-click (fn [] 
+                     :on-click (fn []
                                 (reset! modal-template {})
                                 (reset! modal-is-new? true))
                      :text (tr/tr :material-templates/add-new-template)}]}])
-
-(defn- templates-content
-  "Main content area with server-side data table"
-  [templates-data-atom loading?-atom modal-template modal-is-new? delete-template query-fn]
-  [material-templates-table 
-   @templates-data-atom
-   @loading?-atom
-   (fn [template]
-     (reset! modal-template template)
-     (reset! modal-is-new? false))
-   delete-template
-   query-fn])
 
 (defn- modal-when-open
   "Render modal when template is selected"
@@ -280,81 +278,86 @@
     [material-template-modal @modal-template @modal-is-new? save-template
      (fn [] (reset! modal-template nil))]))
 
-;; Re-frame subscriptions and events
-(rf/reg-sub
-  :material-templates/data
-  (fn [db _]
-    (let [raw-data (get-in db [:material-templates :data])
-          _ (println "DEBUG: subscription raw-data:" raw-data)]
-      (if (and raw-data (:material-templates raw-data))
-        ;; If we have the old structure, use it as is
-        raw-data
-        ;; Otherwise return default structure
-        {:material-templates [] :pagination {}}))))
-
-(rf/reg-sub
-  :material-templates/loading?
-  (fn [db _]
-    (get-in db [:material-templates :loading?] false)))
-
-(rf/reg-event-db
-  :material-templates/set-loading
-  (fn [db [_ loading?]]
-    (assoc-in db [:material-templates :loading?] loading?)))
-
-(rf/reg-event-db
-  :material-templates/load-success
-  (fn [db [_ data]]
-    (-> db
-        (assoc-in [:material-templates :data] data)
-        (assoc-in [:material-templates :loading?] false))))
-
-
 (defn view []
   (let [workspace-id (get-workspace-id)
+        ;; Local state
+        templates (r/atom [])
+        pagination (r/atom {:total-count 0 :page 0 :page-size 10})
         loading? (r/atom false)
+        search-term (r/atom "")
+        sort-field (r/atom :material-template/name)
+        sort-direction (r/atom "asc")
         modal-template (r/atom nil)
         modal-is-new? (r/atom false)
-        
-        templates-data-atom (r/atom {:material-templates [] :pagination {}})
-        
-        load-templates (fn [params]
-                         (println "DEBUG: load-templates called with params:" params)
-                         (println "DEBUG: workspace-id:" workspace-id)
-                         (reset! loading? true)
-                         (parquery/send-queries
-                          {:queries {:workspace-material-templates/get-paginated (or params {})}
-                           :parquery/context {:workspace-id workspace-id}
-                           :callback (fn [response]
-                                      (println "DEBUG: load-templates response:" response)
-                                      (reset! loading? false)
-                                      (let [result (:workspace-material-templates/get-paginated response)
-                                            formatted-result {:material-templates (:material-templates result)
-                                                            :pagination {:total-count (:total-count result)
-                                                                       :page (:page result) 
-                                                                       :page-size (:page-size result)
-                                                                       :total-pages (:total-pages result)}}]
-                                        (println "DEBUG: formatted result:" formatted-result)
-                                        (reset! templates-data-atom formatted-result)))}))
-        
+
+        ;; Load function
+        load-templates (fn []
+                         (load-templates-query
+                          workspace-id
+                          {:search @search-term
+                           :sort-by @sort-field
+                           :sort-direction @sort-direction
+                           :page (:page @pagination)
+                           :page-size (:page-size @pagination)}
+                          templates
+                          pagination
+                          loading?))
+
         save-template (fn [template callback]
-                        (save-template-query template workspace-id modal-is-new? 
-                                             callback modal-template (fn [] (load-templates {}))))
-        
+                        (save-template-query template workspace-id modal-is-new?
+                                             callback modal-template load-templates))
+
         delete-template (fn [template-id]
-                          (delete-template-query template-id workspace-id (fn [] (load-templates {}))))]
-    
-    
-    ;; Initial load
-    (println "DEBUG: Material templates view function called - NEW VERSION")
-    (zero-react/use-effect
-      {:mount (fn []
-                (println "DEBUG: Initial load triggered")
-                (load-templates {}))
-       :params #js []})
-    
-    [:div {:style {:min-height "100vh" :background "#f9fafb"}}
-     [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}} 
-      [templates-page-header modal-template modal-is-new?]
-      [templates-content templates-data-atom loading? modal-template modal-is-new? delete-template load-templates]
-      [modal-when-open modal-template modal-is-new? save-template]]]))
+                          (delete-template-query template-id workspace-id load-templates))
+
+        on-edit (fn [row]
+                  (reset! modal-template row)
+                  (reset! modal-is-new? false))
+
+        on-delete (fn [row]
+                    (when (js/confirm (tr/tr :material-templates/confirm-delete))
+                      (delete-template (:material-template/id row))))]
+
+    (fn []
+      ;; Load initial data
+      (when (and (empty? @templates) (not @loading?))
+        (load-templates))
+
+      [:<>
+       [templates-subheader modal-template modal-is-new?]
+       [content-section/content-section
+        ;; Search bar
+        [:div {:style {:margin-bottom "1rem"}}
+        [data-table-search/view
+         {:search-term @search-term
+          :placeholder (tr/tr :material-templates/search-placeholder)
+          :on-search-change (fn [value]
+                              (reset! search-term value))
+          :on-search (fn [value]
+                       (reset! search-term value)
+                       (swap! pagination assoc :page 0)
+                       (load-templates))}]]
+
+       ;; Material templates table
+       [data-table/view
+        {:columns (get-columns)
+         :data @templates
+         :loading? @loading?
+         :pagination @pagination
+         :entity {:name "material-template" :name-plural "material templates"}
+         :on-edit on-edit
+         :on-delete on-delete
+         ;; Pagination handler
+         :on-page-change (fn [page _total-rows]
+                           (swap! pagination assoc :page (dec page))
+                           (load-templates))
+         :on-page-size-change (fn [new-size]
+                                (swap! pagination assoc :page-size new-size :page 0)
+                                (load-templates))
+         ;; Sort handler
+         :on-sort (fn [field direction _sorted-rows]
+                    (reset! sort-field field)
+                    (reset! sort-direction direction)
+                    (load-templates))}]
+
+       [modal-when-open modal-template modal-is-new? save-template]]])))

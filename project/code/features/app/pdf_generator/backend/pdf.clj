@@ -7,29 +7,48 @@
    [java.io ByteArrayOutputStream]
    [java.nio.charset StandardCharsets]))
 
+(defn- find-unicode-font
+  "Find a font file that supports Hungarian/Unicode characters.
+   Checks common locations on Linux, macOS, and Windows."
+  []
+  (let [font-paths [;; Linux (Ubuntu/Debian) - DejaVu has excellent Hungarian support
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+                    ;; Linux alternative paths
+                    "/usr/share/fonts/TTF/DejaVuSans.ttf"
+                    "/usr/share/fonts/dejavu/DejaVuSans.ttf"
+                    ;; Arch Linux / Noto fonts (also good Unicode support)
+                    "/usr/share/fonts/noto/NotoSans-Regular.ttf"
+                    ;; macOS
+                    "/System/Library/Fonts/Helvetica.ttc"
+                    "/Library/Fonts/Arial Unicode.ttf"
+                    ;; Windows
+                    "C:/Windows/Fonts/arial.ttf"
+                    "C:/Windows/Fonts/DejaVuSans.ttf"]]
+    (->> font-paths
+         (filter #(.exists (java.io.File. %)))
+         first)))
+
 (defn html-to-pdf
   "Convert HTML string to PDF bytes using OpenHTMLtoPDF"
   [html-content]
   (let [output-stream (ByteArrayOutputStream.)
         builder (PdfRendererBuilder.)
-        ; Use DejaVu Sans which has excellent Unicode support including Hungarian
-        font-path "/System/Library/Fonts/Helvetica.ttc"
-        ; Set base URI to project resources for relative paths
+        font-path (find-unicode-font)
         base-uri "file://project/resources/"]
     (try
       (-> builder
           (.withHtmlContent html-content base-uri)
-          ; Add font that supports Hungarian characters
-          (cond-> 
-            (.exists (java.io.File. font-path))
-            (.useFont (java.io.File. font-path) "Helvetica"))
+          (cond->
+            font-path
+            (.useFont (java.io.File. font-path) "DejaVuSans"))
           (.toStream output-stream)
           (.run))
       (.toByteArray output-stream)
       (catch Exception e
-        (throw (ex-info "Failed to generate PDF" 
-                       {:html-content html-content}
-                       e)))
+        (throw (ex-info "Failed to generate PDF"
+                        {:html-content html-content
+                         :font-path font-path}
+                        e)))
       (finally
         (.close output-stream)))))
 

@@ -7,7 +7,8 @@
             [zero.frontend.react :as zero-react]
             [ui.form-field :as form-field]
             [ui.enhanced-button :as enhanced-button]
-            [ui.page-header :as page-header]
+            [ui.subheader :as subheader]
+            [ui.content-section :as content-section]
             [translations.core :as tr]))
 
 ;; Re-frame Events
@@ -128,10 +129,10 @@
                   (println "Upload error:" error)
                   (callback {:success false :error (str error)}))))))
 
-(defn- settings-page-header
-  "Page header for settings page using consistent UI component"
+(defn- settings-subheader
+  "Subheader for settings page"
   []
-  [page-header/page-header
+  [subheader/subheader
    {:title (tr/tr :settings/title)
     :description (tr/tr :settings/description)}])
 
@@ -208,8 +209,8 @@
   "Company logo upload section"
   []
   (let [uploading? @(rf/subscribe [:settings/uploading?])]
-    [:div {:style {:margin-bottom "2.5rem" :padding "1.5rem" :border "1px solid #e5e7eb" :border-radius "12px" :background "#f9fafb"}}
-     [:h4 {:style {:font-size "1.125rem" :font-weight "600" :margin-bottom "1rem" :color "#374151"}}
+    [:div {:style {:margin-bottom "2.5rem"}}
+     [:label {:style {:display "block" :font-weight "600" :margin-bottom "0.75rem" :color "#374151" :font-size "1rem"}}
       (tr/tr :settings/company-logo)]
      [:p {:style {:color "#6b7280" :margin-bottom "1rem" :font-size "0.875rem"}}
       (tr/tr :settings/logo-description)]
@@ -220,8 +221,8 @@
                :style {:display "none"}
                :on-change handle-file-select}]
       [:label {:for "logo-upload"
-               :style {:cursor (if uploading? "not-allowed" "pointer") 
-                       :color (if uploading? "#9ca3af" "#3b82f6") 
+               :style {:cursor (if uploading? "not-allowed" "pointer")
+                       :color (if uploading? "#9ca3af" "#3b82f6")
                        :font-weight "500"}}
        [upload-status-display]]]]))
 
@@ -286,11 +287,74 @@
        :on-click #(handle-save-click workspace-id)
        :text (if (or loading? uploading?) (tr/tr :settings/saving) (tr/tr :settings/save-settings))}]]))
 
+(defn- workspace-id-display
+  "Display workspace ID in a copyable format"
+  [workspace-id]
+  [:div {:style {:margin-bottom "2.5rem"}}
+   [:label {:style {:display "block" :font-weight "600" :margin-bottom "0.75rem" :color "#374151" :font-size "1rem"}}
+    (tr/tr :settings/workspace-id)]
+   [:div {:style {:display "flex" :align-items "center" :gap "0.75rem"}}
+    [:code {:style {:flex "1"
+                    :padding "0.875rem 1rem"
+                    :background "#f3f4f6"
+                    :border "1px solid #e5e7eb"
+                    :border-radius "8px"
+                    :font-family "monospace"
+                    :font-size "0.875rem"
+                    :color "#374151"
+                    :overflow "hidden"
+                    :text-overflow "ellipsis"}}
+     workspace-id]
+    [:button {:style {:padding "0.75rem 1rem"
+                      :background "#ffffff"
+                      :border "1px solid #d1d5db"
+                      :border-radius "8px"
+                      :cursor "pointer"
+                      :color "#6b7280"
+                      :font-size "0.875rem"
+                      :transition "background 0.2s, border-color 0.2s"}
+              :on-click #(do
+                           (.writeText js/navigator.clipboard workspace-id)
+                           (js/alert (tr/tr :settings/copied-to-clipboard)))}
+     [:i {:class "fa-solid fa-copy"}]]]])
+
+(defn- language-option-button
+  "Single language option button"
+  [language-key label current-language]
+  (let [selected? (= current-language language-key)]
+    [:button {:style {:padding "0.875rem 1.5rem"
+                      :background (if selected? "#3b82f6" "#ffffff")
+                      :border (if selected? "1px solid #3b82f6" "1px solid #d1d5db")
+                      :border-radius "8px"
+                      :cursor "pointer"
+                      :color (if selected? "#ffffff" "#374151")
+                      :font-size "1rem"
+                      :font-weight (if selected? "600" "400")
+                      :transition "all 0.2s"
+                      :min-width "120px"}
+              :on-click #(rf/dispatch [:header/set-language language-key])}
+     label]))
+
+(defn- language-toggle-section
+  "Language selection section"
+  []
+  (let [current-language @(rf/subscribe [:header/current-language])]
+    [:div {:style {:margin-bottom "2.5rem"}}
+     [:label {:style {:display "block" :font-weight "600" :margin-bottom "0.75rem" :color "#374151" :font-size "1rem"}}
+      (tr/tr :settings/language)]
+     [:p {:style {:color "#6b7280" :margin-bottom "1rem" :font-size "0.875rem"}}
+      (tr/tr :settings/language-description)]
+     [:div {:style {:display "flex" :gap "0.75rem"}}
+      [language-option-button :hu (tr/tr :settings/language-hungarian) current-language]
+      [language-option-button :en (tr/tr :settings/language-english) current-language]]]))
+
 (defn- settings-form-content
   "Main settings form content"
   [workspace-id]
-  [:div {:style {:max-width "600px"}}
+  [:div {:style {:max-width "600px" :padding "0 1rem"}}
    [workspace-name-input]
+   [workspace-id-display workspace-id]
+   [language-toggle-section]
    [logo-upload-section]
    [save-button workspace-id]])
 
@@ -302,22 +366,21 @@
              (println "DEBUG: Loading settings for workspace-id:" workspace-id)
              (load-settings workspace-id))
     :params #js [workspace-id]})
-  
+
   (let [settings @(rf/subscribe [:settings/data])
         loading? @(rf/subscribe [:settings/loading?])]
     [:div.settings-form
-     [settings-page-header]
-     (do 
+     (do
        (println "DEBUG: settings value:" settings)
        (println "DEBUG: loading?" loading?)
        (println "DEBUG: settings exists?" (boolean settings))
        (cond
          loading?
          [:div (tr/tr :settings/loading-settings)]
-         
+
          settings
          [:div [settings-form-content workspace-id]]
-         
+
          :else
          [:div (tr/tr :settings/no-settings)]))]))
 
@@ -325,5 +388,7 @@
   "Main settings page component"
   []
   (let [workspace-id (get-workspace-id)]
-    [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
-     [settings-form workspace-id]]))
+    [:<>
+     [settings-subheader]
+     [content-section/content-section
+      [settings-form workspace-id]]]))

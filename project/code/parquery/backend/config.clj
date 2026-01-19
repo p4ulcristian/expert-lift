@@ -44,21 +44,45 @@
     (println "  User roles:" user-roles)
     (some #{"superadmin"} user-roles)))
 
+(defn can-edit-worksheet?
+  "Check if user can edit a worksheet.
+   - Admins/superadmins can edit any worksheet
+   - Employees can only edit worksheets assigned to them"
+  [request worksheet-id workspace-id]
+  (let [user-roles (get-in request [:session :user-roles])
+        user-id (get-in request [:session :user-id])]
+    (println "DEBUG: can-edit-worksheet? check")
+    (println "  User roles:" user-roles)
+    (println "  User ID:" user-id)
+    (println "  Worksheet ID:" worksheet-id)
+    (cond
+      ;; Admins and superadmins can edit any worksheet
+      (some #{"admin" "superadmin"} user-roles)
+      (do
+        (println "  -> Admin/superadmin - allowed")
+        true)
+
+      ;; Employees can only edit their assigned worksheets
+      :else
+      (let [worksheet (first (worksheets-db/get-worksheet-by-id worksheet-id workspace-id))
+            assigned-to (some-> worksheet :assigned_to_user_id str)]
+        (println "  Worksheet assigned_to_user_id:" assigned-to)
+        (println "  User ID (str):" (str user-id))
+        (if (= assigned-to (str user-id))
+          (do
+            (println "  -> Employee assigned to worksheet - allowed")
+            true)
+          (do
+            (println "  -> Employee NOT assigned - denied")
+            false))))))
+
 ;; User Management Handlers for Expert Lift
 ;; Workspace Management Handlers
 (defn get-all-workspaces
   "Get all workspaces"
   [{:parquery/keys [context request] :as params}]
   (try
-    (let [workspaces (workspace-db/get-all-workspaces)]
-      (mapv (fn [workspace]
-             {:workspace/id (str (:id workspace))
-              :workspace/name (:name workspace)
-              :workspace/description (:description workspace)
-              :workspace/active (:active workspace)
-              :workspace/created-at (str (:created_at workspace))
-              :workspace/updated-at (str (:updated_at workspace))})
-           workspaces))
+    (workspace-db/get-all-workspaces)
     (catch Exception e
       (println "ERROR: get-all-workspaces failed:" (.getMessage e))
       [])))
@@ -68,14 +92,7 @@
   [{:parquery/keys [context request] :as params}]
   (let [workspace-id (:workspace/id params)]
     (try
-      (let [workspace (first (workspace-db/get-workspace-by-id workspace-id))]
-        (when workspace
-          {:workspace/id (str (:id workspace))
-           :workspace/name (:name workspace)
-           :workspace/description (:description workspace)
-           :workspace/active (:active workspace)
-           :workspace/created-at (str (:created_at workspace))
-           :workspace/updated-at (str (:updated_at workspace))}))
+      (first (workspace-db/get-workspace-by-id workspace-id))
       (catch Exception e
         (println "ERROR: get-workspace-by-id failed:" (.getMessage e))
         nil))))
@@ -129,20 +146,7 @@
   "Get all users for admin management"
   [{:parquery/keys [context request] :as params}]
   (try
-    (let [users (users/get-all-users-fn)]
-      (mapv (fn [user]
-             {:user/id (str (:id user))
-              :user/username (:username user)  
-              :user/full-name (:full_name user)
-              :user/email (:email user)
-              :user/phone (:phone user)
-              :user/role (str (:role user))
-              :user/active (:active user)
-              :user/workspace-id (when (:workspace_id user) (str (:workspace_id user)))
-              :user/workspace-name (:workspace_name user)
-              :user/created-at (str (:created_at user))
-              :user/updated-at (str (:updated_at user))})
-           users))
+    (users/get-all-users-fn)
     (catch Exception e
       (println "ERROR: get-all-users failed:" (.getMessage e))
       [])))
@@ -244,97 +248,55 @@
   "Get current logged-in user data"
   [{:parquery/keys [context request] :as params}]
   (let [user-id (get-in request [:session :user-id])]
-    (if user-id
+    (when user-id
       (try
-        (let [user (users/get-user-by-id-fn user-id)]
-          (when user
-            {:user/id (:id user)
-             :user/username (:username user)
-             :user/full-name (:full_name user)
-             :user/email (:email user)
-             :user/phone (:phone user)
-             :user/role (:role user)
-             :user/active (:active user)
-             :user/workspace-id (when (:workspace_id user) (str (:workspace_id user)))}))
+        (users/get-user-by-id-fn user-id)
         (catch Exception e
           (println "Error fetching current user:" (.getMessage e))
-          nil))
-      nil)))
+          nil)))))
 
 ;; Workspace Material Templates Handlers
 (defn get-workspace-material-templates
   "Get all active material templates for workspace"
   [{:parquery/keys [context request] :as params}]
   (let [workspace-id (:workspace-id context)]
-    (if workspace-id
+    (when workspace-id
       (try
-        (let [templates (material-templates-db/get-material-templates-by-workspace workspace-id)]
-          (mapv (fn [template]
-                 {:material-template/id (str (:id template))
-                  :material-template/name (:name template)
-                  :material-template/unit (:unit template)
-                  :material-template/category (:category template)
-                  :material-template/description (:description template)
-                  :material-template/active (:active template)
-                  :material-template/workspace-id (str (:workspace_id template))
-                  :material-template/created-at (str (:created_at template))
-                  :material-template/updated-at (str (:updated_at template))})
-               templates))
+        (material-templates-db/get-material-templates-by-workspace workspace-id)
         (catch Exception e
           (println "ERROR: get-workspace-material-templates failed:" (.getMessage e))
-          []))
-      (do
-        []))))
+          [])))))
 
 (defn get-workspace-material-templates-paginated
   "Get material templates with pagination and filtering for workspace"
   [{:parquery/keys [context request] :as params}]
+  (println "DEBUG: get-workspace-material-templates-paginated called")
+  (println "  Context:" context)
+  (println "  Query params:" (dissoc params :parquery/context :parquery/request))
   (let [workspace-id (:workspace-id context)
         query-params (dissoc params :parquery/context :parquery/request)]
     (if workspace-id
       (try
-        (let [result (material-templates-db/get-material-templates-paginated workspace-id query-params)
-              formatted-templates (mapv (fn [template]
-                                         {:material-template/id (str (:id template))
-                                          :material-template/name (:name template)
-                                          :material-template/unit (:unit template)
-                                          :material-template/category (:category template)
-                                          :material-template/description (:description template)
-                                          :material-template/active (:active template)
-                                          :material-template/workspace-id (str (:workspace_id template))
-                                          :material-template/created-at (str (:created_at template))
-                                          :material-template/updated-at (str (:updated_at template))})
-                                        (:material-templates result))]
-          (assoc result :material-templates formatted-templates))
+        (let [result (material-templates-db/get-material-templates-paginated workspace-id query-params)]
+          (println "DEBUG: material-templates query result:" result)
+          result)
         (catch Exception e
           (println "ERROR: get-workspace-material-templates-paginated failed:" (.getMessage e))
-          {:material-templates [] :total-count 0 :page 0 :page-size 10 :total-pages 0}))
-      (do
-        (println "ERROR: workspace-id missing in get-workspace-material-templates-paginated")
-        {:material-templates [] :total-count 0 :page 0 :page-size 10 :total-pages 0}))))
+          (.printStackTrace e)
+          {:material-templates [] :pagination {:total-count 0 :page 0 :page-size 10 :total-pages 0}}))
+      {:material-templates [] :pagination {:total-count 0 :page 0 :page-size 10 :total-pages 0}})))
 
 (defn get-workspace-material-template-by-id
   "Get material template by ID within workspace"
   [{:parquery/keys [context request] :as params}]
   (let [template-id (:material-template/id params)
         workspace-id (:workspace-id context)]
-    (if (and template-id workspace-id)
+    (when (and template-id workspace-id)
       (try
-        (let [template (first (material-templates-db/get-material-template-by-id template-id workspace-id))]
-          (when template
-            {:material-template/id (str (:id template))
-             :material-template/name (:name template)
-             :material-template/unit (:unit template)
-             :material-template/category (:category template)
-             :material-template/description (:description template)
-             :material-template/active (:active template)
-             :material-template/workspace-id (str (:workspace_id template))
-             :material-template/created-at (str (:created_at template))
-             :material-template/updated-at (str (:updated_at template))}))
+        (first (material-templates-db/get-material-template-by-id template-id workspace-id))
         (catch Exception e
           (println "ERROR: get-workspace-material-template-by-id failed:" (.getMessage e))
-          nil))
-      nil)))
+          nil)))))
 
 (defn create-workspace-material-template
   "Create new material template in workspace (admin+ only)"
@@ -437,264 +399,101 @@
   "Get all addresses for workspace"
   [{:parquery/keys [context request] :as params}]
   (let [workspace-id (:workspace-id context)]
-    (if workspace-id
+    (when workspace-id
       (try
-        (let [addresses (addresses-db/get-addresses-by-workspace workspace-id)]
-          (mapv (fn [address]
-                 {:address/id (str (:id address))
-                  :address/name (:name address)
-                  :address/address-line1 (:address_line1 address)
-                  :address/address-line2 (:address_line2 address)
-                  :address/city (:city address)
-                  :address/postal-code (:postal_code address)
-                  :address/country (:country address)
-                  :address/contact-person (:contact_person address)
-                  :address/contact-phone (:contact_phone address)
-                  :address/contact-email (:contact_email address)
-                  :address/elevators (parse-elevators-json (:elevators_json address))
-                  :address/workspace-id (str (:workspace_id address))
-                  :address/created-at (str (:created_at address))
-                  :address/updated-at (str (:updated_at address))})
-               addresses))
+        (addresses-db/get-addresses-by-workspace workspace-id)
         (catch Exception e
           (println "ERROR: get-workspace-addresses failed:" (.getMessage e))
-          []))
-      (do
-        []))))
+          [])))))
 
 (defn get-workspace-addresses-paginated
   "Get addresses with server-side filtering, sorting, and pagination"
   [{:parquery/keys [context request] :as params}]
   (let [workspace-id (:workspace-id context)
-        search (:search params)
-        sort-by (:sort-by params) 
-        sort-direction (:sort-direction params)
-        page (:page params 0)
         page-size (:page-size params 10)]
-    (println "DEBUG get-workspace-addresses-paginated:")
-    (println "  workspace-id:" workspace-id)
-    (println "  search:" search)
-    (println "  sort-by:" sort-by)
-    (println "  sort-direction:" sort-direction) 
-    (println "  page:" page)
-    (println "  page-size:" page-size)
     (if workspace-id
       (try
-        (let [result (addresses-db/get-addresses-paginated workspace-id
-                                                          {:search search
-                                                           :sort-by sort-by
-                                                           :sort-direction sort-direction
-                                                           :page page
-                                                           :page-size page-size})
-              addresses (:addresses result)
-              formatted-addresses (mapv (fn [address]
-                                         {:address/id (str (:id address))
-                                          :address/name (:name address)
-                                          :address/address-line1 (:address_line1 address)
-                                          :address/address-line2 (:address_line2 address)
-                                          :address/city (:city address)
-                                          :address/postal-code (:postal_code address)
-                                          :address/country (:country address)
-                                          :address/contact-person (:contact_person address)
-                                          :address/contact-phone (:contact_phone address)
-                                          :address/contact-email (:contact_email address)
-                                          :address/elevators (parse-elevators-json (:elevators_json address))
-                                          :address/workspace-id (str (:workspace_id address))
-                                          :address/created-at (str (:created_at address))
-                                          :address/updated-at (str (:updated_at address))})
-                                       addresses)]
-          {:addresses formatted-addresses
-           :pagination {:total-count (:total-count result)
-                        :page (:page result)
-                        :page-size (:page-size result)
-                        :total-pages (:total-pages result)}})
+        (addresses-db/get-addresses-paginated workspace-id
+                                              {:search (:search params)
+                                               :sort-by (:sort-by params)
+                                               :sort-direction (:sort-direction params)
+                                               :page (:page params 0)
+                                               :page-size page-size})
         (catch Exception e
           (println "ERROR: get-workspace-addresses-paginated failed:" (.getMessage e))
           {:addresses []
            :pagination {:total-count 0 :page 0 :page-size page-size :total-pages 0}}))
-      (do
-        {:addresses []
-         :pagination {:total-count 0 :page 0 :page-size page-size :total-pages 0}}))))
+      {:addresses []
+       :pagination {:total-count 0 :page 0 :page-size page-size :total-pages 0}})))
 
 (defn get-workspace-address-by-id
   "Get single address by ID within workspace"
   [{:parquery/keys [context request] :as params}]
   (let [workspace-id (:workspace-id context)
         address-id (:address/id params)]
-    (if (and address-id workspace-id)
+    (when (and address-id workspace-id)
       (try
-        (let [address (first (addresses-db/get-address-by-id address-id workspace-id))]
-          (when address
-            {:address/id (str (:id address))
-             :address/name (:name address)
-             :address/address-line1 (:address_line1 address)
-             :address/address-line2 (:address_line2 address)
-             :address/city (:city address)
-             :address/postal-code (:postal_code address)
-             :address/country (:country address)
-             :address/contact-person (:contact_person address)
-             :address/contact-phone (:contact_phone address)
-             :address/contact-email (:contact_email address)
-             :address/elevators (parse-elevators-json (:elevators_json address))
-             :address/workspace-id (str (:workspace_id address))
-             :address/created-at (str (:created_at address))
-             :address/updated-at (str (:updated_at address))}))
+        (first (addresses-db/get-address-by-id address-id workspace-id))
         (catch Exception e
           (println "ERROR: get-workspace-address-by-id failed:" (.getMessage e))
-          nil))
-      nil)))
+          nil)))))
 
 (defn search-workspace-addresses
   "Search addresses for dropdown - simplified data for UI"
   [{:parquery/keys [context request] :as params}]
-  (let [workspace-id (:workspace-id context)
-        search-term (:search params "")
-        limit (:limit params 20)]
-    (if workspace-id
+  (let [workspace-id (:workspace-id context)]
+    (when workspace-id
       (try
-        (let [addresses (addresses-db/search-addresses-for-dropdown workspace-id search-term limit)]
-          (mapv (fn [address]
-                  {:address/id (str (:id address))
-                   :address/name (:name address)
-                   :address/display (str (:name address) " - " (:address_line1 address) ", " (:city address))})
-                addresses))
+        (addresses-db/search-addresses-for-dropdown workspace-id
+                                                    (:search params "")
+                                                    (:limit params 20))
         (catch Exception e
           (println "ERROR: search-workspace-addresses failed:" (.getMessage e))
-          []))
-      [])))
+          [])))))
 
 ;; Worksheet handlers
 (defn get-workspace-worksheets
   "Get all worksheets for workspace"
   [{:parquery/keys [context request] :as params}]
   (let [workspace-id (:workspace-id context)]
-    (if workspace-id
+    (when workspace-id
       (try
-        (let [worksheets (worksheets-db/get-worksheets-by-workspace workspace-id)]
-          (mapv (fn [worksheet]
-                  {:worksheet/id (str (:id worksheet))
-                   :worksheet/serial-number (:serial_number worksheet)
-                   :worksheet/creation-date (str (:creation_date worksheet))
-                   :worksheet/work-type (:work_type worksheet)
-                   :worksheet/service-type (:service_type worksheet)
-                   :worksheet/work-description (:work_description worksheet)
-                   :worksheet/material-usage (:material_usage worksheet)
-                   :worksheet/status (:status worksheet)
-                   :worksheet/address-id (str (:address_id worksheet))
-                   :worksheet/address-name (:address_name worksheet)
-                   :worksheet/address-city (:address_city worksheet)
-                   :worksheet/created-by-name (:created_by_name worksheet)
-                   :worksheet/assigned-to-name (:assigned_to_name worksheet)
-                   :worksheet/arrival-time (str (:arrival_time worksheet))
-                   :worksheet/departure-time (str (:departure_time worksheet))
-                   :worksheet/work-duration-hours (:work_duration_hours worksheet)
-                   :worksheet/notes (:notes worksheet)
-                   :worksheet/maintainer-signature (:maintainer_signature worksheet)
-                   :worksheet/customer-signature (:customer_signature worksheet)
-                   :worksheet/created-at (str (:created_at worksheet))
-                   :worksheet/updated-at (str (:updated_at worksheet))})
-                worksheets))
+        (worksheets-db/get-worksheets-by-workspace workspace-id)
         (catch Exception e
           (println "ERROR: get-workspace-worksheets failed:" (.getMessage e))
-          []))
-      (do
-        []))))
+          [])))))
 
 (defn get-workspace-worksheets-paginated
   "Get worksheets with server-side filtering, sorting, and pagination"
   [{:parquery/keys [context request] :as params}]
   (let [workspace-id (:workspace-id context)
-        search (:search params)
-        sort-by (:sort-by params) 
-        sort-direction (:sort-direction params)
-        page (:page params 0)
         page-size (:page-size params 10)]
-    (println "DEBUG get-workspace-worksheets-paginated:")
-    (println "  workspace-id:" workspace-id)
-    (println "  search:" search)
-    (println "  sort-by:" sort-by)
-    (println "  sort-direction:" sort-direction) 
-    (println "  page:" page)
-    (println "  page-size:" page-size)
     (if workspace-id
       (try
-        (let [result (worksheets-db/get-worksheets-paginated workspace-id
-                                                           {:search search
-                                                            :sort-by sort-by
-                                                            :sort-direction sort-direction
-                                                            :page page
-                                                            :page-size page-size})
-              worksheets (:worksheets result)
-              formatted-worksheets (mapv (fn [worksheet]
-                                         {:worksheet/id (str (:id worksheet))
-                                          :worksheet/serial-number (:serial_number worksheet)
-                                          :worksheet/creation-date (str (:creation_date worksheet))
-                                          :worksheet/work-type (:work_type worksheet)
-                                          :worksheet/service-type (:service_type worksheet)
-                                          :worksheet/work-description (:work_description worksheet)
-                                          :worksheet/material-usage (:material_usage worksheet)
-                                          :worksheet/status (:status worksheet)
-                                          :worksheet/address-id (str (:address_id worksheet))
-                                          :worksheet/address-name (:address_name worksheet)
-                                          :worksheet/address-city (:address_city worksheet)
-                                          :worksheet/created-by-name (:created_by_name worksheet)
-                                          :worksheet/assigned-to-name (:assigned_to_name worksheet)
-                                          :worksheet/arrival-time (str (:arrival_time worksheet))
-                                          :worksheet/departure-time (str (:departure_time worksheet))
-                                          :worksheet/work-duration-hours (:work_duration_hours worksheet)
-                                          :worksheet/notes (:notes worksheet)
-                                          :worksheet/maintainer-signature (:maintainer_signature worksheet)
-                                          :worksheet/customer-signature (:customer_signature worksheet)
-                                          :worksheet/created-at (str (:created_at worksheet))
-                                          :worksheet/updated-at (str (:updated_at worksheet))})
-                                       worksheets)]
-          {:worksheets formatted-worksheets
-           :pagination {:total-count (:total-count result)
-                        :page (:page result)
-                        :page-size (:page-size result)
-                        :total-pages (:total-pages result)}})
+        (worksheets-db/get-worksheets-paginated workspace-id
+                                                {:search (:search params)
+                                                 :sort-by (:sort-by params)
+                                                 :sort-direction (:sort-direction params)
+                                                 :page (:page params 0)
+                                                 :page-size page-size})
         (catch Exception e
           (println "ERROR: get-workspace-worksheets-paginated failed:" (.getMessage e))
           {:worksheets []
            :pagination {:total-count 0 :page 0 :page-size page-size :total-pages 0}}))
-      (do
-        {:worksheets []
-         :pagination {:total-count 0 :page 0 :page-size page-size :total-pages 0}}))))
+      {:worksheets []
+       :pagination {:total-count 0 :page 0 :page-size page-size :total-pages 0}})))
 
 (defn get-workspace-worksheet-by-id
   "Get single worksheet by ID within workspace"
   [{:parquery/keys [context request] :as params}]
   (let [workspace-id (:workspace-id context)
         worksheet-id (:worksheet/id params)]
-    (if (and worksheet-id workspace-id)
+    (when (and worksheet-id workspace-id)
       (try
-        (let [worksheet (first (worksheets-db/get-worksheet-by-id worksheet-id workspace-id))]
-          (when worksheet
-            {:worksheet/id (str (:id worksheet))
-             :worksheet/serial-number (:serial_number worksheet)
-             :worksheet/creation-date (str (:creation_date worksheet))
-             :worksheet/work-type (:work_type worksheet)
-             :worksheet/service-type (:service_type worksheet)
-             :worksheet/work-description (:work_description worksheet)
-             :worksheet/material-usage (:material_usage worksheet)
-             :worksheet/status (:status worksheet)
-             :worksheet/address-id (str (:address_id worksheet))
-             :worksheet/address-name (:address_name worksheet)
-             :worksheet/address-city (:address_city worksheet)
-             :worksheet/created-by-name (:created_by_name worksheet)
-             :worksheet/assigned-to-name (:assigned_to_name worksheet)
-             :worksheet/arrival-time (str (:arrival_time worksheet))
-             :worksheet/departure-time (str (:departure_time worksheet))
-             :worksheet/work-duration-hours (:work_duration_hours worksheet)
-             :worksheet/notes (:notes worksheet)
-             :worksheet/maintainer-signature (:maintainer_signature worksheet)
-             :worksheet/customer-signature (:customer_signature worksheet)
-             :worksheet/created-at (str (:created_at worksheet))
-             :worksheet/updated-at (str (:updated_at worksheet))}))
+        (first (worksheets-db/get-worksheet-by-id worksheet-id workspace-id))
         (catch Exception e
           (println "ERROR: get-workspace-worksheet-by-id failed:" (.getMessage e))
-          nil))
-      nil)))
+          nil)))))
 
 (defn create-workspace-worksheet
   "Create new worksheet in workspace (admin+ only)"
@@ -747,51 +546,53 @@
     {:success false :error "Insufficient permissions"}))
 
 (defn update-workspace-worksheet
-  "Update existing worksheet in workspace (admin+ only)"
+  "Update existing worksheet in workspace.
+   - Admins/superadmins can update any worksheet
+   - Employees can only update worksheets assigned to them"
   [{:parquery/keys [context request] :as params}]
-  (if (has-admin-role? request)
-    (let [workspace-id (:workspace-id context)
-          id (:worksheet/id params)
-          serial-number (:worksheet/serial-number params)
-          creation-date (:worksheet/creation-date params)
-          work-type (:worksheet/work-type params)
-          service-type (:worksheet/service-type params)
-          work-description (:worksheet/work-description params)
-          notes (:worksheet/notes params)
-          status (:worksheet/status params)
-          address-id (:worksheet/address-id params)
-          elevator-id (:worksheet/elevator-id params)
-          assigned-to-user-id (:worksheet/assigned-to-user-id params)
-          arrival-time (:worksheet/arrival-time params)
-          departure-time (:worksheet/departure-time params)
-          work-duration-hours (:worksheet/work-duration-hours params)
-          maintainer-signature (:worksheet/maintainer-signature params)
-          customer-signature (:worksheet/customer-signature params)]
-      (if workspace-id
-        (try
-          (let [result (first (worksheets-db/update-worksheet id workspace-id serial-number creation-date 
-                                                             work-type service-type work-description
-                                                             nil notes status address-id elevator-id 
-                                                             assigned-to-user-id
-                                                             arrival-time departure-time work-duration-hours
-                                                             maintainer-signature customer-signature))]
-            {:worksheet/id (str (:id result))
-             :worksheet/serial-number (:serial_number result)
-             :worksheet/creation-date (str (:creation_date result))
-             :worksheet/work-type (:work_type result)
-             :worksheet/service-type (:service_type result)
-             :worksheet/work-description (:work_description result)
-             :worksheet/notes (:notes result)
-             :worksheet/status (:status result)
-             :worksheet/arrival-time (str (:arrival_time result))
-             :worksheet/departure-time (str (:departure_time result))
-             :worksheet/work-duration-hours (:work_duration_hours result)
-             :success true})
-          (catch Exception e
-            (println "Error updating workspace worksheet:" (.getMessage e))
-            {:success false :error (parse-db-error (.getMessage e))}))
-        {:success false :error "No workspace context"}))
-    {:success false :error "Insufficient permissions"}))
+  (let [workspace-id (:workspace-id context)
+        id (:worksheet/id params)]
+    (if (not workspace-id)
+      {:success false :error "No workspace context"}
+      (if (not (can-edit-worksheet? request id workspace-id))
+        {:success false :error "Nincs jogosultságod szerkeszteni ezt a munkalapot"}
+        (let [serial-number (:worksheet/serial-number params)
+              creation-date (:worksheet/creation-date params)
+              work-type (:worksheet/work-type params)
+              service-type (:worksheet/service-type params)
+              work-description (:worksheet/work-description params)
+              notes (:worksheet/notes params)
+              status (:worksheet/status params)
+              address-id (:worksheet/address-id params)
+              elevator-id (:worksheet/elevator-id params)
+              assigned-to-user-id (:worksheet/assigned-to-user-id params)
+              arrival-time (:worksheet/arrival-time params)
+              departure-time (:worksheet/departure-time params)
+              work-duration-hours (:worksheet/work-duration-hours params)
+              maintainer-signature (:worksheet/maintainer-signature params)
+              customer-signature (:worksheet/customer-signature params)]
+          (try
+            (let [result (first (worksheets-db/update-worksheet id workspace-id serial-number creation-date
+                                                               work-type service-type work-description
+                                                               nil notes status address-id elevator-id
+                                                               assigned-to-user-id
+                                                               arrival-time departure-time work-duration-hours
+                                                               maintainer-signature customer-signature))]
+              {:worksheet/id (str (:id result))
+               :worksheet/serial-number (:serial_number result)
+               :worksheet/creation-date (str (:creation_date result))
+               :worksheet/work-type (:work_type result)
+               :worksheet/service-type (:service_type result)
+               :worksheet/work-description (:work_description result)
+               :worksheet/notes (:notes result)
+               :worksheet/status (:status result)
+               :worksheet/arrival-time (str (:arrival_time result))
+               :worksheet/departure-time (str (:departure_time result))
+               :worksheet/work-duration-hours (:work_duration_hours result)
+               :success true})
+            (catch Exception e
+              (println "Error updating workspace worksheet:" (.getMessage e))
+              {:success false :error (parse-db-error (.getMessage e))})))))))
 
 (defn delete-workspace-worksheet
   "Delete worksheet from workspace (admin+ only)"
@@ -913,117 +714,57 @@
   "Get all teams (users) for workspace"
   [{:parquery/keys [context request] :as params}]
   (let [workspace-id (:workspace-id context)]
-    (if workspace-id
+    (when workspace-id
       (try
-        (let [users (teams-db/get-users-by-workspace workspace-id)]
-          (mapv (fn [user]
-                 {:user/id (str (:id user))
-                  :user/username (:username user)
-                  :user/full-name (:full_name user)
-                  :user/email (:email user)
-                  :user/phone (:phone user)
-                  :user/role (:role user)
-                  :user/active (:active user)
-                  :user/created-at (str (:created_at user))
-                  :user/updated-at (str (:updated_at user))})
-               users))
+        (teams-db/get-users-by-workspace workspace-id)
         (catch Exception e
           (println "ERROR: get-workspace-teams failed:" (.getMessage e))
-          []))
-      (do
-        []))))
+          [])))))
 
 (defn get-workspace-teams-paginated
   "Get teams (users) with server-side filtering, sorting, and pagination"
   [{:parquery/keys [context request] :as params}]
   (let [workspace-id (:workspace-id context)
-        search (:search params)
-        sort-by (:sort-by params) 
-        sort-direction (:sort-direction params)
-        page (:page params 0)
         page-size (:page-size params 10)]
-    (println "DEBUG get-workspace-teams-paginated:")
-    (println "  workspace-id:" workspace-id)
-    (println "  search:" search)
-    (println "  sort-by:" sort-by)
-    (println "  sort-direction:" sort-direction) 
-    (println "  page:" page)
-    (println "  page-size:" page-size)
     (if workspace-id
       (try
-        (let [result (teams-db/get-users-paginated workspace-id
-                                                  {:search search
-                                                   :sort-by sort-by
-                                                   :sort-direction sort-direction
-                                                   :page page
-                                                   :page-size page-size})
-              formatted-users (mapv (fn [user]
-                                     {:user/id (str (:id user))
-                                      :user/username (:username user)
-                                      :user/full-name (:full_name user)
-                                      :user/email (:email user)
-                                      :user/phone (:phone user)
-                                      :user/role (:role user)
-                                      :user/active (:active user)
-                                      :user/created-at (str (:created_at user))
-                                      :user/updated-at (str (:updated_at user))})
-                                   (:users result))]
-          {:users formatted-users
-           :pagination {:total-count (:total-count result)
-                        :page (:page result)
-                        :page-size (:page-size result)
-                        :total-pages (:total-pages result)}})
+        (teams-db/get-users-paginated workspace-id
+                                      {:search (:search params)
+                                       :sort-by (:sort-by params)
+                                       :sort-direction (:sort-direction params)
+                                       :page (:page params 0)
+                                       :page-size page-size})
         (catch Exception e
           (println "ERROR: get-workspace-teams-paginated failed:" (.getMessage e))
           {:users []
            :pagination {:total-count 0 :page 0 :page-size page-size :total-pages 0}}))
-      (do
-        {:users []
-         :pagination {:total-count 0 :page 0 :page-size page-size :total-pages 0}}))))
+      {:users []
+       :pagination {:total-count 0 :page 0 :page-size page-size :total-pages 0}})))
 
 (defn get-workspace-team-by-id
   "Get single team member (user) by ID within workspace"
   [{:parquery/keys [context request] :as params}]
   (let [workspace-id (:workspace-id context)
         user-id (:user/id params)]
-    (if (and user-id workspace-id)
+    (when (and user-id workspace-id)
       (try
-        (let [user (first (teams-db/get-user-by-id user-id workspace-id))]
-          (when user
-            {:user/id (str (:id user))
-             :user/username (:username user)
-             :user/full-name (:full_name user)
-             :user/email (:email user)
-             :user/phone (:phone user)
-             :user/role (:role user)
-             :user/active (:active user)
-             :user/created-at (str (:created_at user))
-             :user/updated-at (str (:updated_at user))}))
+        (first (teams-db/get-user-by-id user-id workspace-id))
         (catch Exception e
           (println "ERROR: get-workspace-team-by-id failed:" (.getMessage e))
-          nil))
-      nil)))
+          nil)))))
 
 (defn search-workspace-teams
   "Search teams (users) for dropdown - returns simplified data"
   [{:parquery/keys [context request] :as params}]
-  (let [workspace-id (:workspace-id context)
-        search-term (:search params "")
-        limit (:limit params 20)]
-    (if workspace-id
+  (let [workspace-id (:workspace-id context)]
+    (when workspace-id
       (try
-        (let [users (teams-db/search-users-for-dropdown workspace-id search-term limit)]
-          (mapv (fn [user]
-                  {:user/id (str (:id user))
-                   :user/username (:username user)
-                   :user/full-name (:full_name user)
-                   :user/email (:email user)
-                   :user/role (:role user)})
-                users))
+        (teams-db/search-users-for-dropdown workspace-id
+                                            (:search params "")
+                                            (:limit params 20))
         (catch Exception e
           (println "ERROR: search-workspace-teams failed:" (.getMessage e))
-          []))
-      [])))
+          [])))))
 
 (defn create-workspace-team
   "Create new team member (user) in workspace (admin+ only)"
@@ -1103,6 +844,43 @@
             {:success false :error (parse-db-error (.getMessage e))}))
         {:success false :error "No workspace context"}))
     {:success false :error "Insufficient permissions"}))
+
+;; Entity namespace mapping for wire format transformation
+(def query->entity-ns
+  "Maps query keys to entity namespaces for automatic wire->keys conversion.
+   When a query key is in this map, the response will be automatically transformed
+   from {:serial_number ...} to {:worksheet/serial-number ...}"
+  {;; Worksheets
+   :workspace-worksheets/get-all        "worksheet"
+   :workspace-worksheets/get-paginated  "worksheet"
+   :workspace-worksheets/get-by-id      "worksheet"
+   ;; Addresses
+   :workspace-addresses/get-all         "address"
+   :workspace-addresses/get-paginated   "address"
+   :workspace-addresses/get-by-id       "address"
+   :workspace-addresses/search          "address"
+   ;; Teams (users within workspace)
+   :workspace-teams/get-all             "user"
+   :workspace-teams/get-paginated       "user"
+   :workspace-teams/get-by-id           "user"
+   :workspace-teams/search              "user"
+   ;; Material Templates
+   :workspace-material-templates/get-all       "material-template"
+   :workspace-material-templates/get-paginated "material-template"
+   :workspace-material-templates/get-by-id     "material-template"
+   ;; Workspaces
+   :workspaces/get-all                  "workspace"
+   :workspaces/get-by-id                "workspace"
+   ;; Users (admin management)
+   :user/current                        "user"
+   :users/get-all                       "user"
+   :current-user/basic-data             "user"})
+
+(defn get-entity-ns
+  "Returns the entity namespace for a query key, or nil if not mapped.
+   Used by query-engine to determine if wire->keys transformation should be applied."
+  [query-key]
+  (get query->entity-ns query-key))
 
 ;; Query mappings to functions
 (def read-queries

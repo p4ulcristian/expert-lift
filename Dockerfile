@@ -55,6 +55,14 @@ RUN         ./start-prod.sh
 #########################
 
 FROM      eclipse-temurin:21-jre-jammy
+
+# Install fonts for PDF generation with Hungarian character support
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    fonts-dejavu-core \
+    fontconfig \
+    && rm -rf /var/lib/apt/lists/* \
+    && fc-cache -f -v
+
 COPY      --from=compiler /root                  /root/
 WORKDIR   /root/
 # JAR is already built, just run it

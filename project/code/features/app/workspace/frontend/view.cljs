@@ -3,7 +3,8 @@
             [parquery.frontend.request :as parquery]
             [router.frontend.zero :as router]
             [translations.core :as tr]
-            [zero.frontend.re-frame :as rf]))
+            [zero.frontend.re-frame :as rf]
+            [ui.content-section :as content-section]))
 
 (defn- get-workspace-id []
   "Get workspace ID from router parameters"
@@ -81,62 +82,43 @@
         message-text (tr/tr random-key)]
     (str welcome-prefix message-text)))
 
-(defn- workspace-header [workspace auth-user]
-  "Workspace header with title and user info"
-  [:div {:style {:display "flex" :justify-content "center" :align-items "center" :margin-bottom "3rem"}}
-   [:div {:style {:text-align "center"}}
-    [:h1 {:style {:color "#333" :margin "0" :margin-bottom "0.5rem"}}
-     (:workspace/name workspace)]
-    [:p {:style {:color "#72a9bf" :margin "0" :font-size "1rem" :font-style "italic" :margin-bottom "0.5rem"}}
-     (get-random-welcome-message (:user/username auth-user))]
-    [:p {:style {:color "#666" :margin "0" :font-size "1.1rem"}}
-     (:workspace/description workspace)]]])
-
-
-(defn- feature-card 
-  ([icon title description]
-   [feature-card icon title description nil])
-  ([icon title description link-url]
-   "Individual feature card component"
-   (let [card-content [:div {:style {:border "1px solid #e0e0e0" :border-radius "8px" :padding "2rem" :text-align "center"
-                                     :cursor (when link-url "pointer")
-                                     :transition "box-shadow 0.2s"
-                                     :box-shadow (when link-url "0 2px 4px rgba(0,0,0,0.1)")}}
-                       [:div {:style {:font-size "2rem" :margin-bottom "1rem"}} icon]
-                       [:h3 {:style {:color "#333" :margin-bottom "0.5rem"}} title]
-                       [:p {:style {:color "#666" :font-size "0.9rem"}} description]]]
-     (if link-url
-       [:a {:href link-url
-            :style {:text-decoration "none"}}
-        card-content]
-       card-content))))
+(defn- feature-card
+  [icon title link-url]
+  "Individual feature card component"
+  (let [card-content [:div {:style {:border "1px solid #e0e0e0"
+                                    :border-radius "8px"
+                                    :padding "1.5rem"
+                                    :text-align "center"
+                                    :cursor (when link-url "pointer")
+                                    :transition "box-shadow 0.2s, transform 0.2s"
+                                    :box-shadow "0 2px 4px rgba(0,0,0,0.1)"
+                                    :aspect-ratio "1"
+                                    :display "flex"
+                                    :flex-direction "column"
+                                    :align-items "center"
+                                    :justify-content "center"}}
+                      [:i {:class icon
+                           :style {:font-size "2rem" :margin-bottom "0.75rem" :color "#72a9bf"}}]
+                      [:h3 {:style {:color "#333" :margin "0" :font-size "0.9rem" :font-weight "500"}} title]]]
+    (if link-url
+      [:a {:href link-url
+           :style {:text-decoration "none" :flex "1" :min-width "120px" :max-width "150px"}}
+       card-content]
+      card-content)))
 
 (defn- features-grid [workspace-id]
   "Grid of feature cards"
-  [:div {:style {:display "grid" :grid-template-columns "repeat(auto-fit, minmax(250px, 1fr))" :gap "2rem" :margin-top "3rem"}}
-   [feature-card "🏗️" (tr/tr :features/material-templates) (tr/tr :features/material-templates-desc) (str "/app/" workspace-id "/material-templates")]
-   [feature-card "📍" (tr/tr :features/addresses) (tr/tr :features/addresses-desc) (str "/app/" workspace-id "/addresses")]
-   [feature-card "📋" (tr/tr :features/worksheets) (tr/tr :features/worksheets-desc) (str "/app/" workspace-id "/worksheets")]
-   [feature-card "⚙️" (tr/tr :features/settings) (tr/tr :features/settings-desc) (str "/app/" workspace-id "/settings")]
-   [feature-card "👥" (tr/tr :features/teams) (tr/tr :features/teams-desc) (str "/app/" workspace-id "/teams")]])
+  [:div {:style {:display "flex" :flex-wrap "wrap" :justify-content "center" :gap "1.5rem" :margin-top "2rem"}}
+   [feature-card "fa-solid fa-cubes" (tr/tr :features/material-templates) (str "/app/" workspace-id "/material-templates")]
+   [feature-card "fa-solid fa-location-dot" (tr/tr :features/addresses) (str "/app/" workspace-id "/addresses")]
+   [feature-card "fa-solid fa-clipboard-list" (tr/tr :features/worksheets) (str "/app/" workspace-id "/worksheets")]
+   [feature-card "fa-solid fa-gear" (tr/tr :features/settings) (str "/app/" workspace-id "/settings")]
+   [feature-card "fa-solid fa-users" (tr/tr :features/teams) (str "/app/" workspace-id "/teams")]])
 
-(defn- workspace-footer [workspace-id]
-  "Footer with workspace ID"
-  [:div {:style {:border-top "1px solid #eee" :padding-top "2rem" :margin-top "3rem"}}
-   [:p {:style {:color "#888" :font-size "0.9rem"}}
-    (str (tr/tr :dashboard/workspace-id) ": " workspace-id)]])
-
-(defn- workspace-content [auth-user workspace workspace-id]
+(defn- workspace-content [_auth-user _workspace workspace-id]
   "Main workspace dashboard content"
-  [:div {:style {:min-height "100vh"
-                 :background "#c9ddd8"
-                 :padding "2rem"}}
-   [:div {:style {:max-width "1200px"
-                  :margin "0 auto"}}
-    [workspace-header workspace auth-user]
-    [:div {:style {:background "white" :border-radius "8px" :padding "3rem" :box-shadow "0 2px 4px rgba(0,0,0,0.1)" :text-align "center"}}
-     [features-grid workspace-id]
-     [workspace-footer workspace-id]]]])
+  [content-section/content-section
+   [features-grid workspace-id]])
 
 (defn- access-denied-screen []
   "Screen shown when access is denied"

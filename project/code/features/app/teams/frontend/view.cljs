@@ -7,9 +7,11 @@
             [zero.frontend.react :as zero-react]
             [ui.modal :as modal]
             [ui.form-field :as form-field]
-            [ui.data-table :as data-table]
+            [ui.data-table.core :as data-table]
+            [ui.data-table.search :as data-table-search]
             [ui.enhanced-button :as enhanced-button]
-            [ui.page-header :as page-header]
+            [ui.subheader :as subheader]
+            [ui.content-section :as content-section]
             [translations.core :as tr]))
 
 (defn- get-workspace-id
@@ -21,20 +23,25 @@
 
 (defn- load-teams-query
   "Execute ParQuery to load team members with pagination"
-  [workspace-id params]
-  (rf/dispatch [:teams/set-loading true])
+  [workspace-id params users-atom pagination-atom loading-atom]
+  (reset! loading-atom true)
   (parquery/send-queries
    {:queries {:workspace-teams/get-paginated params}
     :parquery/context {:workspace-id workspace-id}
     :callback (fn [response]
-               (let [result (:workspace-teams/get-paginated response)]
-                 (rf/dispatch [:teams/load-success result])))}))
+               (reset! loading-atom false)
+               (let [result (:workspace-teams/get-paginated response)
+                     items (:users result [])
+                     pag (:pagination result)]
+                 (reset! users-atom items)
+                 (when pag
+                   (reset! pagination-atom pag))))}))
 
 (defn- get-query-type
   "Get appropriate query type for save operation"
   [is-new?]
-  (if @is-new? 
-    :workspace-teams/create 
+  (if @is-new?
+    :workspace-teams/create
     :workspace-teams/update))
 
 (defn- prepare-team-data
@@ -115,16 +122,6 @@
 
 ;; Re-frame events and subscriptions
 (rf/reg-sub
-  :teams/data
-  (fn [db _]
-    (get-in db [:teams :data] {:users [] :pagination {}})))
-
-(rf/reg-sub
-  :teams/loading?
-  (fn [db _]
-    (get-in db [:teams :loading?] false)))
-
-(rf/reg-sub
   :teams/modal-team
   (fn [db _]
     (get-in db [:teams :modal-team] nil)))
@@ -151,22 +148,8 @@
 
 
 (rf/reg-event-db
-  :teams/set-loading
-  (fn [db [_ loading?]]
-    (assoc-in db [:teams :loading?] loading?)))
-
-(rf/reg-event-db
-  :teams/load-success
-  (fn [db [_ data]]
-    (let [updated-db (-> db
-                         (assoc-in [:teams :data] data)
-                         (assoc-in [:teams :loading?] false))]
-      updated-db)))
-
-
-(rf/reg-event-db
   :teams/open-modal
-  (fn [db [_ team is-new?]]  ; Standard re-frame pattern, no trim-v
+  (fn [db [_ team is-new?]]
     (-> db
         (assoc-in [:teams :modal-team] team)
         (assoc-in [:teams :modal-is-new?] is-new?))))
@@ -204,8 +187,8 @@
   [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600"
                    :font-size "0.875rem" :letter-spacing "0.025em"
                    :color (if has-error? "#dc3545" "#374151")}}
-   label 
-   (when (#{:user/username :user/full-name :user/email} field-key) 
+   label
+   (when (#{:user/username :user/full-name :user/email} field-key)
      [:span {:style {:color "#ef4444" :margin-left "0.25rem"}} "*"])])
 
 (defn- input-base-props
@@ -220,13 +203,13 @@
                   :font-size "1rem"
                   :line-height "1.5"
                   :transition "border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out"
-                  :box-shadow (if has-error? 
-                                "0 0 0 3px rgba(220, 53, 69, 0.1)" 
+                  :box-shadow (if has-error?
+                                "0 0 0 3px rgba(220, 53, 69, 0.1)"
                                 "0 1px 2px 0 rgba(0, 0, 0, 0.05)")
                   :outline "none"}
                  (:style attrs)
                  {:focus {:border-color (if has-error? "#dc3545" "#3b82f6")
-                         :box-shadow (if has-error? 
+                         :box-shadow (if has-error?
                                        "0 0 0 3px rgba(220, 53, 69, 0.1)"
                                        "0 0 0 3px rgba(59, 130, 246, 0.1)")}})})
 
@@ -277,7 +260,7 @@
    [form-field (tr/tr :teams/phone) :user/phone form-data errors
     {:type "tel" :placeholder (tr/tr :teams/phone-placeholder)}]
    [form-field (tr/tr :teams/role) :user/role form-data errors
-    {:type "select" 
+    {:type "select"
      :options [{:value "employee" :label (tr/tr :teams/employee)}
                {:value "admin" :label (tr/tr :teams/admin)}]}]
    (when is-new?
@@ -311,7 +294,7 @@
       [modal/modal {:on-close on-cancel :close-on-backdrop? true}
        ^{:key "header"} [modal/modal-header
         {:title (if is-new? (tr/tr :teams/modal-add-title) (tr/tr :teams/modal-edit-title))
-         :subtitle (if is-new? 
+         :subtitle (if is-new?
                      (tr/tr :teams/modal-add-subtitle)
                      (tr/tr :teams/modal-edit-subtitle))}]
        ^{:key "form"} [form-fields @form-data @errors is-new?]
@@ -326,94 +309,93 @@
           :on-click #(handle-save-click @form-data is-new? on-save)
           :text (if @loading? (tr/tr :teams/saving) (tr/tr :teams/save-member))}]]])))
 
-(defn- user-name-render
-  "Custom render function for user name column with username and email"
-  [full-name row]
-  [:div 
+;; =============================================================================
+;; Column Renderers for react-data-table-component
+;; =============================================================================
+
+(defn- user-name-cell
+  "Custom cell for user name column with username and email"
+  [row]
+  [:div
    [:div {:style {:font-weight "600" :color "#111827" :font-size "0.875rem"}}
-    full-name]
+    (:user/full-name row)]
    [:div {:style {:color "#6b7280" :font-size "0.75rem" :margin-top "0.25rem"}}
     (str "@" (:user/username row))]
    [:div {:style {:color "#6b7280" :font-size "0.75rem"}}
     (:user/email row)]])
 
-(defn- role-render
-  "Custom render function for role column"
-  [role row]
-  [:span {:style {:display "inline-block" :padding "0.25rem 0.75rem"
-                  :background (case role
-                                "superadmin" "#dc2626"
-                                "admin" "#ea580c" 
-                                "employee" "#059669"
-                                "#6b7280")
-                  :color "white"
-                  :border-radius "12px" :font-size "0.75rem" :font-weight "500"}}
-   (str/capitalize (str role))])
+(defn- role-cell
+  "Custom cell for role column"
+  [row]
+  (let [role (:user/role row)]
+    [:span {:style {:display "inline-block" :padding "0.25rem 0.75rem"
+                    :background (case role
+                                  "superadmin" "#dc2626"
+                                  "admin" "#ea580c"
+                                  "employee" "#059669"
+                                  "#6b7280")
+                    :color "white"
+                    :border-radius "12px" :font-size "0.75rem" :font-weight "500"}}
+     (str/capitalize (str role))]))
 
-(defn- status-render
-  "Custom render function for active status"
-  [active row]
-  [:span {:style {:display "inline-block" :padding "0.25rem 0.75rem"
-                  :background (if active "#10b981" "#ef4444")
-                  :color "white"
-                  :border-radius "12px" :font-size "0.75rem" :font-weight "500"}}
-   (if active (tr/tr :teams/active) (tr/tr :teams/inactive))])
+(defn- status-cell
+  "Custom cell for active status"
+  [row]
+  (let [active (:user/active row)]
+    [:span {:style {:display "inline-block" :padding "0.25rem 0.75rem"
+                    :background (if active "#10b981" "#ef4444")
+                    :color "white"
+                    :border-radius "12px" :font-size "0.75rem" :font-weight "500"}}
+     (if active (tr/tr :teams/active) (tr/tr :teams/inactive))]))
 
-(defn- contact-render
-  "Custom render function for contact info"
-  [phone row]
-  [:div
-   (when phone
-     [:div {:style {:color "#374151" :font-size "0.875rem"}}
-      phone])])
+(defn- contact-cell
+  "Custom cell for contact info"
+  [row]
+  (let [phone (:user/phone row)]
+    [:div
+     (when phone
+       [:div {:style {:color "#374151" :font-size "0.875rem"}}
+        phone])]))
 
-(defn teams-table
-  "Teams table using server-side data-table component with search, sorting, and pagination"
-  [teams loading? on-edit on-delete query-fn]
-  [data-table/server-side-data-table
-   {:headers [{:key :user/full-name :label (tr/tr :teams/table-header-member) :render user-name-render :sortable? true}
-              {:key :user/role :label (tr/tr :teams/table-header-role) :render role-render :sortable? true}
-              {:key :user/active :label (tr/tr :teams/table-header-status) :render status-render :sortable? true}
-              {:key :user/phone :label (tr/tr :teams/table-header-phone) :render contact-render :sortable? false}]
-    :data-source @teams
-    :data-key :users
-      :loading? @loading?
-      :empty-message (tr/tr :teams/no-members-found)
-      :id-key :user/id
-      :table-id :teams-table
-      :show-search? true
-      :show-pagination? true
-      :query-fn query-fn
-      :actions [{:key :edit :label (tr/tr :teams/action-edit) :variant :primary :on-click on-edit}
-                {:key :delete :label (tr/tr :teams/action-delete) :variant :danger 
-                 :on-click (fn [row] 
-                            (when (js/confirm (tr/tr :teams/confirm-delete))
-                              (on-delete (:user/id row))))}]}])
-
-(defn- teams-page-header
-  "Page header with title and add button using new UI component"
+(defn- get-columns
+  "Get column configuration for teams table (react-data-table format)"
   []
-  [page-header/page-header
+  [{:name      (tr/tr :teams/table-header-member)
+    :selector  :user/full-name
+    :sortField :user/full-name
+    :sortable  true
+    :cell      user-name-cell
+    :width     "250px"}
+   {:name      (tr/tr :teams/table-header-role)
+    :selector  :user/role
+    :sortField :user/role
+    :sortable  true
+    :cell      role-cell
+    :width     "120px"}
+   {:name      (tr/tr :teams/table-header-status)
+    :selector  :user/active
+    :sortField :user/active
+    :sortable  true
+    :cell      status-cell
+    :width     "120px"}
+   {:name      (tr/tr :teams/table-header-phone)
+    :selector  :user/phone
+    :sortable  false
+    :cell      contact-cell
+    :width     "160px"}])
+
+(defn- teams-subheader
+  "Subheader with title and add button"
+  []
+  [subheader/subheader
    {:title (tr/tr :teams/page-title)
     :description (tr/tr :teams/page-description)
     :action-button [enhanced-button/enhanced-button
                     {:variant :success
-                     :on-click (fn [] 
+                     :on-click (fn []
                                 (rf/dispatch [:teams/open-modal {:user/role "employee"
                                                                 :user/active true} true]))
                      :text (tr/tr :teams/add-new-member)}]}])
-
-(defn- teams-content
-  "Main content area with server-side data table"
-  [teams-data loading? delete-team query-fn]
-  [teams-table 
-   teams-data 
-   loading?
-   (fn [team]
-     (let [event-vec [:teams/open-modal team false]]
-       (rf/dispatch event-vec)))
-   delete-team
-   query-fn])
 
 (defn- modal-when-open
   "Render modal when team member is selected"
@@ -426,29 +408,84 @@
 
 (defn view []
   (let [workspace-id (get-workspace-id)
-        teams-data (rf/subscribe [:teams/data])
-        loading? (rf/subscribe [:teams/loading?])
-        modal-team (rf/subscribe [:teams/modal-team])
+        ;; Local state
+        users (r/atom [])
+        pagination (r/atom {:total-count 0 :page 0 :page-size 10})
+        loading? (r/atom false)
+        search-term (r/atom "")
+        sort-field (r/atom :user/full-name)
+        sort-direction (r/atom "asc")
+
+        ;; Re-frame subscriptions for modal
         modal-is-new? (rf/subscribe [:teams/modal-is-new?])
-        
-        load-teams (fn [params]
-                     (load-teams-query workspace-id (or params {})))
-        
+
+        ;; Load function
+        load-teams (fn []
+                     (load-teams-query
+                      workspace-id
+                      {:search @search-term
+                       :sort-by @sort-field
+                       :sort-direction @sort-direction
+                       :page (:page @pagination)
+                       :page-size (:page-size @pagination)}
+                      users
+                      pagination
+                      loading?))
+
         save-team (fn [team callback]
-                    (save-team-query team workspace-id modal-is-new? 
-                                     callback (fn [] (load-teams {}))))
-        
+                    (save-team-query team workspace-id modal-is-new?
+                                     callback load-teams))
+
         delete-team (fn [user-id]
-                      (delete-team-query user-id workspace-id (fn [] (load-teams {}))))]
-    
-    
-    ;; Load teams on component mount (authentication is handled by backend)
-    (zero-react/use-effect
-     {;:mount (fn [] (load-teams {}))
-      :params #js[]})
-    
-    [:div {:style {:min-height "100vh" :background "#f9fafb"}}
-     [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}} 
-      [teams-page-header]
-      [teams-content teams-data loading? delete-team load-teams]
-      [modal-when-open save-team]]]))
+                      (delete-team-query user-id workspace-id load-teams))
+
+        on-edit (fn [row]
+                  (rf/dispatch [:teams/open-modal row false]))
+
+        on-delete (fn [row]
+                    (when (js/confirm (tr/tr :teams/confirm-delete))
+                      (delete-team (:user/id row))))]
+
+    (fn []
+      ;; Load initial data
+      (when (and (empty? @users) (not @loading?))
+        (load-teams))
+
+      [:<>
+       [teams-subheader]
+       [content-section/content-section
+        ;; Search bar
+        [:div {:style {:margin-bottom "1rem"}}
+        [data-table-search/view
+         {:search-term @search-term
+          :placeholder (tr/tr :teams/search-placeholder)
+          :on-search-change (fn [value]
+                              (reset! search-term value))
+          :on-search (fn [value]
+                       (reset! search-term value)
+                       (swap! pagination assoc :page 0)
+                       (load-teams))}]]
+
+       ;; Teams table
+       [data-table/view
+        {:columns (get-columns)
+         :data @users
+         :loading? @loading?
+         :pagination @pagination
+         :entity {:name "user" :name-plural "team members"}
+         :on-edit on-edit
+         :on-delete on-delete
+         ;; Pagination handler
+         :on-page-change (fn [page _total-rows]
+                           (swap! pagination assoc :page (dec page))
+                           (load-teams))
+         :on-page-size-change (fn [new-size]
+                                (swap! pagination assoc :page-size new-size :page 0)
+                                (load-teams))
+         ;; Sort handler
+         :on-sort (fn [field direction _sorted-rows]
+                    (reset! sort-field field)
+                    (reset! sort-direction direction)
+                    (load-teams))}]
+
+       [modal-when-open save-team]]])))

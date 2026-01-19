@@ -107,16 +107,11 @@
     
     (let [worksheets (postgres/execute-sql query {:params params})
           total-count (:total (first (postgres/execute-sql count-query {:params count-params})))]
-      
-      (println "DEBUG Results:")
-      (println "  Found" (count worksheets) "worksheets")
-      (println "  Total count:" total-count)
-      
       {:worksheets worksheets
-       :total-count total-count
-       :page page
-       :page-size page-size
-       :total-pages (Math/ceil (/ total-count page-size))})))
+       :pagination {:total-count total-count
+                    :page page
+                    :page-size page-size
+                    :total-pages (int (Math/ceil (/ total-count page-size)))}})))
 
 (defn get-worksheet-by-id
   "Get worksheet by ID (within workspace)"

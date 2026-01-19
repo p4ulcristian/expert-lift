@@ -39,28 +39,14 @@ After completing any task, changing approach, or reaching a checkpoint:
 ## =' Development Commands
 
 ### Start Development Server
-The `start-dev.sh` script supports 4 frontend modules:
 
 ```bash
-# Single module
-./start-dev.sh site
-./start-dev.sh flex
-./start-dev.sh customizer
-./start-dev.sh labs
-
-# Multiple modules (recommended for development)
-./start-dev.sh flex site labs
-./start-dev.sh flex customizer
+./start-dev.sh app
 ```
 
-**Available Modules:**
-- **site** - Public website (`/`)
-- **flex** - Business management application (`/app`)
-- **customizer** - Product customization interface (custom routes)
-- **labs** - Development/experimental features
-
 **What it does:**
-- Starts Shadow-CLJS compilation for selected modules
+- Loads environment variables from `.env.local`
+- Starts Shadow-CLJS compilation for the app module
 - Runs backend Clojure server with hot reloading
 - Launches Chrome with debugging enabled
 - Streams console output from browser
@@ -188,9 +174,9 @@ workspace_settings.clj
 
 #### Namespace Names (dashes)
 ```clojure
-(ns features.flex.user-profile.frontend.view)
-(ns features.flex.order-history.backend.db)
-(ns features.flex.workspace-settings.frontend.components)
+(ns features.app.user-profile.frontend.view)
+(ns features.app.order-history.backend.db)
+(ns features.app.workspace-settings.frontend.components)
 ```
 
 #### Documentation Placement
@@ -214,10 +200,10 @@ Place docstrings **after** function name, **before** parameter list:
 
 #### Function Organization
 ```clojure
-(ns features.flex.orders.frontend.view
-  "Order list and detail views for Flex application"
+(ns features.app.orders.frontend.view
+  "Order list and detail views"
   (:require
-   [features.flex.orders.frontend.request :as orders-request]
+   [features.app.orders.frontend.request :as orders-request]
    [ui.button :as button]
    [zero.frontend.react :as zero-react]))
 

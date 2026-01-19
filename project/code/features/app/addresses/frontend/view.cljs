@@ -7,9 +7,11 @@
             [zero.frontend.react :as zero-react]
             [ui.modal :as modal]
             [ui.form-field :as form-field]
-            [ui.data-table :as data-table]
+            [ui.data-table.core :as data-table]
+            [ui.data-table.search :as data-table-search]
             [ui.enhanced-button :as enhanced-button]
-            [ui.page-header :as page-header]
+            [ui.subheader :as subheader]
+            [ui.content-section :as content-section]
             [translations.core :as tr]))
 
 (defn- get-workspace-id
@@ -17,30 +19,29 @@
   []
   (let [router-state @router/state
         workspace-id (get-in router-state [:parameters :path :workspace-id])]
-    (println "DEBUG: get-workspace-id called")
-    (println "  Router state:" router-state)
-    (println "  Extracted workspace-id:" workspace-id)
     workspace-id))
 
 (defn- load-addresses-query
   "Execute ParQuery to load addresses with pagination"
-  [workspace-id loading? addresses params]
-  (println "DEBUG load-addresses-query called with params:" params)
-  (reset! loading? true)
+  [workspace-id params addresses-atom pagination-atom loading-atom]
+  (reset! loading-atom true)
   (parquery/send-queries
    {:queries {:workspace-addresses/get-paginated params}
     :parquery/context {:workspace-id workspace-id}
     :callback (fn [response]
-               (println "DEBUG load-addresses-query response:" response)
-               (reset! loading? false)
-               (let [result (:workspace-addresses/get-paginated response)]
-                 (reset! addresses result)))}))
+               (reset! loading-atom false)
+               (let [result (:workspace-addresses/get-paginated response)
+                     items (:addresses result [])
+                     pag (:pagination result)]
+                 (reset! addresses-atom items)
+                 (when pag
+                   (reset! pagination-atom pag))))}))
 
 (defn- get-query-type
   "Get appropriate query type for save operation"
   [is-new?]
-  (if @is-new? 
-    :workspace-addresses/create 
+  (if @is-new?
+    :workspace-addresses/create
     :workspace-addresses/update))
 
 (defn- prepare-address-data
@@ -65,16 +66,10 @@
   (let [query-type (get-query-type modal-is-new?)
         address-data (prepare-address-data address modal-is-new?)
         context {:workspace-id workspace-id}]
-    (println "DEBUG: save-address-query called")
-    (println "  Workspace ID:" workspace-id)
-    (println "  Query type:" query-type)
-    (println "  Address data:" address-data)
-    (println "  Context being sent:" context)
     (parquery/send-queries
      {:queries {query-type address-data}
       :parquery/context context
       :callback (fn [response]
-                 (println "DEBUG: save-address-query response:" response)
                  (handle-save-response response query-type callback modal-address load-addresses))})))
 
 (defn- delete-address-query
@@ -126,8 +121,8 @@
   [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600"
                    :font-size "0.875rem" :letter-spacing "0.025em"
                    :color (if has-error? "#dc3545" "#374151")}}
-   label 
-   (when (#{:address/name :address/address-line1 :address/city :address/postal-code} field-key) 
+   label
+   (when (#{:address/name :address/address-line1 :address/city :address/postal-code} field-key)
      [:span {:style {:color "#ef4444" :margin-left "0.25rem"}} "*"])])
 
 (defn- input-base-props
@@ -142,13 +137,13 @@
                   :font-size "1rem"
                   :line-height "1.5"
                   :transition "border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out"
-                  :box-shadow (if has-error? 
-                                "0 0 0 3px rgba(220, 53, 69, 0.1)" 
+                  :box-shadow (if has-error?
+                                "0 0 0 3px rgba(220, 53, 69, 0.1)"
                                 "0 1px 2px 0 rgba(0, 0, 0, 0.05)")
                   :outline "none"}
                  (:style attrs)
                  {:focus {:border-color (if has-error? "#dc3545" "#3b82f6")
-                         :box-shadow (if has-error? 
+                         :box-shadow (if has-error?
                                        "0 0 0 3px rgba(220, 53, 69, 0.1)"
                                        "0 0 0 3px rgba(59, 130, 246, 0.1)")}})})
 
@@ -193,14 +188,14 @@
                           (when (and elevator-id (not (some #(= % elevator-id) elevators)))
                             (swap! address assoc :address/elevators (conj elevators elevator-id))))
             remove-elevator (fn [index]
-                             (swap! address assoc :address/elevators 
-                                   (vec (concat (take index elevators) 
+                             (swap! address assoc :address/elevators
+                                   (vec (concat (take index elevators)
                                                (drop (inc index) elevators)))))]
         [:div {:style {:margin-bottom "1.5rem"}}
          [:label {:style {:display "block" :margin-bottom "0.5rem" :font-weight "600"
                           :font-size "0.875rem" :letter-spacing "0.025em" :color "#374151"}}
           (tr/tr :addresses/elevators)]
-         
+
          ;; List of current elevators
          (when (seq elevators)
            [:div {:style {:margin-bottom "1rem"}}
@@ -216,7 +211,7 @@
                                 :cursor "pointer" :padding "0.25rem" :font-size "0.75rem"
                                 :border-radius "4px"}}
                 (tr/tr :addresses/remove)]])])
-         
+
          ;; Add new elevator input
          [:div {:style {:display "flex" :gap "0.5rem" :align-items "flex-end"}}
           [:div {:style {:flex "1"}}
@@ -227,7 +222,7 @@
                     :style {:width "100%" :padding "0.75rem 1rem" :border "1px solid #d1d5db"
                             :border-radius "8px" :font-size "1rem"}}]]
           [:button {:type "button"
-                    :on-click #(do (add-elevator @new-elevator) 
+                    :on-click #(do (add-elevator @new-elevator)
                                   (reset! new-elevator ""))
                     :disabled (empty? (str/trim @new-elevator))
                     :style {:padding "0.75rem 1.5rem" :background "#10b981" :color "white"
@@ -235,7 +230,7 @@
                             :cursor (if (empty? (str/trim @new-elevator)) "not-allowed" "pointer")
                             :opacity (if (empty? (str/trim @new-elevator)) "0.5" "1")}}
            (tr/tr :addresses/add-elevator)]]
-         
+
          [:p {:style {:color "#6b7280" :font-size "0.75rem" :margin-top "0.5rem"}}
           (tr/tr :addresses/elevator-description)]]))))
 
@@ -284,7 +279,7 @@
       [modal/modal {:on-close on-cancel :close-on-backdrop? true}
        ^{:key "header"} [modal/modal-header
         {:title (if is-new? (tr/tr :addresses/modal-add-title) (tr/tr :addresses/modal-edit-title))
-         :subtitle (if is-new? 
+         :subtitle (if is-new?
                      (tr/tr :addresses/modal-add-subtitle)
                      (tr/tr :addresses/modal-edit-subtitle))}]
        ^{:key "form"} [form-fields address @errors]
@@ -299,96 +294,84 @@
           :on-click #(handle-save-click address loading? errors on-save)
           :text (if @loading? (tr/tr :addresses/saving) (tr/tr :addresses/save-address))}]]])))
 
-(defn- address-name-render
-  "Custom render function for address name column with full address"
-  [name row]
-  [:div 
+;; =============================================================================
+;; Column Renderers for react-data-table-component
+;; =============================================================================
+
+(defn- address-name-cell
+  "Custom cell for address name column with full address"
+  [row]
+  [:div
    [:div {:style {:font-weight "600" :color "#111827" :font-size "0.875rem"}}
-    name]
+    (:address/name row)]
    [:div {:style {:color "#6b7280" :font-size "0.75rem" :margin-top "0.25rem" :line-height "1.4"}}
     (str (:address/address-line1 row)
          (when (:address/address-line2 row) (str ", " (:address/address-line2 row)))
-         ", " (:address/city row) " " (:address/postal-code row))]
-   
-])
+         ", " (:address/city row) " " (:address/postal-code row))]])
 
-(defn- elevators-render
-  "Custom render function for elevators column"
-  [elevators row]
-  [:div
-   (if (seq elevators)
-     (for [elevator elevators]
-       ^{:key (str "table-elevator-" elevator)}
-       [:span {:style {:display "inline-block" :margin-right "0.5rem" :margin-bottom "0.25rem"
-                       :padding "0.25rem 0.5rem" :background "#e0f2fe" :color "#0891b2"
-                       :border-radius "12px" :font-size "0.75rem" :font-weight "500"}}
-        (str "🏢 " elevator)])
-     [:span {:style {:color "#9ca3af" :font-style "italic" :font-size "0.75rem"}}
-      (tr/tr :addresses/no-elevators)])])
+(defn- elevators-cell
+  "Custom cell for elevators column"
+  [row]
+  (let [elevators (:address/elevators row)]
+    [:div {:style {:display "flex" :flex-wrap "wrap" :gap "0.25rem" :align-items "center"}}
+     (if (seq elevators)
+       (for [elevator elevators]
+         ^{:key (str "table-elevator-" elevator)}
+         [:span {:style {:padding "0.25rem 0.5rem" :background "#e0f2fe" :color "#0891b2"
+                         :border-radius "12px" :font-size "0.75rem" :font-weight "500"}}
+          elevator])
+       [:span {:style {:color "#9ca3af" :font-style "italic" :font-size "0.75rem"}}
+        (tr/tr :addresses/no-elevators)])]))
 
-(defn- contact-render
-  "Custom render function for contact info"
-  [contact-person row]
-  [:div
-   (when contact-person
-     [:div {:style {:color "#374151" :font-size "0.875rem" :font-weight "500"}}
-      contact-person])
-   (when (:address/contact-phone row)
-     [:div {:style {:color "#6b7280" :font-size "0.75rem"}}
-      (:address/contact-phone row)])
-   (when (:address/contact-email row)
-     [:div {:style {:color "#6b7280" :font-size "0.75rem"}}
-      (:address/contact-email row)])])
+(defn- contact-cell
+  "Custom cell for contact info"
+  [row]
+  (let [contact-person (:address/contact-person row)]
+    [:div
+     (when contact-person
+       [:div {:style {:color "#374151" :font-size "0.875rem" :font-weight "500"}}
+        contact-person])
+     (when (:address/contact-phone row)
+       [:div {:style {:color "#6b7280" :font-size "0.75rem"}}
+        (:address/contact-phone row)])
+     (when (:address/contact-email row)
+       [:div {:style {:color "#6b7280" :font-size "0.75rem"}}
+        (:address/contact-email row)])]))
 
-(defn addresses-table
-  "Addresses table using server-side data-table component with search, sorting, and pagination"
-  [addresses loading? on-edit on-delete query-fn]
-  [data-table/server-side-data-table
-   {:headers [{:key :address/name :label (tr/tr :addresses/table-header-address) :render address-name-render :sortable? true}
-              {:key :address/elevators :label (tr/tr :addresses/table-header-elevators) :render elevators-render :sortable? false}
-              {:key :address/contact-person :label (tr/tr :addresses/table-header-contact) :render contact-render :sortable? true}
-              {:key :address/city :label (tr/tr :addresses/table-header-city) :sortable? true}
-              {:key :address/country :label (tr/tr :addresses/table-header-country) :sortable? true}]
-    :data-source @addresses
-    :loading? @loading?
-    :empty-message (tr/tr :addresses/no-addresses-found)
-    :id-key :address/id
-    :table-id :addresses-table
-    :show-search? true
-    :show-pagination? true
-    :query-fn query-fn
-    :on-data-change (fn [result] (reset! addresses result))
-    :actions [{:key :edit :label (tr/tr :addresses/action-edit) :variant :primary :on-click on-edit}
-              {:key :delete :label (tr/tr :addresses/action-delete) :variant :danger 
-               :on-click (fn [row] 
-                          (when (js/confirm (tr/tr :addresses/confirm-delete))
-                            (on-delete (:address/id row))))}]}])
+(defn- get-columns
+  "Get column configuration for addresses table (react-data-table format)"
+  []
+  [{:name      (tr/tr :addresses/table-header-address)
+    :selector  :address/name
+    :sortField :address/name
+    :sortable  true
+    :cell      address-name-cell
+    :width     "280px"}
+   {:name      (tr/tr :addresses/table-header-elevators)
+    :selector  :address/elevators
+    :sortable  false
+    :cell      elevators-cell
+    :width     "250px"}
+   {:name      (tr/tr :addresses/table-header-contact)
+    :selector  :address/contact-person
+    :sortField :address/contact-person
+    :sortable  true
+    :cell      contact-cell
+    :width     "200px"}])
 
-(defn- addresses-page-header
-  "Page header with title and add button using new UI component"
+(defn- addresses-subheader
+  "Subheader with title and add button"
   [modal-address modal-is-new?]
-  [page-header/page-header
+  [subheader/subheader
    {:title (tr/tr :addresses/page-title)
     :description (tr/tr :addresses/page-description)
     :action-button [enhanced-button/enhanced-button
                     {:variant :success
-                     :on-click (fn [] 
+                     :on-click (fn []
                                 (reset! modal-address {:address/country "Hungary"
                                                       :address/elevators []})
                                 (reset! modal-is-new? true))
                      :text (tr/tr :addresses/add-new-address)}]}])
-
-(defn- addresses-content
-  "Main content area with server-side data table"
-  [addresses loading? modal-address modal-is-new? delete-address query-fn]
-  [addresses-table 
-   addresses 
-   loading?
-   (fn [address]
-     (reset! modal-address address)
-     (reset! modal-is-new? false))
-   delete-address
-   query-fn])
 
 (defn- modal-when-open
   "Render modal when address is selected"
@@ -399,25 +382,84 @@
 
 (defn view []
   (let [workspace-id (get-workspace-id)
+        ;; Local state
         addresses (r/atom [])
+        pagination (r/atom {:total-count 0 :page 0 :page-size 10})
         loading? (r/atom false)
+        search-term (r/atom "")
+        sort-field (r/atom :address/name)
+        sort-direction (r/atom "asc")
         modal-address (r/atom nil)
         modal-is-new? (r/atom false)
-        
-        load-addresses (fn [params]
-                        (load-addresses-query workspace-id loading? addresses (or params {})))
-        
+
+        ;; Load function
+        load-addresses (fn []
+                         (load-addresses-query
+                          workspace-id
+                          {:search @search-term
+                           :sort-by @sort-field
+                           :sort-direction @sort-direction
+                           :page (:page @pagination)
+                           :page-size (:page-size @pagination)}
+                          addresses
+                          pagination
+                          loading?))
+
         save-address (fn [address callback]
-                       (save-address-query address workspace-id modal-is-new? 
-                                          callback modal-address (fn [] (load-addresses {}))))
-        
+                       (save-address-query address workspace-id modal-is-new?
+                                          callback modal-address load-addresses))
+
         delete-address (fn [address-id]
-                         (delete-address-query address-id workspace-id (fn [] (load-addresses {}))))]
-    
+                         (delete-address-query address-id workspace-id load-addresses))
+
+        on-edit (fn [row]
+                  (reset! modal-address row)
+                  (reset! modal-is-new? false))
+
+        on-delete (fn [row]
+                    (when (js/confirm (tr/tr :addresses/confirm-delete))
+                      (delete-address (:address/id row))))]
+
     (fn []
-      ;; Load addresses on component mount (authentication handled by backend)  
-      [:div {:style {:min-height "100vh" :background "#f9fafb"}}
-       [:div {:style {:max-width "1200px" :margin "0 auto" :padding "2rem"}}
-        [addresses-page-header modal-address modal-is-new?]
-        [addresses-content addresses loading? modal-address modal-is-new? delete-address load-addresses]
-        [modal-when-open modal-address modal-is-new? save-address]]])))
+      ;; Load initial data
+      (when (and (empty? @addresses) (not @loading?))
+        (load-addresses))
+
+      [:<>
+       [addresses-subheader modal-address modal-is-new?]
+       [content-section/content-section
+        ;; Search bar
+        [:div {:style {:margin-bottom "1rem"}}
+        [data-table-search/view
+         {:search-term @search-term
+          :placeholder (tr/tr :addresses/search-placeholder)
+          :on-search-change (fn [value]
+                              (reset! search-term value))
+          :on-search (fn [value]
+                       (reset! search-term value)
+                       (swap! pagination assoc :page 0)
+                       (load-addresses))}]]
+
+       ;; Addresses table
+       [data-table/view
+        {:columns (get-columns)
+         :data @addresses
+         :loading? @loading?
+         :pagination @pagination
+         :entity {:name "address" :name-plural "addresses"}
+         :on-edit on-edit
+         :on-delete on-delete
+         ;; Pagination handler
+         :on-page-change (fn [page _total-rows]
+                           (swap! pagination assoc :page (dec page))
+                           (load-addresses))
+         :on-page-size-change (fn [new-size]
+                                (swap! pagination assoc :page-size new-size :page 0)
+                                (load-addresses))
+         ;; Sort handler
+         :on-sort (fn [field direction _sorted-rows]
+                    (reset! sort-field field)
+                    (reset! sort-direction direction)
+                    (load-addresses))}]
+
+       [modal-when-open modal-address modal-is-new? save-address]]])))

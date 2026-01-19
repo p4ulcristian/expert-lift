@@ -65,12 +65,11 @@
     
     (let [users (postgres/execute-sql query {:params params})
           total-count (:total (first (postgres/execute-sql count-query {:params count-params})))]
-      
       {:users users
-       :total-count total-count
-       :page page
-       :page-size page-size
-       :total-pages (Math/ceil (/ total-count page-size))})))
+       :pagination {:total-count total-count
+                    :page page
+                    :page-size page-size
+                    :total-pages (int (Math/ceil (/ total-count page-size)))}})))
 
 (defn get-user-by-id
   "Get user by ID (within workspace)"

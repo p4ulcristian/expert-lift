@@ -60,24 +60,13 @@
                          search-condition)
         count-params (if has-search? [workspace-id search-param] [workspace-id])]
     
-    (println "DEBUG get-addresses-paginated:")
-    (println "  Query:" query)
-    (println "  Params:" params)
-    (println "  Count query:" count-query)
-    (println "  Count params:" count-params)
-    
     (let [addresses (postgres/execute-sql query {:params params})
           total-count (:total (first (postgres/execute-sql count-query {:params count-params})))]
-      
-      (println "DEBUG Results:")
-      (println "  Found" (count addresses) "addresses")
-      (println "  Total count:" total-count)
-      
       {:addresses addresses
-       :total-count total-count
-       :page page
-       :page-size page-size
-       :total-pages (Math/ceil (/ total-count page-size))})))
+       :pagination {:total-count total-count
+                    :page page
+                    :page-size page-size
+                    :total-pages (int (Math/ceil (/ total-count page-size)))}})))
 
 (defn get-address-by-id
   "Get address by ID (within workspace)"

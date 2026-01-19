@@ -24,10 +24,10 @@
         
         ;; Map frontend column names to database columns
         db-column (case sort-by
-                    "material-template/name" "name"
-                    "material-template/unit" "unit"
-                    "material-template/category" "category"
-                    "material-template/active" "active"
+                    :material-template/name "name"
+                    :material-template/unit "unit"
+                    :material-template/category "category"
+                    :material-template/active "active"
                     "name")
         
         ;; Build the query parameters
@@ -50,12 +50,11 @@
     
     (let [material-templates (postgres/execute-sql query {:params params})
           total-count (:total (first (postgres/execute-sql count-query {:params count-params})))]
-      
       {:material-templates material-templates
-       :total-count total-count
-       :page page
-       :page-size page-size
-       :total-pages (Math/ceil (/ total-count page-size))})))
+       :pagination {:total-count total-count
+                    :page page
+                    :page-size page-size
+                    :total-pages (int (Math/ceil (/ total-count page-size)))}})))
 
 (defn get-material-template-by-id
   "Get material template by ID (within workspace)"

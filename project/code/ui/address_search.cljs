@@ -115,11 +115,11 @@
                       :font-size "14px"
                       :background (if disabled "#f5f5f5" "#fff")}}]
      
-     ;; Selected address display (when not searching)
-     (when (and selected-address (str/blank? search-term))
+     ;; Selected address display (when not searching and has actual selection)
+     (when (and (seq (:address/name selected-address)) (str/blank? search-term))
        [:div {:style {:position "absolute"
                       :top "0"
-                      :left "0" 
+                      :left "0"
                       :right "0"
                       :height "100%"
                       :padding "8px 12px"
@@ -128,8 +128,11 @@
                       :border-radius "4px"
                       :display "flex"
                       :align-items "center"
-                      :pointer-events "none"
-                      :color "#333"}}
+                      :cursor "text"
+                      :color "#333"}
+              :on-click (fn [_]
+                          (rf/dispatch [:ui/address-search-update component-id :search-term " "])
+                          (rf/dispatch [:ui/address-search-update component-id :show-dropdown? true]))}
         (:address/display selected-address (:address/name selected-address))])
      
      ;; Dropdown with results
@@ -171,6 +174,5 @@
                  :style {:padding "8px 12px"
                          :cursor "pointer"
                          :border-bottom "1px solid #eee"}}
-           [:div {:style {:font-weight "500"}} (:address/name address)]
-           [:div {:style {:font-size "12px" :color "#666"}} 
-            (str (:address/address-line1 address) ", " (:address/city address))]]) ])])))
+           [:div {:style {:font-size "14px"}}
+            (:address/display address (:address/name address))]]) ])])))

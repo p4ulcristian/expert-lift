@@ -8,6 +8,7 @@
    [features.app.worksheets.frontend.queries :as queries]
    [ui.modal :as modal]
    [ui.enhanced-button :as enhanced-button]
+   [ui.address-search :as address-search]
    [translations.core :as tr]
    ["react-signature-canvas" :default SignatureCanvas]))
 
@@ -133,13 +134,21 @@
     {:type "date"}]])
 
 (defn address-form-field
-  "Render address selection field"
+  "Render address autocomplete field"
   [errors workspace-id]
-  (let [form-data @(rf/subscribe [:worksheets/modal-form-data])]
-    [form-field "Address" :worksheet/address-id errors
-     {:type "address-select"
-      :workspace-id workspace-id
-      :current-value (:worksheet/address-id form-data)}]))
+  (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
+        has-error? (contains? errors :worksheet/address-id)]
+    [:div {:style {:margin-bottom "1.5rem"}}
+     [field-label "Address" :worksheet/address-id has-error?]
+     [address-search/address-search-dropdown
+      {:component-id :worksheet-address
+       :workspace-id workspace-id
+       :value {:address/id (:worksheet/address-id form-data)
+               :address/name (:worksheet/address-name form-data)}
+       :on-select (fn [address]
+                    (rf/dispatch [:worksheets/update-modal-form-field :worksheet/address-id (:address/id address)])
+                    (rf/dispatch [:worksheets/update-modal-form-field :worksheet/address-name (:address/name address)]))}]
+     [field-error (get errors :worksheet/address-id)]]))
 
 (defn work-info-form-fields
   "Render work information form fields"

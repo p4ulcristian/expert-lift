@@ -97,10 +97,10 @@
     [:meta {:http-equiv "Content-Type" :content "text/html; charset=UTF-8"}]
     [:style
      "
-     body { 
-       font-family: 'Helvetica', Arial, sans-serif; 
-       margin: 20px; 
-       font-size: 11px; 
+     body {
+       font-family: 'DejaVuSans', 'Helvetica', Arial, sans-serif;
+       margin: 20px;
+       font-size: 11px;
        line-height: 1.2;
      }
      .header { 

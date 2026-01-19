@@ -96,7 +96,13 @@
         :settings/logo-preview "Logo preview"
         :settings/current-logo-alt "Current workspace logo"
         :settings/error-no-data "No settings data received"
-        
+        :settings/workspace-id "Workspace ID"
+        :settings/copied-to-clipboard "Copied to clipboard!"
+        :settings/language "Language"
+        :settings/language-description "Select your preferred display language"
+        :settings/language-hungarian "Magyar"
+        :settings/language-english "English"
+
         ;; Teams Page
         :teams/page-title "Team"
         :teams/page-description "Manage team members for this workspace"
@@ -136,7 +142,8 @@
         :teams/error-full-name "Full name is required (min 2 characters)"
         :teams/error-email "Valid email is required"
         :teams/error-password "Password is required (min 6 characters)"
-        
+        :teams/search-placeholder "Search team members..."
+
         ;; Addresses Page
         :addresses/page-title "Addresses"
         :addresses/page-description "Manage addresses for this workspace"
@@ -186,7 +193,8 @@
         :addresses/error-address-line1 "Address is required"
         :addresses/error-city "City is required"
         :addresses/error-postal-code "Postal code is required"
-        
+        :addresses/search-placeholder "Search addresses..."
+
         ;; Material Templates Page
         :material-templates/page-title "Material Templates"
         :material-templates/page-description "Manage your material templates for this workspace"
@@ -219,7 +227,8 @@
         :material-templates/confirm-delete "Are you sure you want to delete this template?"
         :material-templates/error-name "Name is required"
         :material-templates/error-unit "Unit is required"
-        
+        :material-templates/search-placeholder "Search materials..."
+
         ;; Worksheets Page
         :worksheets/page-title "Worksheets"
         :worksheets/page-description "Manage worksheets for this workspace"
@@ -240,7 +249,8 @@
         :worksheets/action-edit "Edit"
         :worksheets/action-pdf "PDF"
         :worksheets/action-delete "Delete"
-        :worksheets/confirm-delete "Are you sure you want to delete this worksheet?"}
+        :worksheets/confirm-delete "Are you sure you want to delete this worksheet?"
+        :worksheets/search-placeholder "Search worksheets..."}
    :hu {:header/logout "Kijelentkezés"
         :header/brand "ElevaThor"
         :dashboard/title "Irányítópult"
@@ -333,7 +343,13 @@
         :settings/logo-preview "Logó előnézet"
         :settings/current-logo-alt "Jelenlegi munkaterület logó"
         :settings/error-no-data "Beállítási adatok nem érkeztek meg"
-        
+        :settings/workspace-id "Munkaterület azonosító"
+        :settings/copied-to-clipboard "Vágólapra másolva!"
+        :settings/language "Nyelv"
+        :settings/language-description "Válaszd ki a kívánt megjelenítési nyelvet"
+        :settings/language-hungarian "Magyar"
+        :settings/language-english "English"
+
         ;; Teams Page
         :teams/page-title "Csapat"
         :teams/page-description "Csapattagok kezelése a munkaterületen"
@@ -373,7 +389,8 @@
         :teams/error-full-name "Teljes név szükséges (min 2 karakter)"
         :teams/error-email "Érvényes e-mail cím szükséges"
         :teams/error-password "Jelszó szükséges (min 6 karakter)"
-        
+        :teams/search-placeholder "Csapattagok keresése..."
+
         ;; Addresses Page
         :addresses/page-title "Címek"
         :addresses/page-description "Munkaterület címeinek kezelése"
@@ -423,7 +440,8 @@
         :addresses/error-address-line1 "Cím megadása szükséges"
         :addresses/error-city "Város megadása szükséges"
         :addresses/error-postal-code "Irányítószám megadása szükséges"
-        
+        :addresses/search-placeholder "Címek keresése..."
+
         ;; Material Templates Page
         :material-templates/page-title "Anyagsablonok"
         :material-templates/page-description "Anyagsablonok kezelése a munkaterületen"
@@ -456,7 +474,8 @@
         :material-templates/confirm-delete "Biztosan törölni szeretné ezt a sablont?"
         :material-templates/error-name "Név megadása szükséges"
         :material-templates/error-unit "Egység megadása szükséges"
-        
+        :material-templates/search-placeholder "Anyagok keresése..."
+
         ;; Worksheets Page
         :worksheets/page-title "Munkalapok"
         :worksheets/page-description "Munkalapok kezelése a munkaterületen"
@@ -477,7 +496,8 @@
         :worksheets/action-edit "Szerkesztés"
         :worksheets/action-pdf "PDF"
         :worksheets/action-delete "Törlés"
-        :worksheets/confirm-delete "Biztosan törölni szeretné ezt a munkalapot?"}})
+        :worksheets/confirm-delete "Biztosan törölni szeretné ezt a munkalapot?"
+        :worksheets/search-placeholder "Munkalapok keresése..."}})
 
 ;; Re-frame events and subscriptions for translations
 (rf/reg-event-db

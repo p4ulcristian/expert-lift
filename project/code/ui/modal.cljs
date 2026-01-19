@@ -5,16 +5,18 @@
   "Modal overlay background styles"
   {:position "fixed" :top 0 :left 0 :right 0 :bottom 0
    :background "rgba(0, 0, 0, 0.6)" :z-index 1000
-   :display "flex" :align-items "center" :justify-content "center"
+   :display "flex" :align-items "stretch" :justify-content "center"
    :backdrop-filter "blur(4px)"
    :animation "fadeIn 0.2s ease-out"})
 
 (defn- modal-content-style []
-  "Modal content container styles"
-  {:background "white" :padding "2rem" :border-radius "16px"
-   :min-width "480px" :max-width "640px" :max-height "90vh" :overflow "auto"
+  "Modal content container styles - responsive, full width on mobile"
+  {:background "white" :padding "2rem"
+   :width "100%" :max-width "1200px" :margin "0 auto"
+   :overflow "auto" :scrollbar-width "none" :-webkit-scrollbar "none"
    :box-shadow "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
-   :transform "scale(1)" :animation "slideIn 0.2s ease-out"})
+   :animation "slideIn 0.2s ease-out"
+   :position "relative"})
 
 (defn modal-header
   "Modal header with title and optional subtitle"
@@ -34,14 +36,25 @@
    (for [[index button] (map-indexed vector buttons)]
      ^{:key index} button)])
 
+(defn- close-button-style []
+  "Close button styles"
+  {:position "absolute" :top "1rem" :right "1rem"
+   :background "none" :border "none" :cursor "pointer"
+   :font-size "1.25rem" :color "#9ca3af" :padding "0.25rem"
+   :line-height "1" :transition "color 0.2s"})
+
 (defn modal
   "Reusable modal component with overlay, content, and optional close on backdrop click"
   [{:keys [on-close close-on-backdrop?]} & content]
   [:div {:style (modal-overlay-style)
          :on-click (when (and close-on-backdrop? on-close)
-                    (fn [e] 
+                    (fn [e]
                       (when (= (.-target e) (.-currentTarget e))
                         (on-close))))}
    [:div {:style (modal-content-style)}
+    (when on-close
+      [:button {:style (close-button-style)
+                :on-click on-close}
+       [:i {:class "fa-solid fa-xmark"}]])
     (for [[index child] (map-indexed vector content)]
       ^{:key index} child)]])

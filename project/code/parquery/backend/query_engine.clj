@@ -1,7 +1,9 @@
 (ns parquery.backend.query-engine
   (:require [cheshire.core :as json]
+            [clojure.string :as str]
             [parquery.backend.config :as config]
-            [schemas.spec :as spec]))
+            [schemas.spec :as spec]
+            [utils.wire :as wire]))
 
 ;; Schema definitions
 (def query-request-schema
@@ -19,8 +21,32 @@
   [:map-of :keyword query-result-schema])
 
 
+(defn- parse-json-string
+  "Parse JSON string, return empty vector on failure"
+  [s]
+  (try
+    (when (and s (not= s "null"))
+      (json/parse-string s true))
+    (catch Exception e
+      [])))
+
+(defn- process-json-fields
+  "Process fields ending in _json - parse them and rename without suffix"
+  [m]
+  (reduce-kv
+   (fn [acc k v]
+     (let [k-name (name k)]
+       (if (str/ends-with? k-name "_json")
+         ;; Rename field and parse JSON
+         (let [new-key (keyword (subs k-name 0 (- (count k-name) 5)))]
+           (assoc acc new-key (if (string? v) (parse-json-string v) v)))
+         (assoc acc k v))))
+   {}
+   m))
+
 (defn sanitize-for-json
-  "Recursively converts database objects to serializable values"
+  "Recursively converts database objects to serializable values.
+   Also handles _json fields by parsing them and renaming."
   [data]
   (cond
     (nil? data) nil
@@ -35,24 +61,62 @@
     (instance? java.time.Instant data) (str data)
     (instance? java.util.UUID data) (str data)
     ;; Handle PostgreSQL RowMap objects
-    (instance? org.pg.clojure.RowMap data) (into {} (map (fn [[k v]] [k (sanitize-for-json v)]) data))
-    (map? data) (into {} (map (fn [[k v]] [k (sanitize-for-json v)]) data))
+    (instance? org.pg.clojure.RowMap data)
+    (-> (into {} (map (fn [[k v]] [k (sanitize-for-json v)]) data))
+        process-json-fields)
+    (map? data)
+    (-> (into {} (map (fn [[k v]] [k (sanitize-for-json v)]) data))
+        process-json-fields)
     (coll? data) (mapv sanitize-for-json data)
     :else (str data)))
+
+(defn transform-response
+  "Transform database response to namespaced keywords.
+   Handles paginated responses, lists, and single items."
+  [data entity-ns]
+  (if-not entity-ns
+    data
+    (cond
+      ;; Paginated response: {:worksheets [...] :pagination {...}}
+      (and (map? data) (:pagination data))
+      (let [data-key (first (filter #(not= % :pagination) (keys data)))
+            items (get data data-key)]
+        {data-key (wire/wire->keys items entity-ns)
+         :pagination (:pagination data)})
+
+      ;; Error response or success response - don't transform
+      (and (map? data) (or (:error data) (:success data)))
+      data
+
+      ;; List response
+      (sequential? data)
+      (wire/wire->keys data entity-ns)
+
+      ;; Single item map
+      (map? data)
+      (wire/wire->keys data entity-ns)
+
+      :else data)))
 
 (defn execute-query
   "Executes a single query by calling its handler function"
   [fn-key fn-params session-atom]
   (let [handler (config/get-query-handler fn-key)
+        entity-ns (config/get-entity-ns fn-key)
         result (if handler
                  (try
                    (let [raw-result (handler fn-params)
                          sanitized-result (sanitize-for-json raw-result)
-                         validated-result (spec/validate query-result-schema sanitized-result (str "query result for " fn-key))]
+                         ;; Apply wire->keys transformation if entity-ns is defined
+                         transformed-result (transform-response sanitized-result entity-ns)
+                         validated-result (spec/validate query-result-schema transformed-result (str "query result for " fn-key))]
                      ;; Check for session data in the result and update session if present
                      (when (map? validated-result)
-                       (when-let [session-data (:session-data validated-result)]
-                         (swap! session-atom merge session-data)))
+                       (when (contains? validated-result :session-data)
+                         (let [session-data (:session-data validated-result)]
+                           (if (nil? session-data)
+                             (reset! session-atom nil)
+                             (swap! session-atom merge session-data)))))
                      ;; Return result without session-data key (only for maps)
                      (if (map? validated-result)
                        (dissoc validated-result :session-data)
