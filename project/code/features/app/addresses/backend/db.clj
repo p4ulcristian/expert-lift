@@ -119,10 +119,10 @@
         params (if has-search? 
                 [workspace-id search-param limit]
                 [workspace-id limit])
-        query (str "SELECT id, name, address_line1, city, postal_code 
-                   FROM expert_lift.addresses 
-                   WHERE workspace_id = $1 " 
+        query (str "SELECT id, name, address_line1, city, postal_code, elevators
+                   FROM expert_lift.addresses
+                   WHERE workspace_id = $1 "
                    search-condition
-                   " ORDER BY name 
+                   " ORDER BY name
                    LIMIT $" (if has-search? "3" "2"))]
     (postgres/execute-sql query {:params params})))

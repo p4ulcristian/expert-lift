@@ -79,6 +79,7 @@
   "Work report template matching Expert Lift KFT format from screenshot"
   [{:keys [institution-name
            institution-address
+           elevator-identifier
            work-type
            worksheet-work-type
            arrival-time
@@ -273,8 +274,9 @@
       [:span.checkbox-label "Hétvége vagy ünnepnap:"]
       [:div.checkbox (when (= work-type "weekend") "X")]]]
     
-    [:div
-     [:label {:style "font-weight: bold; margin-bottom: 10px; display: block;"} "Felvonó jelzése:"]]
+    [:div.form-row
+     [:label "Felvonó jelzése:"]
+     [:div.field-value (or elevator-identifier "")]]
     
     [:div.time-row
      (format-time-fields arrival-time "Érkezés")

@@ -148,8 +148,38 @@
                :address/name (:worksheet/address-name form-data)}
        :on-select (fn [address]
                     (rf/dispatch [:worksheets/update-modal-form-field :worksheet/address-id (:address/id address)])
-                    (rf/dispatch [:worksheets/update-modal-form-field :worksheet/address-name (:address/name address)]))}]
+                    (rf/dispatch [:worksheets/update-modal-form-field :worksheet/address-name (:address/name address)])
+                    ;; Store elevators list and clear previous elevator selection
+                    (rf/dispatch [:worksheets/update-modal-form-field :worksheet/address-elevators (:elevators address)])
+                    (rf/dispatch [:worksheets/update-modal-form-field :worksheet/elevator-identifier nil]))}]
      [field-error (get errors :worksheet/address-id)]]))
+
+(defn elevator-form-field
+  "Render elevator dropdown based on selected address"
+  [errors]
+  (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
+        elevators (:worksheet/address-elevators form-data)
+        selected-elevator (:worksheet/elevator-identifier form-data)
+        has-error? (contains? errors :worksheet/elevator-identifier)
+        has-elevators? (and elevators (seq elevators))]
+    [:div {:style {:margin-bottom "1.5rem"}}
+     [field-label "Elevator" :worksheet/elevator-identifier has-error?]
+     [:select {:value (or selected-elevator "")
+               :disabled (not has-elevators?)
+               :on-change #(rf/dispatch [:worksheets/update-modal-form-field
+                                         :worksheet/elevator-identifier
+                                         (let [v (.. % -target -value)]
+                                           (when (seq v) v))])
+               :style (merge utils/input-base-style
+                             {:border (if has-error? utils/input-error-border utils/input-normal-border)
+                              :background (if has-elevators? "#fff" "#f9fafb")
+                              :cursor (if has-elevators? "pointer" "not-allowed")})}
+      [:option {:value ""} (if has-elevators? "Select elevator..." "Select address first...")]
+      (when has-elevators?
+        (for [elevator elevators]
+          ^{:key elevator}
+          [:option {:value elevator} elevator]))]
+     [field-error (get errors :worksheet/elevator-identifier)]]))
 
 (defn work-info-form-fields
   "Render work information form fields"
@@ -568,6 +598,7 @@
         [:div {:style {:padding "20px"}}
          [basic-form-fields errors]
          [address-form-field errors workspace-id]
+         [elevator-form-field errors]
          [work-info-form-fields errors]
          [time-tracking-form-fields errors]
          [notes-form-field errors]

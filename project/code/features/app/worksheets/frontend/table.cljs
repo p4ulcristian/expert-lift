@@ -76,6 +76,21 @@
                        :font-size "0.75rem"}}
         "Unassigned"])]))
 
+(defn elevator-cell
+  "Render elevator identifier column"
+  [row]
+  (let [elevator-id (:worksheet/elevator-identifier row)]
+    [:div
+     (if elevator-id
+       [:div {:style {:color "#374151"
+                      :font-size "0.875rem"
+                      :font-weight "500"}}
+        elevator-id]
+       [:span {:style {:color "#9ca3af"
+                       :font-style "italic"
+                       :font-size "0.75rem"}}
+        "-"])]))
+
 ;; =============================================================================
 ;; Table Configuration for react-data-table-component
 ;; =============================================================================
@@ -101,6 +116,11 @@
     :sortable  true
     :cell      address-cell
     :width     "200px"}
+   {:name      "Felvonó"
+    :selector  :worksheet/elevator-identifier
+    :sortable  false
+    :cell      elevator-cell
+    :width     "100px"}
    {:name      (tr/tr :worksheets/table-header-assigned-to)
     :selector  :worksheet/assigned-to-name
     :sortField :worksheet/assigned-to-name

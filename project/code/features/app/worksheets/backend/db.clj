@@ -34,17 +34,23 @@
 (defn get-worksheets-by-workspace
   "Get all worksheets for a workspace (via address relationship)"
   [workspace-id]
-  (postgres/execute-sql 
-   "SELECT w.*, 
+  (postgres/execute-sql
+   "SELECT w.*,
            a.name as address_name,
+           a.address_line1 as address_line1,
+           a.address_line2 as address_line2,
            a.city as address_city,
+           a.postal_code as address_postal_code,
+           a.elevators as address_elevators,
+           e.elevator_code as elevator_code,
            cu.full_name as created_by_name,
            au.full_name as assigned_to_name
     FROM expert_lift.worksheets w
-    JOIN expert_lift.addresses a ON w.address_id = a.id  
+    JOIN expert_lift.addresses a ON w.address_id = a.id
+    LEFT JOIN expert_lift.elevators e ON w.elevator_id = e.id
     LEFT JOIN expert_lift.users cu ON w.created_by_user_id = cu.id
     LEFT JOIN expert_lift.users au ON w.assigned_to_user_id = au.id
-    WHERE a.workspace_id = $1 
+    WHERE a.workspace_id = $1
     ORDER BY w.creation_date DESC, w.serial_number DESC"
    {:params [workspace-id]}))
 
@@ -75,16 +81,22 @@
                 [workspace-id search-param page-size offset]
                 [workspace-id page-size offset])
         
-        query (str "SELECT w.*, 
+        query (str "SELECT w.*,
                            a.name as address_name,
+                           a.address_line1 as address_line1,
+                           a.address_line2 as address_line2,
                            a.city as address_city,
+                           a.postal_code as address_postal_code,
+                           a.elevators as address_elevators,
+                           e.elevator_code as elevator_code,
                            cu.full_name as created_by_name,
                            au.full_name as assigned_to_name
                     FROM expert_lift.worksheets w
-                    JOIN expert_lift.addresses a ON w.address_id = a.id  
+                    JOIN expert_lift.addresses a ON w.address_id = a.id
+                    LEFT JOIN expert_lift.elevators e ON w.elevator_id = e.id
                     LEFT JOIN expert_lift.users cu ON w.created_by_user_id = cu.id
                     LEFT JOIN expert_lift.users au ON w.assigned_to_user_id = au.id
-                    WHERE a.workspace_id = $1 " 
+                    WHERE a.workspace_id = $1 "
                    search-condition
                    " ORDER BY " db-column " " order-direction
                    " LIMIT $" (if has-search? "3" "2")
@@ -116,14 +128,20 @@
 (defn get-worksheet-by-id
   "Get worksheet by ID (within workspace)"
   [worksheet-id workspace-id]
-  (postgres/execute-sql 
-   "SELECT w.*, 
+  (postgres/execute-sql
+   "SELECT w.*,
            a.name as address_name,
+           a.address_line1 as address_line1,
+           a.address_line2 as address_line2,
            a.city as address_city,
+           a.postal_code as address_postal_code,
+           a.elevators as address_elevators,
+           e.elevator_code as elevator_code,
            cu.full_name as created_by_name,
            au.full_name as assigned_to_name
     FROM expert_lift.worksheets w
-    JOIN expert_lift.addresses a ON w.address_id = a.id  
+    JOIN expert_lift.addresses a ON w.address_id = a.id
+    LEFT JOIN expert_lift.elevators e ON w.elevator_id = e.id
     LEFT JOIN expert_lift.users cu ON w.created_by_user_id = cu.id
     LEFT JOIN expert_lift.users au ON w.assigned_to_user_id = au.id
     WHERE w.id = $1 AND a.workspace_id = $2"
@@ -156,43 +174,43 @@
 
 (defn create-worksheet
   "Create new worksheet in workspace with auto-generated serial number"
-  [workspace-id creation-date work-type service-type work-description 
-   material-usage notes status address-id elevator-id created-by-user-id assigned-to-user-id 
+  [workspace-id creation-date work-type service-type work-description
+   material-usage notes status address-id elevator-id elevator-identifier created-by-user-id assigned-to-user-id
    arrival-time departure-time work-duration-hours maintainer-signature customer-signature]
   (let [auto-serial-number (generate-next-serial-number workspace-id creation-date)
         calculated-duration (or (calculate-work-duration arrival-time departure-time) work-duration-hours)]
-    (postgres/execute-sql 
-     "INSERT INTO expert_lift.worksheets 
-      (serial_number, creation_date, work_type, service_type, work_description, 
-       material_usage, notes, status, address_id, elevator_id, created_by_user_id, 
-       assigned_to_user_id, arrival_time, departure_time, work_duration_hours, 
-       maintainer_signature, customer_signature) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) 
+    (postgres/execute-sql
+     "INSERT INTO expert_lift.worksheets
+      (serial_number, creation_date, work_type, service_type, work_description,
+       material_usage, notes, status, address_id, elevator_id, elevator_identifier, created_by_user_id,
+       assigned_to_user_id, arrival_time, departure_time, work_duration_hours,
+       maintainer_signature, customer_signature)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       RETURNING *"
      {:params [auto-serial-number creation-date work-type service-type work-description
-               material-usage notes status address-id elevator-id created-by-user-id
+               material-usage notes status address-id elevator-id elevator-identifier created-by-user-id
                assigned-to-user-id arrival-time departure-time calculated-duration
                maintainer-signature customer-signature]})))
 
 (defn update-worksheet
   "Update existing worksheet (within workspace)"
-  [worksheet-id workspace-id serial-number creation-date work-type service-type work-description 
-   material-usage notes status address-id elevator-id assigned-to-user-id 
+  [worksheet-id workspace-id serial-number creation-date work-type service-type work-description
+   material-usage notes status address-id elevator-id elevator-identifier assigned-to-user-id
    arrival-time departure-time work-duration-hours maintainer-signature customer-signature]
   (let [calculated-duration (or (calculate-work-duration arrival-time departure-time) work-duration-hours)]
-    (postgres/execute-sql 
+    (postgres/execute-sql
      "UPDATE expert_lift.worksheets w
-      SET serial_number = $1, creation_date = $2, work_type = $3, service_type = $4, 
-          work_description = $5, material_usage = $6, notes = $7, status = $8, 
-          address_id = $9, elevator_id = $10, assigned_to_user_id = $11, 
-          arrival_time = $12, departure_time = $13, work_duration_hours = $14, 
-          maintainer_signature = $15, customer_signature = $16, updated_at = NOW()
+      SET serial_number = $1, creation_date = $2, work_type = $3, service_type = $4,
+          work_description = $5, material_usage = $6, notes = $7, status = $8,
+          address_id = $9, elevator_id = $10, elevator_identifier = $11, assigned_to_user_id = $12,
+          arrival_time = $13, departure_time = $14, work_duration_hours = $15,
+          maintainer_signature = $16, customer_signature = $17, updated_at = NOW()
       FROM expert_lift.addresses a
-      WHERE w.id = $17 AND w.address_id = a.id AND a.workspace_id = $18
+      WHERE w.id = $18 AND w.address_id = a.id AND a.workspace_id = $19
       RETURNING w.*"
      {:params [serial-number creation-date work-type service-type work-description
-               material-usage notes status address-id elevator-id assigned-to-user-id
-               arrival-time departure-time calculated-duration maintainer-signature 
+               material-usage notes status address-id elevator-id elevator-identifier assigned-to-user-id
+               arrival-time departure-time calculated-duration maintainer-signature
                customer-signature worksheet-id workspace-id]})))
 
 (defn delete-worksheet

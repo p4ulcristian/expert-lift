@@ -48,14 +48,22 @@
  :worksheets/set-modal-form-data
  (fn [db [_ data]]
    ;; Construct address object from address data if present
-   (let [enhanced-data (if (and (:worksheet/address-id data)
-                                (:worksheet/address-name data))
-                         (assoc data :worksheet/address
+   ;; Also load address-elevators for the elevator dropdown when editing
+   (let [address-elevators (or (:worksheet/address-elevators data)
+                               (:address_elevators data)
+                               (:address-elevators data))
+         enhanced-data (cond-> data
+                         ;; Add address object for display
+                         (and (:worksheet/address-id data)
+                              (:worksheet/address-name data))
+                         (assoc :worksheet/address
                                 {:address/id (:worksheet/address-id data)
                                  :address/name (:worksheet/address-name data)
                                  :address/display (str (:worksheet/address-name data)
                                                        " - " (:worksheet/address-city data))})
-                         data)]
+                         ;; Add address-elevators for dropdown
+                         address-elevators
+                         (assoc :worksheet/address-elevators address-elevators))]
      (assoc-in db [:worksheets :modal-form-data] enhanced-data))))
 
 (rf/reg-event-db

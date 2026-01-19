@@ -509,6 +509,7 @@
           status (:worksheet/status params)
           address-id (:worksheet/address-id params)
           elevator-id (:worksheet/elevator-id params)
+          elevator-identifier (:worksheet/elevator-identifier params)
           assigned-to-user-id (:worksheet/assigned-to-user-id params)
           arrival-time (:worksheet/arrival-time params)
           departure-time (:worksheet/departure-time params)
@@ -520,10 +521,10 @@
           (println "DEBUG: Attempting to create worksheet with workspace-id:" workspace-id)
           (let [material-usage (when-let [materials (:worksheet/material-usage params)]
                                   (cheshire.core/generate-string materials))
-                result (first (worksheets-db/create-worksheet workspace-id creation-date 
+                result (first (worksheets-db/create-worksheet workspace-id creation-date
                                                              work-type service-type work-description
-                                                             material-usage notes status address-id elevator-id 
-                                                             user-id assigned-to-user-id
+                                                             material-usage notes status address-id elevator-id
+                                                             elevator-identifier user-id assigned-to-user-id
                                                              arrival-time departure-time work-duration-hours
                                                              maintainer-signature customer-signature))]
             (println "DEBUG: Worksheet created successfully:" result)
@@ -565,6 +566,7 @@
               status (:worksheet/status params)
               address-id (:worksheet/address-id params)
               elevator-id (:worksheet/elevator-id params)
+              elevator-identifier (:worksheet/elevator-identifier params)
               assigned-to-user-id (:worksheet/assigned-to-user-id params)
               arrival-time (:worksheet/arrival-time params)
               departure-time (:worksheet/departure-time params)
@@ -575,7 +577,7 @@
             (let [result (first (worksheets-db/update-worksheet id workspace-id serial-number creation-date
                                                                work-type service-type work-description
                                                                nil notes status address-id elevator-id
-                                                               assigned-to-user-id
+                                                               elevator-identifier assigned-to-user-id
                                                                arrival-time departure-time work-duration-hours
                                                                maintainer-signature customer-signature))]
               {:worksheet/id (str (:id result))

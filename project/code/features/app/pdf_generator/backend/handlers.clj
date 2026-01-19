@@ -1,5 +1,5 @@
 (ns features.app.pdf-generator.backend.handlers
-  "ParQuery handlers for PDF generation"
+  "ParQuery handlers for PDF generation - updated"
   (:require
    [features.app.pdf-generator.backend.pdf :as pdf]
    [features.app.worksheets.backend.db :as worksheets-db]
@@ -91,20 +91,31 @@
         (println "Error formatting time:" (.getMessage e))
         ""))))
 
+(defn- format-full-address
+  "Format full address from worksheet address fields"
+  [worksheet]
+  (let [postal-code (:address_postal_code worksheet)
+        city (:address_city worksheet)
+        line1 (:address_line1 worksheet)
+        line2 (:address_line2 worksheet)]
+    (str (when postal-code (str postal-code " "))
+         (when city (str city ", "))
+         (or line1 "")
+         (when (and line2 (not (empty? line2))) (str " " line2)))))
+
 (defn- worksheet-to-work-report-data
   "Convert worksheet database record to work report format for PDF generation"
   [worksheet workspace-id]
   (let [work-type-mapping {"repair" "normal"
-                          "maintenance" "normal" 
+                          "maintenance" "normal"
                           "other" "normal"}
         service-type-mapping {"normal" "normal"
                              "night" "night"
                              "weekend" "weekend"
                              "holiday" "weekend"}]
     {:institution-name (or (:address_name worksheet) "")
-     :institution-address (str (or (:address_name worksheet) "") 
-                              (when (:address_city worksheet) 
-                                (str ", " (:address_city worksheet))))
+     :institution-address (format-full-address worksheet)
+     :elevator-identifier (or (:elevator_identifier worksheet) (:elevator_code worksheet) "")
      :work-type (get work-type-mapping (:work_type worksheet) "normal")
      :worksheet-work-type (:work_type worksheet)
      :arrival-time (format-time-from-iso (:arrival_time worksheet))
