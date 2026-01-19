@@ -262,7 +262,11 @@
     [:div.form-row
      [:label "Intézmény címe:"]
      [:div.field-value (or institution-address "")]]
-    
+
+    [:div.form-row
+     [:label "Felvonó jelzése:"]
+     [:div.field-value (or elevator-identifier "")]]
+
     [:div.checkbox-row
      [:div.checkbox-item
       [:span.checkbox-label "Normál:"]
@@ -273,10 +277,6 @@
      [:div.checkbox-item
       [:span.checkbox-label "Hétvége vagy ünnepnap:"]
       [:div.checkbox (when (= work-type "weekend") "X")]]]
-    
-    [:div.form-row
-     [:label "Felvonó jelzése:"]
-     [:div.field-value (or elevator-identifier "")]]
     
     [:div.time-row
      (format-time-fields arrival-time "Érkezés")
