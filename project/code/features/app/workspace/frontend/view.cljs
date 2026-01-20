@@ -132,7 +132,9 @@
       [:a {:href link-url
            :style {:text-decoration "none"
                    :display "block"
-                   :height "100%"}}
+                   :height "100%"
+                   :touch-action "manipulation"
+                   :-webkit-tap-highlight-color "transparent"}}
        card-content]
       card-content)))
 
@@ -157,7 +159,7 @@
     (fn []
       (let [s @stats]
         [:div {:style {:display "grid"
-                       :grid-template-columns "1fr 1fr"
+                       :grid-template-columns "repeat(auto-fit, minmax(280px, 1fr))"
                        :gap "1rem"
                        :margin-top "2rem"
                        :align-items "stretch"}}
