@@ -14,6 +14,19 @@
             [ui.content-section :as content-section]
             [translations.core :as tr]))
 
+(defn- is-admin? [user]
+  "Check if user has admin or superadmin role"
+  (let [role (:user/role user)]
+    (or (= role "admin") (= role "superadmin"))))
+
+(defn- load-current-user [user-atom]
+  "Load current user data"
+  (parquery/send-queries
+   {:queries {:user/current {}}
+    :parquery/context {}
+    :callback (fn [response]
+                (reset! user-atom (:user/current response)))}))
+
 (defn- get-workspace-id
   "Get workspace ID from router parameters"
   []
@@ -390,6 +403,7 @@
         addresses (r/atom [])
         pagination (r/atom {:total-count 0 :page 0 :page-size 10})
         loading? (r/atom false)
+        current-user (r/atom nil)
         search-term (r/atom "")
         sort-field (r/atom :address/name)
         sort-direction (r/atom "asc")
@@ -424,47 +438,61 @@
                     (when (js/confirm (tr/tr :addresses/confirm-delete))
                       (delete-address (:address/id row))))]
 
+    ;; Load current user on mount
+    (load-current-user current-user)
+
     (fn []
-      ;; Load initial data
-      (when (and (empty? @addresses) (not @loading?))
-        (load-addresses))
+      (let [admin? (is-admin? @current-user)]
+        ;; Load initial data
+        (when (and (empty? @addresses) (not @loading?))
+          (load-addresses))
 
-      [:<>
-       [addresses-subheader modal-address modal-is-new?]
-       [content-section/content-section
-        ;; Search bar
-        [:div {:style {:margin-bottom "1rem"}}
-        [data-table-search/view
-         {:search-term @search-term
-          :placeholder (tr/tr :addresses/search-placeholder)
-          :on-search-change (fn [value]
-                              (reset! search-term value))
-          :on-search (fn [value]
-                       (reset! search-term value)
-                       (swap! pagination assoc :page 0)
-                       (load-addresses))}]]
+        [:<>
+         ;; Only show add button for admins
+         (when admin?
+           [addresses-subheader modal-address modal-is-new?])
+         ;; Show simple header for non-admins
+         (when-not admin?
+           [subheader/subheader
+            {:title (tr/tr :addresses/page-title)
+             :description (tr/tr :addresses/page-description)}])
+         [content-section/content-section
+          ;; Search bar
+          [:div {:style {:margin-bottom "1rem"}}
+           [data-table-search/view
+            {:search-term @search-term
+             :placeholder (tr/tr :addresses/search-placeholder)
+             :on-search-change (fn [value]
+                                 (reset! search-term value))
+             :on-search (fn [value]
+                          (reset! search-term value)
+                          (swap! pagination assoc :page 0)
+                          (load-addresses))}]]
 
-       ;; Addresses table
-       [data-table/view
-        {:columns (get-columns)
-         :data @addresses
-         :loading? @loading?
-         :pagination @pagination
-         :entity {:name "address" :name-plural "addresses"}
-         :data-testid "addresses-table"
-         :on-edit on-edit
-         :on-delete on-delete
-         ;; Pagination handler
-         :on-page-change (fn [page _total-rows]
-                           (swap! pagination assoc :page (dec page))
-                           (load-addresses))
-         :on-page-size-change (fn [new-size]
-                                (swap! pagination assoc :page-size new-size :page 0)
-                                (load-addresses))
-         ;; Sort handler
-         :on-sort (fn [field direction _sorted-rows]
-                    (reset! sort-field field)
-                    (reset! sort-direction direction)
-                    (load-addresses))}]
+          ;; Addresses table - only pass edit/delete handlers for admins
+          [data-table/view
+           (merge
+            {:columns (get-columns)
+             :data @addresses
+             :loading? @loading?
+             :pagination @pagination
+             :entity {:name "address" :name-plural "addresses"}
+             :data-testid "addresses-table"
+             ;; Pagination handler
+             :on-page-change (fn [page _total-rows]
+                               (swap! pagination assoc :page (dec page))
+                               (load-addresses))
+             :on-page-size-change (fn [new-size]
+                                    (swap! pagination assoc :page-size new-size :page 0)
+                                    (load-addresses))
+             ;; Sort handler
+             :on-sort (fn [field direction _sorted-rows]
+                        (reset! sort-field field)
+                        (reset! sort-direction direction)
+                        (load-addresses))}
+            ;; Only add edit/delete for admins
+            (when admin?
+              {:on-edit on-edit
+               :on-delete on-delete}))]
 
-       [modal-when-open modal-address modal-is-new? save-address]]])))
+          [modal-when-open modal-address modal-is-new? save-address]]]))))

@@ -2,6 +2,7 @@
   "Main view component for worksheets feature"
   (:require
    [reagent.core :as r]
+   [parquery.frontend.request :as parquery]
    [features.app.worksheets.frontend.utils :as utils]
    [features.app.worksheets.frontend.queries :as queries]
    [features.app.worksheets.frontend.table :as table]
@@ -15,6 +16,19 @@
    [ui.subheader :as subheader]
    [ui.content-section :as content-section]
    [translations.core :as tr]))
+
+(defn- is-admin? [user]
+  "Check if user has admin or superadmin role"
+  (let [role (:user/role user)]
+    (or (= role "admin") (= role "superadmin"))))
+
+(defn- load-current-user [user-atom]
+  "Load current user data"
+  (parquery/send-queries
+   {:queries {:user/current {}}
+    :parquery/context {}
+    :callback (fn [response]
+                (reset! user-atom (:user/current response)))}))
 
 ;; =============================================================================
 ;; Action Handlers
@@ -94,6 +108,8 @@
         worksheets (r/atom [])
         pagination (r/atom {:total-count 0 :page 0 :page-size 10})
         loading? (r/atom false)
+        ;; User state for permissions
+        current-user (r/atom nil)
         ;; Search and sort state
         search-term (r/atom "")
         sort-field (r/atom :worksheet/serial-number)
@@ -130,72 +146,80 @@
         on-delete (fn [worksheet]
                     (handle-delete worksheet workspace-id load-worksheets))]
 
+    ;; Load current user on mount
+    (load-current-user current-user)
+
     (fn []
-      ;; Load initial data
-      (when (and (empty? @worksheets) (not @loading?))
-        (load-worksheets))
+      (let [admin? (is-admin? @current-user)]
+        ;; Load initial data
+        (when (and (empty? @worksheets) (not @loading?))
+          (load-worksheets))
 
-      [:<>
-       ;; Subheader with add button
-       [subheader/subheader
-        {:title (tr/tr :worksheets/page-title)
-         :description (tr/tr :worksheets/page-description)
-         :action-button [enhanced-button/enhanced-button
-                         {:variant :success
-                          :data-testid "add-worksheet-button"
-                          :on-click #(handle-add-new modal-worksheet modal-is-new?)
-                          :text (tr/tr :worksheets/add-new-worksheet)}]}]
+        [:<>
+         ;; Subheader - only show add button for admins
+         [subheader/subheader
+          (merge
+           {:title (tr/tr :worksheets/page-title)
+            :description (tr/tr :worksheets/page-description)}
+           (when admin?
+             {:action-button [enhanced-button/enhanced-button
+                              {:variant :success
+                               :data-testid "add-worksheet-button"
+                               :on-click #(handle-add-new modal-worksheet modal-is-new?)
+                               :text (tr/tr :worksheets/add-new-worksheet)}]}))]
 
-       [content-section/content-section
-        ;; Search bar
-        [:div {:style {:margin-bottom "1rem"}}
-        [data-table-search/view
-         {:search-term @search-term
-          :placeholder (tr/tr :worksheets/search-placeholder)
-          :on-search-change (fn [value]
-                              (reset! search-term value))
-          :on-search (fn [value]
-                       (reset! search-term value)
-                       (swap! pagination assoc :page 0)
-                       (load-worksheets))}]]
+         [content-section/content-section
+          ;; Search bar
+          [:div {:style {:margin-bottom "1rem"}}
+           [data-table-search/view
+            {:search-term @search-term
+             :placeholder (tr/tr :worksheets/search-placeholder)
+             :on-search-change (fn [value]
+                                 (reset! search-term value))
+             :on-search (fn [value]
+                          (reset! search-term value)
+                          (swap! pagination assoc :page 0)
+                          (load-worksheets))}]]
 
-       ;; Worksheets table
-       [data-table/view
-        {:columns (table/get-columns)
-         :data @worksheets
-         :loading? @loading?
-         :pagination @pagination
-         :entity {:name "worksheet" :name-plural "worksheets"}
-         :data-testid "worksheets-table"
-         ;; Custom actions (edit, pdf, delete)
-         :custom-actions (fn [row _config]
-                           [table/actions-cell row {:on-edit on-edit
-                                                    :on-pdf on-pdf
-                                                    :on-delete on-delete}])
-         ;; Pagination handler
-         :on-page-change (fn [page _total-rows]
-                           (swap! pagination assoc :page (dec page))
-                           (load-worksheets))
-         :on-page-size-change (fn [new-size]
-                                (swap! pagination assoc :page-size new-size :page 0)
-                                (load-worksheets))
-         ;; Sort handler
-         :on-sort (fn [field direction _sorted-rows]
-                    (reset! sort-field field)
-                    (reset! sort-direction direction)
-                    (load-worksheets))}]
+          ;; Worksheets table
+          [data-table/view
+           {:columns (table/get-columns)
+            :data @worksheets
+            :loading? @loading?
+            :pagination @pagination
+            :entity {:name "worksheet" :name-plural "worksheets"}
+            :data-testid "worksheets-table"
+            ;; Custom actions (edit, pdf, delete) with role-based visibility
+            :custom-actions (fn [row _config]
+                              [table/actions-cell row {:on-edit on-edit
+                                                       :on-pdf on-pdf
+                                                       :on-delete on-delete
+                                                       :is-admin? admin?
+                                                       :current-user-id (:user/id @current-user)}])
+            ;; Pagination handler
+            :on-page-change (fn [page _total-rows]
+                              (swap! pagination assoc :page (dec page))
+                              (load-worksheets))
+            :on-page-size-change (fn [new-size]
+                                   (swap! pagination assoc :page-size new-size :page 0)
+                                   (load-worksheets))
+            ;; Sort handler
+            :on-sort (fn [field direction _sorted-rows]
+                       (reset! sort-field field)
+                       (reset! sort-direction direction)
+                       (load-worksheets))}]
 
-       ;; Worksheet edit modal
-       (when @modal-worksheet
-         [components/worksheet-modal
-          @modal-worksheet
-          @modal-is-new?
-          save-worksheet
-          (fn [] (reset! modal-worksheet nil))
-          workspace-id])
+          ;; Worksheet edit modal
+          (when @modal-worksheet
+            [components/worksheet-modal
+             @modal-worksheet
+             @modal-is-new?
+             save-worksheet
+             (fn [] (reset! modal-worksheet nil))
+             workspace-id])
 
-       ;; PDF viewer modal
-       (when @pdf-modal-worksheet
-         [pdf-modal
-          @pdf-modal-worksheet
-          (fn [] (reset! pdf-modal-worksheet nil))])]])))
+          ;; PDF viewer modal
+          (when @pdf-modal-worksheet
+            [pdf-modal
+             @pdf-modal-worksheet
+             (fn [] (reset! pdf-modal-worksheet nil))])]]))))

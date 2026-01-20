@@ -137,28 +137,34 @@
 ;; =============================================================================
 
 (defn actions-cell
-  "Custom actions cell with edit, PDF, and delete buttons"
-  [row {:keys [on-edit on-pdf on-delete]}]
-  (let [worksheet-id (:worksheet/id row)]
+  "Custom actions cell with edit, PDF, and delete buttons.
+   Edit shown if admin OR worksheet is assigned to current user.
+   Delete shown only for admins."
+  [row {:keys [on-edit on-pdf on-delete is-admin? current-user-id]}]
+  (let [worksheet-id (:worksheet/id row)
+        assigned-to-id (:worksheet/assigned-to-user-id row)
+        can-edit? (or is-admin? (= (str current-user-id) (str assigned-to-id)))]
     [:div {:style {:display "flex" :gap "8px"}}
-     ;; Edit button
-     [:button {:class       "input-button button-outlined input-primary"
-               :title       (tr/tr :worksheets/action-edit)
-               :data-testid (str "edit-worksheet-" worksheet-id)
-               :style       {:padding "4px 8px"}
-               :on-click    #(on-edit row)}
-      [:i {:class "fa-solid fa-pen"}]]
-     ;; PDF button
+     ;; Edit button - show if admin or assigned to user
+     (when can-edit?
+       [:button {:class       "input-button button-outlined input-primary"
+                 :title       (tr/tr :worksheets/action-edit)
+                 :data-testid (str "edit-worksheet-" worksheet-id)
+                 :style       {:padding "4px 8px"}
+                 :on-click    #(on-edit row)}
+        [:i {:class "fa-solid fa-pen"}]])
+     ;; PDF button - always visible
      [:button {:class       "input-button button-outlined input-secondary"
                :title       (tr/tr :worksheets/action-pdf)
                :data-testid (str "pdf-worksheet-" worksheet-id)
                :style       {:padding "4px 8px"}
                :on-click    #(on-pdf row)}
       [:i {:class "fa-solid fa-file-pdf"}]]
-     ;; Delete button
-     [:button {:class       "input-button button-outlined input-warning"
-               :title       (tr/tr :worksheets/action-delete)
-               :data-testid (str "delete-worksheet-" worksheet-id)
-               :style       {:padding "4px 8px"}
-               :on-click    #(on-delete row)}
-      [:i {:class "fa-solid fa-trash"}]]]))
+     ;; Delete button - only for admins
+     (when is-admin?
+       [:button {:class       "input-button button-outlined input-warning"
+                 :title       (tr/tr :worksheets/action-delete)
+                 :data-testid (str "delete-worksheet-" worksheet-id)
+                 :style       {:padding "4px 8px"}
+                 :on-click    #(on-delete row)}
+        [:i {:class "fa-solid fa-trash"}]])]))
