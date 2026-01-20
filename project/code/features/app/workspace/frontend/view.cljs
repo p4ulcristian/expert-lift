@@ -83,42 +83,118 @@
     (str welcome-prefix message-text)))
 
 (defn- feature-card
-  [icon title link-url]
-  "Individual feature card component"
-  (let [card-content [:div {:style {:border "1px solid #e0e0e0"
-                                    :border-radius "8px"
-                                    :padding "1.5rem"
-                                    :text-align "center"
-                                    :cursor (when link-url "pointer")
-                                    :transition "box-shadow 0.2s, transform 0.2s"
-                                    :box-shadow "0 2px 4px rgba(0,0,0,0.1)"
-                                    :aspect-ratio "1"
-                                    :display "flex"
-                                    :flex-direction "column"
-                                    :align-items "center"
-                                    :justify-content "center"}}
-                      [:i {:class icon
-                           :style {:font-size "2rem" :margin-bottom "0.75rem" :color "#72a9bf"}}]
-                      [:h3 {:style {:color "#333" :margin "0" :font-size "0.9rem" :font-weight "500"}} title]]]
+  "Individual feature card component with stats"
+  [{:keys [icon title link-url color stats]}]
+  (let [card-content
+        [:div {:style {:border "none"
+                       :border-radius "12px"
+                       :padding "1.25rem"
+                       :cursor (when link-url "pointer")
+                       :transition "box-shadow 0.2s, transform 0.2s"
+                       :box-shadow "0 4px 12px rgba(0,0,0,0.08)"
+                       :background color
+                       :width "100%"
+                       :height "120px"
+                       :display "flex"
+                       :gap "1rem"
+                       :align-items "flex-start"
+                       :box-sizing "border-box"}}
+         ;; Icon container
+         [:div {:style {:background "rgba(255,255,255,0.2)"
+                        :border-radius "10px"
+                        :padding "0.75rem"
+                        :display "flex"
+                        :align-items "center"
+                        :justify-content "center"}}
+          [:i {:class icon
+               :style {:font-size "1.5rem" :color "white"}}]]
+         ;; Content
+         [:div {:style {:flex 1}}
+          [:h3 {:style {:color "white"
+                        :margin "0 0 0.5rem 0"
+                        :font-size "1rem"
+                        :font-weight "600"
+                        :text-transform "uppercase"
+                        :letter-spacing "0.5px"}}
+           title]
+          (when stats
+            [:div {:style {:display "flex" :flex-direction "column" :gap "0.25rem"}}
+             (for [[label value] stats]
+               ^{:key label}
+               [:div {:style {:color "rgba(255,255,255,0.9)"
+                              :font-size "0.85rem"
+                              :display "flex"
+                              :align-items "center"
+                              :gap "0.5rem"}}
+                [:span {:style {:font-weight "600"}} value]
+                [:span {:style {:opacity "0.8"}} label]])])]]]
     (if link-url
       [:a {:href link-url
-           :style {:text-decoration "none" :flex "1" :min-width "120px" :max-width "150px"}}
+           :style {:text-decoration "none"
+                   :display "block"
+                   :height "100%"}}
        card-content]
       card-content)))
 
-(defn- features-grid [workspace-id]
-  "Grid of feature cards"
-  [:div {:style {:display "flex" :flex-wrap "wrap" :justify-content "center" :gap "1.5rem" :margin-top "2rem"}}
-   [feature-card "fa-solid fa-cubes" (tr/tr :features/material-templates) (str "/app/" workspace-id "/material-templates")]
-   [feature-card "fa-solid fa-location-dot" (tr/tr :features/addresses) (str "/app/" workspace-id "/addresses")]
-   [feature-card "fa-solid fa-clipboard-list" (tr/tr :features/worksheets) (str "/app/" workspace-id "/worksheets")]
-   [feature-card "fa-solid fa-gear" (tr/tr :features/settings) (str "/app/" workspace-id "/settings")]
-   [feature-card "fa-solid fa-users" (tr/tr :features/teams) (str "/app/" workspace-id "/teams")]])
+(defn- is-admin? [user]
+  "Check if user has admin or superadmin role"
+  (let [role (:user/role user)]
+    (or (= role "admin") (= role "superadmin"))))
 
-(defn- workspace-content [_auth-user _workspace workspace-id]
+(defn- load-dashboard-stats [workspace-id stats-atom]
+  "Load dashboard statistics"
+  (parquery/send-queries
+   {:queries {:dashboard/stats {}}
+    :parquery/context {:workspace-id workspace-id}
+    :callback (fn [response]
+                (reset! stats-atom (:dashboard/stats response)))}))
+
+(defn- features-grid [workspace-id user]
+  "Grid of feature cards - shows admin features only for admins"
+  (let [admin? (is-admin? user)
+        stats (r/atom nil)]
+    (load-dashboard-stats workspace-id stats)
+    (fn []
+      (let [s @stats]
+        [:div {:style {:display "grid"
+                       :grid-template-columns "1fr 1fr"
+                       :gap "1rem"
+                       :margin-top "2rem"
+                       :align-items "stretch"}}
+         [feature-card {:icon "fa-solid fa-clipboard-list"
+                        :title (tr/tr :features/worksheets)
+                        :link-url (str "/app/" workspace-id "/worksheets")
+                        :color "#6b8e9b"
+                        :stats [[(tr/tr :dashboard/stat-in-progress) (:worksheets-in-progress s 0)]
+                                [(tr/tr :dashboard/stat-draft) (:worksheets-draft s 0)]
+                                [(tr/tr :dashboard/stat-completed) (:worksheets-completed s 0)]]}]
+         [feature-card {:icon "fa-solid fa-location-dot"
+                        :title (tr/tr :features/addresses)
+                        :link-url (str "/app/" workspace-id "/addresses")
+                        :color "#6b8e9b"
+                        :stats [[(tr/tr :dashboard/stat-addresses) (:addresses-count s 0)]]}]
+         [feature-card {:icon "fa-solid fa-cubes"
+                        :title (tr/tr :features/material-templates)
+                        :link-url (str "/app/" workspace-id "/material-templates")
+                        :color "#6b8e9b"
+                        :stats [[(tr/tr :dashboard/stat-templates) (:templates-count s 0)]]}]
+         (when admin?
+           [feature-card {:icon "fa-solid fa-users"
+                          :title (tr/tr :features/teams)
+                          :link-url (str "/app/" workspace-id "/teams")
+                          :color "#6b8e9b"
+                          :stats [[(tr/tr :dashboard/stat-members) (:team-members-count s 0)]]}])
+         (when admin?
+           [feature-card {:icon "fa-solid fa-gear"
+                          :title (tr/tr :features/settings)
+                          :link-url (str "/app/" workspace-id "/settings")
+                          :color "#6b8e9b"
+                          :stats nil}])]))))
+
+(defn- workspace-content [auth-user _workspace workspace-id]
   "Main workspace dashboard content"
   [content-section/content-section
-   [features-grid workspace-id]])
+   [features-grid workspace-id auth-user]])
 
 (defn- access-denied-screen []
   "Screen shown when access is denied"

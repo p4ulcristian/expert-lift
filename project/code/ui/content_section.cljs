@@ -2,14 +2,15 @@
 
 (def section-container-style
   "Full page container with background"
-  {:min-height "100vh"
+  {:height "calc(100vh - 60px)"
+   :overflow "auto"
    :background "#f9fafb"})
 
 (def section-content-style
-  "Centered content area - max 800px, vertical padding only"
+  "Centered content area - max 800px"
   {:max-width "800px"
    :margin "0 auto"
-   :padding "2rem 0"})
+   :padding "2rem 1rem"})
 
 (defn content-section
   "Reusable content section with centered content container.

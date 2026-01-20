@@ -317,7 +317,15 @@
         :worksheets/status-draft "Draft"
         :worksheets/status-in-progress "In Progress"
         :worksheets/status-completed "Completed"
-        :worksheets/status-cancelled "Cancelled"}
+        :worksheets/status-cancelled "Cancelled"
+
+        ;; Dashboard Stats
+        :dashboard/stat-in-progress "in progress"
+        :dashboard/stat-draft "draft"
+        :dashboard/stat-completed "completed"
+        :dashboard/stat-addresses "addresses"
+        :dashboard/stat-templates "templates"
+        :dashboard/stat-members "members"}
    :hu {:header/logout "Kijelentkezés"
         :header/brand "ElevaThor"
         :header/role-employee "Csapattag"
@@ -631,7 +639,15 @@
         :worksheets/status-draft "Piszkozat"
         :worksheets/status-in-progress "Folyamatban"
         :worksheets/status-completed "Befejezve"
-        :worksheets/status-cancelled "Törölve"}})
+        :worksheets/status-cancelled "Törölve"
+
+        ;; Dashboard Stats
+        :dashboard/stat-in-progress "folyamatban"
+        :dashboard/stat-draft "piszkozat"
+        :dashboard/stat-completed "befejezett"
+        :dashboard/stat-addresses "cím"
+        :dashboard/stat-templates "sablon"
+        :dashboard/stat-members "tag"}})
 
 ;; Re-frame events and subscriptions for translations
 (rf/reg-event-db

@@ -806,6 +806,35 @@
         {:success false :error "No workspace context"}))
     {:success false :error "Insufficient permissions"}))
 
+;; =============================================================================
+;; Dashboard Statistics
+;; =============================================================================
+
+(defn get-dashboard-stats
+  "Get dashboard statistics for workspace"
+  [{:parquery/keys [context]}]
+  (let [workspace-id (:workspace-id context)]
+    (when workspace-id
+      (try
+        (let [;; Worksheet stats by status
+              worksheets (worksheets-db/get-worksheets-by-workspace workspace-id)
+              worksheet-counts (frequencies (map :status worksheets))
+              ;; Address count
+              addresses (addresses-db/get-addresses-by-workspace workspace-id)
+              ;; Template count
+              templates (material-templates-db/get-material-templates-by-workspace workspace-id)
+              ;; Team member count
+              team-members (teams-db/get-users-by-workspace workspace-id)]
+          {:worksheets-in-progress (get worksheet-counts "in_progress" 0)
+           :worksheets-draft (get worksheet-counts "draft" 0)
+           :worksheets-completed (get worksheet-counts "completed" 0)
+           :addresses-count (count addresses)
+           :templates-count (count templates)
+           :team-members-count (count team-members)})
+        (catch Exception e
+          (println "Error getting dashboard stats:" (.getMessage e))
+          {})))))
+
 ;; Entity namespace mapping for wire format transformation
 (def query->entity-ns
   "Maps query keys to entity namespaces for automatic wire->keys conversion.
@@ -866,7 +895,8 @@
    :workspace-worksheets/get-paginated #'get-workspace-worksheets-paginated
    :workspace-worksheets/get-by-id #'get-workspace-worksheet-by-id
    :workspace-worksheets/generate-pdf #'pdf-handlers/generate-worksheet-pdf
-   :workspace-settings/get #'settings-db/get-workspace-settings})
+   :workspace-settings/get #'settings-db/get-workspace-settings
+   :dashboard/stats #'get-dashboard-stats})
 
 (def write-queries
   "Write operations - mapped to handler functions"  
