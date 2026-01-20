@@ -161,9 +161,9 @@
          zoom-ref (get-in db [:worksheets :zoom-signature-ref])]
      ;; Store signature as point data (JSON) for resolution independence
      ;; This allows redrawing at any size without distortion
-     (let [new-db (if (and zoom-data zoom-ref (not (.isEmpty zoom-ref)))
+     (let [new-db (if (and zoom-data zoom-ref (not (.isEmpty ^js zoom-ref)))
                     (let [;; Get point data as JavaScript array, convert to JSON string
-                          points-data (.toData zoom-ref)
+                          points-data (.toData ^js zoom-ref)
                           signature-json (js/JSON.stringify (clj->js points-data))
                           ;; Prefix with "points:" to identify the format
                           signature-data (str "points:" signature-json)

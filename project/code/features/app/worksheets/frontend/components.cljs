@@ -381,7 +381,7 @@
             (let [json-str (subs signature-data 7)
                   points-array (try (js/JSON.parse json-str) (catch :default _ nil))]
               (when points-array
-                (.fromData ref points-array))))))
+                (.fromData ^js ref points-array))))))
 
       :component-did-update
       (fn [this old-argv]
@@ -389,12 +389,12 @@
               [_ new-sig] (r/argv this)]
           (when (not= new-sig old-sig)
             (when-let [ref @canvas-ref]
-              (.clear ref)
+              (.clear ^js ref)
               (when (and new-sig (str/starts-with? new-sig "points:"))
                 (let [json-str (subs new-sig 7)
                       points-array (try (js/JSON.parse json-str) (catch :default _ nil))]
                   (when points-array
-                    (.fromData ref points-array))))))))
+                    (.fromData ^js ref points-array))))))))
 
       :reagent-render
       (fn [_signature-data]
@@ -596,9 +596,8 @@
           (tr/tr :worksheets/clear)]
          [:button {:type "button"
                    :on-click (fn []
-                               ;; Call .off() to release touch event before closing
-                               (when-let [^js ref @(rf/subscribe [:worksheets/zoom-signature-ref])]
-                                 (.off ref))
+                               (when-let [ref @(rf/subscribe [:worksheets/zoom-signature-ref])]
+                                 (.off ^js ref))
                                (rf/dispatch [:worksheets/close-signature-zoom]))
                    :style {:padding "0.75rem 1.5rem" :font-size "0.875rem" :color "white"
                            :background "#3b82f6" :border "none" :border-radius "6px"
