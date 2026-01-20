@@ -266,6 +266,49 @@
      (for [workspace workspaces]
        [workspace-row workspace on-edit on-delete])]]])
 
+;; Feedbacks Components
+(defn- format-date [date-str]
+  "Format date string for display"
+  (when date-str
+    (let [date (js/Date. date-str)]
+      (str (.toLocaleDateString date "hu-HU")
+           " "
+           (.toLocaleTimeString date "hu-HU" #js {:hour "2-digit" :minute "2-digit"})))))
+
+(defn- feedback-row [feedback]
+  [:tr {:key (:id feedback)
+        :style {:border-bottom "1px solid #eee"}}
+   [:td {:style {:padding "0.75rem"}}
+    [:div {:style {:font-weight "500"}} (:user_full_name feedback)]
+    [:div {:style {:font-size "0.8rem" :color "#666"}} (:user_email feedback)]
+    [:div {:style {:font-size "0.75rem" :color "#999" :margin-top "0.25rem"}}
+     (str "Workspace: " (:workspace_name feedback))]]
+   [:td {:style {:padding "0.75rem" :max-width "400px"}}
+    [:div {:style {:white-space "pre-wrap" :word-break "break-word"}}
+     (:message feedback)]]
+   [:td {:style {:padding "0.75rem" :color "#666" :font-size "0.875rem"}}
+    (format-date (:created_at feedback))]])
+
+(defn feedback-table [feedbacks]
+  [:div {:style {:background "white" :border-radius "8px" :padding "1.5rem" :box-shadow "0 2px 4px rgba(0,0,0,0.1)"}}
+   [:div {:style {:display "flex" :justify-content "space-between" :align-items "center" :margin-bottom "1.5rem"}}
+    [:h2 "Feedbacks"]
+    [:span {:style {:color "#666" :font-size "0.875rem"}}
+     (str (count feedbacks) " feedback(s)")]]
+   (if (empty? feedbacks)
+     [:div {:style {:text-align "center" :padding "2rem" :color "#666"}}
+      "No feedbacks yet"]
+     [:table {:style {:width "100%" :border-collapse "collapse"}}
+      [:thead
+       [:tr {:style {:background "#f8f9fa"}}
+        [table-th "User" nil]
+        [table-th "Message" nil]
+        [table-th "Date" nil]]]
+      [:tbody
+       (for [feedback feedbacks]
+         ^{:key (:id feedback)}
+         [feedback-row feedback])]])])
+
 (defn view []
   (let [users (r/atom [])
         current-user (r/atom {})
@@ -275,6 +318,8 @@
         current-workspace (r/atom {})
         workspace-modal-open? (r/atom false)
         workspaces-loading? (r/atom true)
+        feedbacks (r/atom [])
+        feedbacks-loading? (r/atom true)
         auth-user (r/atom nil)
         auth-loading? (r/atom true)
         
@@ -350,12 +395,24 @@
                                    :callback (fn [response]
                                                (if (:success (:workspaces/delete response))
                                                  (load-workspaces)
-                                                 (js/alert (str "Error: " (:error (:workspaces/delete response))))))})))]
+                                                 (js/alert (str "Error: " (:error (:workspaces/delete response))))))})))
+
+        load-feedbacks #(do (reset! feedbacks-loading? true)
+                            (parquery/send-queries
+                              {:queries {:feedbacks/get-all {}}
+                               :parquery/context {}
+                               :callback (fn [response]
+                                           (let [feedbacks-data (:feedbacks/get-all response)]
+                                             (if (:error feedbacks-data)
+                                               (reset! feedbacks [])
+                                               (reset! feedbacks (or feedbacks-data [])))
+                                             (reset! feedbacks-loading? false)))}))]
     
     ;; Check auth and load data on component mount
     (check-auth)
     (load-users)
     (load-workspaces)
+    (load-feedbacks)
     
 (fn []
       (if @auth-loading?
@@ -432,11 +489,18 @@
                                    :workspace/description (:workspace/description workspace)}
                      workspace-data (if is-new?
                                       workspace-data
-                                      (assoc workspace-data 
+                                      (assoc workspace-data
                                              :workspace/id (:workspace/id workspace)
                                              :workspace/active (:workspace/active workspace)))]
                  (save-workspace workspace-data is-new?))
-              #(reset! workspace-modal-open? false)]]]]
+              #(reset! workspace-modal-open? false)]]
+
+            ;; Feedbacks Section
+            [:div {:style {:margin-top "3rem"}}
+             (if @feedbacks-loading?
+               [:div {:style {:text-align "center" :padding "2rem"}}
+                "Loading feedbacks..."]
+               [feedback-table @feedbacks])]]]
           [:div {:style {:min-height "100vh"
                          :display "flex"
                          :align-items "center"

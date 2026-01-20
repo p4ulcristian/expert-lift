@@ -294,6 +294,7 @@
         :worksheets/custom-material-name "Custom Material Name"
         :worksheets/enter-material-name "Enter material name..."
         :worksheets/unit "Unit"
+        :worksheets/select-unit "Select unit..."
         :worksheets/materials-used "Materials Used"
         :worksheets/click-to-sign "Click to sign"
         :worksheets/clear "Clear"
@@ -325,7 +326,23 @@
         :dashboard/stat-completed "completed"
         :dashboard/stat-addresses "addresses"
         :dashboard/stat-templates "templates"
-        :dashboard/stat-members "members"}
+        :dashboard/stat-members "members"
+
+        ;; Feedback Page
+        :features/feedback "Feedback"
+        :feedback/title "Feedback"
+        :feedback/description "Help us make the app better!"
+        :feedback/intro-text "What's working well? What would you change? Tell us anything!"
+        :feedback/message-label "Message"
+        :feedback/message-placeholder ""
+        :feedback/send-button "Send"
+        :feedback/sending "Sending..."
+        :feedback/thank-you "Got it!"
+        :feedback/message-sent "Thanks for the feedback!"
+        :feedback/we-appreciate ""
+        :feedback/send-another "Send another"
+        :feedback/my-feedbacks "My feedbacks"
+        :feedback/confirm-delete "Are you sure you want to delete this feedback?"}
    :hu {:header/logout "Kijelentkezés"
         :header/brand "ElevaThor"
         :header/role-employee "Csapattag"
@@ -616,6 +633,7 @@
         :worksheets/custom-material-name "Anyag neve"
         :worksheets/enter-material-name "Írd be az anyag nevét..."
         :worksheets/unit "Egység"
+        :worksheets/select-unit "Válassz egységet..."
         :worksheets/materials-used "Felhasznált anyagok"
         :worksheets/click-to-sign "Kattints az aláíráshoz"
         :worksheets/clear "Törlés"
@@ -647,7 +665,23 @@
         :dashboard/stat-completed "befejezett"
         :dashboard/stat-addresses "cím"
         :dashboard/stat-templates "sablon"
-        :dashboard/stat-members "tag"}})
+        :dashboard/stat-members "tag"
+
+        ;; Feedback Page
+        :features/feedback "Visszajelzés"
+        :feedback/title "Visszajelzés"
+        :feedback/description "Segíts jobbá tenni az alkalmazást!"
+        :feedback/intro-text "Mi működik jól? Min változtatnál? Bármit írhatsz!"
+        :feedback/message-label "Üzenet"
+        :feedback/message-placeholder ""
+        :feedback/send-button "Küldés"
+        :feedback/sending "Küldés..."
+        :feedback/thank-you "Megkaptuk!"
+        :feedback/message-sent "Köszönjük a visszajelzést!"
+        :feedback/we-appreciate ""
+        :feedback/send-another "Új visszajelzés"
+        :feedback/my-feedbacks "Korábbi visszajelzéseid"
+        :feedback/confirm-delete "Biztosan törlöd ezt a visszajelzést?"}})
 
 ;; Re-frame events and subscriptions for translations
 (rf/reg-event-db

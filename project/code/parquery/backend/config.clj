@@ -9,6 +9,7 @@
    [features.app.worksheets.backend.db :as worksheets-db]
    [features.app.settings.backend.db :as settings-db]
    [features.app.pdf-generator.backend.handlers :as pdf-handlers]
+   [features.app.feedback.backend.db :as feedback-db]
    [cheshire.core]))
 
 ;; Error handling helpers
@@ -835,6 +836,86 @@
           (println "Error getting dashboard stats:" (.getMessage e))
           {})))))
 
+;; =============================================================================
+;; Feedback Management
+;; =============================================================================
+
+(defn get-all-feedbacks
+  "Get all feedbacks (superadmin only)"
+  [{:parquery/keys [context request] :as params}]
+  (if (has-superadmin-role? request)
+    (try
+      (feedback-db/get-all-feedbacks)
+      (catch Exception e
+        (println "ERROR: get-all-feedbacks failed:" (.getMessage e))
+        []))
+    {:error "Insufficient permissions"}))
+
+(defn get-my-feedbacks
+  "Get current user's feedbacks"
+  [{:parquery/keys [context request] :as params}]
+  (let [user-id (get-in request [:session :user-id])]
+    (if user-id
+      (try
+        (feedback-db/get-user-feedbacks user-id)
+        (catch Exception e
+          (println "ERROR: get-my-feedbacks failed:" (.getMessage e))
+          []))
+      [])))
+
+(defn create-feedback
+  "Create new feedback (any logged-in user)"
+  [{:parquery/keys [context request] :as params}]
+  (let [user-id (get-in request [:session :user-id])
+        workspace-id (:workspace-id context)
+        message (:feedback/message params)]
+    (if (and user-id workspace-id message)
+      (try
+        (let [result (first (feedback-db/create-feedback message user-id workspace-id))]
+          {:feedback/id (str (:id result))
+           :feedback/message (:message result)
+           :feedback/created-at (str (:created_at result))
+           :success true})
+        (catch Exception e
+          (println "Error creating feedback:" (.getMessage e))
+          {:success false :error (.getMessage e)}))
+      {:success false :error "Missing required fields"})))
+
+(defn update-feedback
+  "Update feedback (only own)"
+  [{:parquery/keys [context request] :as params}]
+  (let [user-id (get-in request [:session :user-id])
+        feedback-id (:feedback/id params)
+        message (:feedback/message params)]
+    (if (and user-id feedback-id message)
+      (try
+        (let [result (first (feedback-db/update-feedback feedback-id user-id message))]
+          (if result
+            {:feedback/id (str (:id result))
+             :feedback/message (:message result)
+             :success true}
+            {:success false :error "Feedback not found or not yours"}))
+        (catch Exception e
+          (println "Error updating feedback:" (.getMessage e))
+          {:success false :error (.getMessage e)}))
+      {:success false :error "Missing required fields"})))
+
+(defn delete-feedback
+  "Delete feedback (only own)"
+  [{:parquery/keys [context request] :as params}]
+  (let [user-id (get-in request [:session :user-id])
+        feedback-id (:feedback/id params)]
+    (if (and user-id feedback-id)
+      (try
+        (let [result (first (feedback-db/delete-feedback feedback-id user-id))]
+          (if result
+            {:success true}
+            {:success false :error "Feedback not found or not yours"}))
+        (catch Exception e
+          (println "Error deleting feedback:" (.getMessage e))
+          {:success false :error (.getMessage e)}))
+      {:success false :error "Missing required fields"})))
+
 ;; Entity namespace mapping for wire format transformation
 (def query->entity-ns
   "Maps query keys to entity namespaces for automatic wire->keys conversion.
@@ -896,7 +977,9 @@
    :workspace-worksheets/get-by-id #'get-workspace-worksheet-by-id
    :workspace-worksheets/generate-pdf #'pdf-handlers/generate-worksheet-pdf
    :workspace-settings/get #'settings-db/get-workspace-settings
-   :dashboard/stats #'get-dashboard-stats})
+   :dashboard/stats #'get-dashboard-stats
+   :feedbacks/get-all #'get-all-feedbacks
+   :feedbacks/get-my #'get-my-feedbacks})
 
 (def write-queries
   "Write operations - mapped to handler functions"  
@@ -920,7 +1003,10 @@
    :workspace-worksheets/create #'create-workspace-worksheet
    :workspace-worksheets/update #'update-workspace-worksheet
    :workspace-worksheets/delete #'delete-workspace-worksheet
-   :workspace-settings/update #'settings-db/update-workspace-settings})
+   :workspace-settings/update #'settings-db/update-workspace-settings
+   :feedbacks/create #'create-feedback
+   :feedbacks/update #'update-feedback
+   :feedbacks/delete #'delete-feedback})
 
 (defn get-query-type
   "Returns query type based on config"

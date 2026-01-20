@@ -191,7 +191,12 @@
                           :title (tr/tr :features/settings)
                           :link-url (str "/app/" workspace-id "/settings")
                           :color "#6b8e9b"
-                          :stats nil}])]))))
+                          :stats nil}])
+         [feature-card {:icon "fa-solid fa-comment"
+                        :title (tr/tr :features/feedback)
+                        :link-url (str "/app/" workspace-id "/feedback")
+                        :color "#6b8e9b"
+                        :stats nil}]]))))
 
 (defn- workspace-content [auth-user _workspace workspace-id]
   "Main workspace dashboard content"
