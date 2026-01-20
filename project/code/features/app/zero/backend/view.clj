@@ -33,6 +33,18 @@
     [:meta {:charset "UTF-8"}]
     [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"}]
     [:title "ElevaThor"]
+    [:meta {:name "description" :content "ElevaThor - Felvonókarbantartás egyszerűen. Modern munkalapkezelő rendszer felvonószerelőknek."}]
+    ;; Open Graph meta tags (Facebook, LinkedIn)
+    [:meta {:property "og:type" :content "website"}]
+    [:meta {:property "og:title" :content "ElevaThor"}]
+    [:meta {:property "og:description" :content "Felvonókarbantartás egyszerűen. Modern munkalapkezelő rendszer felvonószerelőknek."}]
+    [:meta {:property "og:image" :content "https://elevathor.up.railway.app/social/og-image.png"}]
+    [:meta {:property "og:url" :content "https://elevathor.up.railway.app"}]
+    ;; Twitter Card meta tags
+    [:meta {:name "twitter:card" :content "summary_large_image"}]
+    [:meta {:name "twitter:title" :content "ElevaThor"}]
+    [:meta {:name "twitter:description" :content "Felvonókarbantartás egyszerűen. Modern munkalapkezelő rendszer felvonószerelőknek."}]
+    [:meta {:name "twitter:image" :content "https://elevathor.up.railway.app/social/twitter-image.png"}]
     (favicons/favicons)
     [:link {:rel "preconnect" :href "https://fonts.googleapis.com"}]
     [:link {:rel "preconnect" :href "https://fonts.gstatic.com" :crossorigin true}]
