@@ -43,11 +43,13 @@
                         (utils/format-datetime-for-input field-value)
                         (str field-value))
         base-change-handler (fn [e]
-                              (let [value (.. e -target -value)]
+                              (let [value (.. e -target -value)
+                                    ;; Get fresh form data inside handler to avoid stale closure
+                                    current-form-data (or @(rf/subscribe [:worksheets/modal-form-data]) {})]
                                 (rf/dispatch [:worksheets/update-modal-form-field field-key value])
                                 (when is-time-field?
                                   ;; Auto-calculate duration for time fields
-                                  (let [updated-data (assoc form-data field-key value)
+                                  (let [updated-data (assoc current-form-data field-key value)
                                         arrival (:worksheet/arrival-time updated-data)
                                         departure (:worksheet/departure-time updated-data)
                                         calculated-duration (utils/calculate-work-duration arrival departure)]
@@ -78,7 +80,7 @@
   "Render select input"
   [field-key has-error? attrs options]
   [:select (merge (input-base-props field-key has-error? attrs) (dissoc attrs :options))
-   [:option {:value ""} "Select..."]
+   [:option {:value ""} (tr/tr :worksheets/select)]
    (for [[value label] options]
      ^{:key value}
      [:option {:value value} label])])
@@ -96,7 +98,7 @@
       [:select (merge (input-base-props field-key has-error? attrs)
                       (dissoc attrs :workspace-id :current-value))
        [:option {:value ""}
-        (if @loading? "Loading addresses..." "Select address...")]
+        (if @loading? (tr/tr :worksheets/loading-addresses) (tr/tr :worksheets/select-address))]
        (for [address @addresses]
          ^{:key (:address/id address)}
          [:option {:value (:address/id address)}
@@ -129,9 +131,9 @@
   "Render basic worksheet form fields"
   [errors]
   [:div
-   [form-field "Serial Number" :worksheet/serial-number errors
-    {:type "text" :placeholder "Auto-generated" :disabled true}]
-   [form-field "Creation Date" :worksheet/creation-date errors
+   [form-field (tr/tr :worksheets/serial-number) :worksheet/serial-number errors
+    {:type "text" :placeholder (tr/tr :worksheets/auto-generated) :disabled true}]
+   [form-field (tr/tr :worksheets/creation-date) :worksheet/creation-date errors
     {:type "date"}]])
 
 (defn address-form-field
@@ -140,7 +142,7 @@
   (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
         has-error? (contains? errors :worksheet/address-id)]
     [:div {:style {:margin-bottom "1.5rem"}}
-     [field-label "Address" :worksheet/address-id has-error?]
+     [field-label (tr/tr :worksheets/address) :worksheet/address-id has-error?]
      [address-search/address-search-dropdown
       {:component-id :worksheet-address
        :workspace-id workspace-id
@@ -149,8 +151,11 @@
        :on-select (fn [address]
                     (rf/dispatch [:worksheets/update-modal-form-field :worksheet/address-id (:address/id address)])
                     (rf/dispatch [:worksheets/update-modal-form-field :worksheet/address-name (:address/name address)])
-                    ;; Store elevators list and clear previous elevator selection
-                    (rf/dispatch [:worksheets/update-modal-form-field :worksheet/address-elevators (:elevators address)])
+                    ;; Store elevators as name strings and clear previous selection
+                    (let [elevators (:elevators address)
+                          names (mapv (fn [e] (if (map? e) (or (:name e) (str e)) (str e)))
+                                      (if (sequential? elevators) elevators []))]
+                      (rf/dispatch [:worksheets/update-modal-form-field :worksheet/address-elevators names]))
                     (rf/dispatch [:worksheets/update-modal-form-field :worksheet/elevator-identifier nil]))}]
      [field-error (get errors :worksheet/address-id)]]))
 
@@ -163,7 +168,7 @@
         has-error? (contains? errors :worksheet/elevator-identifier)
         has-elevators? (and elevators (seq elevators))]
     [:div {:style {:margin-bottom "1.5rem"}}
-     [field-label "Elevator" :worksheet/elevator-identifier has-error?]
+     [field-label (tr/tr :worksheets/elevator) :worksheet/elevator-identifier has-error?]
      [:select {:value (or selected-elevator "")
                :disabled (not has-elevators?)
                :on-change #(rf/dispatch [:worksheets/update-modal-form-field
@@ -174,44 +179,43 @@
                              {:border (if has-error? utils/input-error-border utils/input-normal-border)
                               :background (if has-elevators? "#fff" "#f9fafb")
                               :cursor (if has-elevators? "pointer" "not-allowed")})}
-      [:option {:value ""} (if has-elevators? "Select elevator..." "Select address first...")]
-      (when has-elevators?
-        (for [elevator elevators]
-          ^{:key elevator}
-          [:option {:value elevator} elevator]))]
+      [:option {:value ""} (if has-elevators? (tr/tr :worksheets/select-elevator) (tr/tr :worksheets/select-address-first))]
+      (for [elevator-name elevators]
+        ^{:key elevator-name}
+        [:option {:value elevator-name} elevator-name])]
      [field-error (get errors :worksheet/elevator-identifier)]]))
 
 (defn work-info-form-fields
   "Render work information form fields"
   [errors]
   [:div
-   [form-field "Work Type" :worksheet/work-type errors
-    {:type "select" :options utils/work-type-options}]
-   [form-field "Service Type" :worksheet/service-type errors
-    {:type "select" :options utils/service-type-options}]
-   [form-field "Work Description" :worksheet/work-description errors
-    {:type "textarea" :placeholder "Describe the work to be performed..." :rows 4}]
-   [form-field "Status" :worksheet/status errors
-    {:type "select" :options utils/status-options}]])
+   [form-field (tr/tr :worksheets/work-type) :worksheet/work-type errors
+    {:type "select" :options (utils/work-type-options)}]
+   [form-field (tr/tr :worksheets/service-type) :worksheet/service-type errors
+    {:type "select" :options (utils/service-type-options)}]
+   [form-field (tr/tr :worksheets/work-description) :worksheet/work-description errors
+    {:type "textarea" :placeholder (tr/tr :worksheets/work-description-placeholder) :rows 4}]
+   [form-field (tr/tr :worksheets/status) :worksheet/status errors
+    {:type "select" :options (utils/status-options)}]])
 
 (defn time-tracking-form-fields
   "Render time tracking form fields"
   [errors]
   [:div
-   [form-field "Arrival Time" :worksheet/arrival-time errors
+   [form-field (tr/tr :worksheets/arrival-time) :worksheet/arrival-time errors
     {:type "datetime-local"}]
-   [form-field "Departure Time" :worksheet/departure-time errors
+   [form-field (tr/tr :worksheets/departure-time) :worksheet/departure-time errors
     {:type "datetime-local"}]
-   [form-field "Work Duration (Hours)" :worksheet/work-duration-hours errors
-    {:type "number" :step "1" :placeholder "Auto-calculated from arrival/departure" :disabled true}]
+   [form-field (tr/tr :worksheets/work-duration) :worksheet/work-duration-hours errors
+    {:type "number" :step "1" :placeholder (tr/tr :worksheets/work-duration-placeholder) :disabled true}]
    [:div {:style {:margin-bottom "1.5rem" :font-size "0.75rem" :color "#6b7280"}}
-    "Work duration is automatically calculated from arrival and departure times (rounded up to nearest full hour)"]])
+    (tr/tr :worksheets/work-duration-note)]])
 
 (defn notes-form-field
   "Render notes form field"
   [errors]
-  [form-field "Notes" :worksheet/notes errors
-   {:type "textarea" :placeholder "Optional notes..." :rows 3}])
+  [form-field (tr/tr :worksheets/notes) :worksheet/notes errors
+   {:type "textarea" :placeholder (tr/tr :worksheets/notes-placeholder) :rows 3}])
 
 ;; =============================================================================
 ;; Material Components
@@ -230,7 +234,7 @@
              :style {:background "#ef4444" :color "white" :border "none"
                      :border-radius "4px" :padding "0.25rem 0.5rem"
                      :font-size "0.75rem" :cursor "pointer"}}
-    "Remove"]])
+    (tr/tr :worksheets/remove)]])
 
 (defn- existing-materials-list
   "Render list of existing materials"
@@ -238,7 +242,7 @@
   (when (seq materials)
     [:div {:style {:margin-bottom "1rem"}}
      [:h4 {:style {:margin-bottom "0.5rem" :font-size "0.9rem" :font-weight "500" :color "#374151"}}
-      "Added Materials:"]
+      (tr/tr :worksheets/added-materials)]
      [:div {:style {:max-height "150px" :overflow-y "auto"
                     :border "1px solid #d1d5db" :border-radius "6px" :padding "0.5rem"}}
       (map-indexed material-item-display materials)]]))
@@ -253,12 +257,12 @@
      [:div
       [:label {:style {:display "block" :margin-bottom "0.25rem" :font-weight "500"
                        :font-size "0.75rem" :color "#374151"}}
-       "Select Material"]
+       (tr/tr :worksheets/select-material)]
       [:select {:value selected-template-id
                 :on-change #(rf/dispatch [:worksheets/select-material-template (.. % -target -value)])
                 :style {:width "100%" :padding "0.5rem" :border "1px solid #d1d5db"
                         :border-radius "6px" :font-size "0.875rem"}}
-       [:option {:value ""} "Choose material..."]
+       [:option {:value ""} (tr/tr :worksheets/choose-material)]
        (map (fn [template]
               [:option {:key (:material-template/id template) :value (:material-template/id template)}
                (str (:material-template/name template) " (" (:material-template/unit template) ")")])
@@ -266,7 +270,7 @@
      [:div
       [:label {:style {:display "block" :margin-bottom "0.25rem" :font-weight "500"
                        :font-size "0.75rem" :color "#374151"}}
-       "Quantity"]
+       (tr/tr :worksheets/quantity)]
       [:input {:type "number"
                :value quantity-value
                :on-change #(rf/dispatch [:worksheets/update-form-field :worksheet/new-material-quantity (.. % -target -value)])
@@ -283,7 +287,7 @@
                        :padding "0.5rem 1rem" :font-size "0.875rem"
                        :cursor (if disabled? "not-allowed" "pointer")
                        :font-weight "500"}}
-      "Add"]]))
+      (tr/tr :worksheets/add)]]))
 
 (defn- custom-material-inputs
   "Render custom material input form"
@@ -297,22 +301,22 @@
                       (empty? (str custom-quantity)))]
     [:div {:style {:margin-top "1rem" :padding-top "1rem" :border-top "1px solid #e5e7eb"}}
      [:h4 {:style {:margin-bottom "0.5rem" :font-size "0.9rem" :font-weight "500" :color "#374151"}}
-      "Add Custom Material:"]
+      (tr/tr :worksheets/add-custom-material)]
      [:div {:style {:display "grid" :grid-template-columns "2fr 1fr 1fr auto" :gap "0.5rem" :align-items "end"}}
       [:div
        [:label {:style {:display "block" :margin-bottom "0.25rem" :font-weight "500"
                         :font-size "0.75rem" :color "#374151"}}
-        "Custom Material Name"]
+        (tr/tr :worksheets/custom-material-name)]
        [:input {:type "text"
                 :value custom-name
                 :on-change #(rf/dispatch [:worksheets/update-form-field :worksheet/custom-material-name (.. % -target -value)])
-                :placeholder "Enter material name..."
+                :placeholder (tr/tr :worksheets/enter-material-name)
                 :style {:width "100%" :padding "0.5rem" :border "1px solid #d1d5db"
                         :border-radius "6px" :font-size "0.875rem"}}]]
       [:div
        [:label {:style {:display "block" :margin-bottom "0.25rem" :font-weight "500"
                         :font-size "0.75rem" :color "#374151"}}
-        "Unit"]
+        (tr/tr :worksheets/unit)]
        [:input {:type "text"
                 :value custom-unit
                 :on-change #(rf/dispatch [:worksheets/update-form-field :worksheet/custom-material-unit (.. % -target -value)])
@@ -322,7 +326,7 @@
       [:div
        [:label {:style {:display "block" :margin-bottom "0.25rem" :font-weight "500"
                         :font-size "0.75rem" :color "#374151"}}
-        "Quantity"]
+        (tr/tr :worksheets/quantity)]
        [:input {:type "number"
                 :value custom-quantity
                 :on-change #(rf/dispatch [:worksheets/update-form-field :worksheet/custom-material-quantity (.. % -target -value)])
@@ -337,7 +341,7 @@
                         :padding "0.5rem 1rem" :font-size "0.875rem"
                         :cursor (if disabled? "not-allowed" "pointer")
                         :font-weight "500"}}
-       "Add"]]]))
+       (tr/tr :worksheets/add)]]]))
 
 (defn materials-section
   "Render complete materials section"
@@ -347,7 +351,7 @@
         selected-template-id (get @(rf/subscribe [:worksheets/modal-form-data]) :worksheet/selected-material-template "")]
     [:div {:style {:margin-bottom "1.5rem"}}
      [:h3 {:style {:margin-bottom "1rem" :font-size "1.125rem" :font-weight "600" :color "#374151"}}
-      "Materials Used"]
+      (tr/tr :worksheets/materials-used)]
      [:div
       [existing-materials-list materials]
       [template-material-selector material-templates selected-template-id]
@@ -357,23 +361,75 @@
 ;; Signature Components
 ;; =============================================================================
 
+(defn- signature-canvas-preview
+  "Small read-only SignatureCanvas for displaying points data.
+   Uses the same rendering as the zoom canvas - guarantees identical display."
+  [signature-data]
+  (let [canvas-ref (r/atom nil)]
+    (r/create-class
+     {:component-did-mount
+      (fn [_]
+        (when-let [ref @canvas-ref]
+          (when (and signature-data (str/starts-with? signature-data "points:"))
+            (let [json-str (subs signature-data 7)
+                  points-array (try (js/JSON.parse json-str) (catch :default _ nil))]
+              (when points-array
+                (.fromData ref points-array))))))
+
+      :component-did-update
+      (fn [this old-argv]
+        (let [[_ old-sig] old-argv
+              [_ new-sig] (r/argv this)]
+          (when (not= new-sig old-sig)
+            (when-let [ref @canvas-ref]
+              (.clear ref)
+              (when (and new-sig (str/starts-with? new-sig "points:"))
+                (let [json-str (subs new-sig 7)
+                      points-array (try (js/JSON.parse json-str) (catch :default _ nil))]
+                  (when points-array
+                    (.fromData ref points-array))))))))
+
+      :reagent-render
+      (fn [_signature-data]
+        ;; Use same internal dimensions as zoom canvas (360x120, 3:1 ratio)
+        ;; Scale and center with CSS for the preview
+        [:div {:style {:width "100%"
+                       :height "100%"
+                       :display "flex"
+                       :align-items "center"
+                       :justify-content "center"
+                       :overflow "hidden"}}
+         [:> SignatureCanvas
+          {:penColor "black"
+           :backgroundColor "white"
+           :canvasProps {:width 360
+                         :height 120
+                         :style {:pointer-events "none"}}
+           :ref (fn [ref]
+                  (when ref
+                    (reset! canvas-ref ref)))}]])})))
+
 (defn- render-signature-content
-  "Render signature - handles both old PNG (base64) and new SVG formats"
+  "Render signature - handles points (JSON), base64 PNG, and SVG formats"
   [signature-data]
   (cond
     ;; No signature
     (or (nil? signature-data) (empty? signature-data))
     [:div {:style {:color "#9ca3af" :text-align "center" :font-size "0.875rem"}}
-     "Click to sign"]
+     (tr/tr :worksheets/click-to-sign)]
 
-    ;; Old format: base64 PNG/JPEG data URL
+    ;; New format: points data (JSON) - use SignatureCanvas for display
+    (str/starts-with? signature-data "points:")
+    [signature-canvas-preview signature-data]
+
+    ;; Old format: base64 PNG/JPEG data URL (backward compatibility)
     (str/starts-with? signature-data "data:image")
     [:img {:src signature-data
            :style {:max-width "100%"
                    :max-height "100%"
                    :object-fit "contain"}}]
 
-    ;; New format: SVG string
+    ;; SVG string format (backward compatibility)
     (str/starts-with? signature-data "<svg")
     [:div {:style {:max-width "100%"
                    :max-height "100%"
@@ -404,15 +460,14 @@
                     :border-radius "8px"
                     :background "#ffffff"
                     :width "100%"
-                    :max-width "300px"
-                    :height "150px"
+                    :aspect-ratio "3 / 1"
                     :cursor "pointer"
                     :display "flex"
                     :align-items "center"
                     :justify-content "center"
                     :position "relative"
                     :overflow "hidden"}
-            :on-click #(rf/dispatch [:worksheets/open-signature-zoom label])}
+            :on-click #(rf/dispatch [:worksheets/open-signature-zoom ref-dispatch-key label])}
       [render-signature-content signature-data]
       [:div {:style {:position "absolute"
                      :top "5px"
@@ -424,15 +479,58 @@
                      :font-size "0.75rem"}}
        "zoom"]]]))
 
+(defn- signature-zoom-canvas
+  "Inner component for signature canvas - Form-2 with proper lifecycle"
+  [zoom-data]
+  (let [sig-ref (r/atom nil)
+        ;; Fixed dimensions that fit on mobile - NO CSS SCALING ALLOWED
+        canvas-width 360
+        canvas-height 120]
+    (r/create-class
+     {:component-did-mount
+      (fn [_this]
+        ;; Load existing signature after mount
+        (when-let [ref @sig-ref]
+          (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
+                signature-data (if (= (:ref-dispatch-key zoom-data) :worksheets/set-maintainer-signature-ref)
+                                 (:worksheet/maintainer-signature form-data)
+                                 (:worksheet/customer-signature form-data))]
+            (cond
+              ;; New format: points data - use fromData()
+              (and signature-data (str/starts-with? signature-data "points:"))
+              (let [json-str (subs signature-data 7)
+                    points-array (try (js/JSON.parse json-str) (catch :default _ nil))]
+                (when points-array
+                  (.fromData ^js ref points-array)))
+
+              ;; Old format: base64 image - use fromDataURL() for backward compatibility
+              (and signature-data (str/starts-with? signature-data "data:image"))
+              (.fromDataURL ^js ref signature-data)))))
+
+      :reagent-render
+      (fn [_zoom-data]
+        [:div {:style {:margin-bottom "1.5rem"
+                       :display "flex"
+                       :justify-content "center"}}
+         [:> SignatureCanvas
+          {:penColor "black"
+           :backgroundColor "white"
+           :canvasProps {:width canvas-width
+                         :height canvas-height
+                         :style {:border "2px solid #d1d5db"
+                                 :border-radius "8px"
+                                 :background "#ffffff"
+                                 ;; Prevent page scroll while signing on mobile
+                                 :touch-action "none"}}
+           :ref (fn [ref]
+                  (when ref
+                    (reset! sig-ref ref)
+                    (rf/dispatch [:worksheets/set-zoom-signature-ref ref])))}]])})))
+
 (defn- signature-zoom-overlay
   "Full-screen overlay for signature editing with mobile-optimized canvas"
   []
-  (let [zoom-data @(rf/subscribe [:worksheets/signature-zoom-data])
-        ;; Use same size for canvas and CSS to avoid coordinate offset
-        base-width (if (< js/window.innerWidth 768)
-                     (- js/window.innerWidth 80)
-                     500)
-        base-height (if (< js/window.innerWidth 768) 250 300)]
+  (let [zoom-data @(rf/subscribe [:worksheets/signature-zoom-data])]
     (when zoom-data
       [:div {:style {:position "fixed"
                      :top 0
@@ -476,32 +574,8 @@
         [:h2 {:style {:margin "0 0 1.5rem 0" :font-size "1.5rem" :font-weight "600" :color "#374151"}}
          (:label zoom-data)]
 
-        ;; Signature canvas - mobile optimized with touch-action fix
-        [:div {:style {:margin-bottom "1.5rem"}}
-         [:> SignatureCanvas
-          {:penColor "black"
-           :canvasProps {:width base-width
-                         :height base-height
-                         :style {:border "2px solid #d1d5db"
-                                 :border-radius "8px"
-                                 :background "#ffffff"
-                                 :display "block"
-                                 ;; Prevent page scroll while signing on mobile
-                                 :touch-action "none"}}
-           :ref (fn [ref]
-                  (rf/dispatch [:worksheets/set-zoom-signature-ref ref])
-                  ;; Load existing signature data into zoom canvas
-                  ;; Note: fromDataURL only works with base64 images, not SVG
-                  (when ref
-                    (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
-                          signature-data (if (= (:ref-dispatch-key zoom-data) :worksheets/set-maintainer-signature-ref)
-                                           (:worksheet/maintainer-signature form-data)
-                                           (:worksheet/customer-signature form-data))]
-                      ;; Only load if it's a base64 image (old format)
-                      ;; SVG signatures start fresh (can't load into canvas)
-                      (when (and signature-data
-                                 (str/starts-with? signature-data "data:image"))
-                        (.fromDataURL ^js ref signature-data)))))}]]
+        ;; Signature canvas - separate component to ensure fresh dimension calculation
+        [signature-zoom-canvas zoom-data]
 
         ;; Action buttons
         [:div {:style {:display "flex" :justify-content "space-between" :gap "1rem"}}
@@ -512,23 +586,29 @@
                    :style {:padding "0.75rem 1.5rem" :font-size "0.875rem" :color "#6b7280"
                            :background "transparent" :border "1px solid #d1d5db" :border-radius "6px"
                            :cursor "pointer" :font-weight "500"}}
-          "Clear"]
+          (tr/tr :worksheets/clear)]
          [:button {:type "button"
                    :on-click #(rf/dispatch [:worksheets/close-signature-zoom])
                    :style {:padding "0.75rem 1.5rem" :font-size "0.875rem" :color "white"
                            :background "#3b82f6" :border "none" :border-radius "6px"
                            :cursor "pointer" :font-weight "500"}}
-          "Done"]]]])))
+          (tr/tr :worksheets/done)]]]])))
 
 (defn signatures-section
   "Render complete signatures section"
   []
-  [:div {:style {:margin-bottom "1.5rem"}}
-   [:h3 {:style {:margin-bottom "1rem" :font-size "1.125rem" :font-weight "600" :color "#374151"}}
-    "Signatures"]
-   [:div {:style {:display "grid" :grid-template-columns "1fr 1fr" :gap "1rem"}}
-    [signature-display :worksheets/set-maintainer-signature-ref "Maintainer Signature"]
-    [signature-display :worksheets/set-customer-signature-ref "Customer Signature"]]])
+  (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
+        ;; Use signature data as keys to force re-render when signatures change
+        maintainer-sig (:worksheet/maintainer-signature form-data)
+        customer-sig (:worksheet/customer-signature form-data)]
+    [:div {:style {:margin-bottom "1.5rem"}}
+     [:h3 {:style {:margin-bottom "1rem" :font-size "1.125rem" :font-weight "600" :color "#374151"}}
+      (tr/tr :worksheets/signatures)]
+     [:div {:style {:display "flex" :flex-direction "column" :gap "1rem"}}
+      ^{:key (str "maintainer-" (hash maintainer-sig))}
+      [signature-display :worksheets/set-maintainer-signature-ref (tr/tr :worksheets/maintainer-signature)]
+      ^{:key (str "customer-" (hash customer-sig))}
+      [signature-display :worksheets/set-customer-signature-ref (tr/tr :worksheets/customer-signature)]]]))
 
 ;; =============================================================================
 ;; Modal Components

@@ -83,6 +83,17 @@
                  (load-teams)
                  (js/alert "Error deleting team member")))}))
 
+(defn- fetch-user-for-edit
+  "Fetch user by ID with password for editing"
+  [user-id workspace-id]
+  (parquery/send-queries
+   {:queries {:workspace-teams/get-by-id {:user/id user-id}}
+    :parquery/context {:workspace-id workspace-id}
+    :callback (fn [response]
+               (let [user (:workspace-teams/get-by-id response)]
+                 (when user
+                   (rf/dispatch [:teams/open-modal user false]))))}))
+
 (defn- validate-username
   "Validate username"
   [username]
@@ -101,10 +112,12 @@
         (not (re-matches #"^[^\s@]+@[^\s@]+\.[^\s@]+$" email-str)))))
 
 (defn- validate-password
-  "Validate password (only for new users)"
+  "Validate password - required for new users, optional but min 6 chars if provided for existing"
   [password is-new?]
-  (when is-new?
-    (< (count (str/trim (str password))) 6)))
+  (let [pwd-str (str/trim (str password))]
+    (if is-new?
+      (< (count pwd-str) 6)
+      (and (seq pwd-str) (< (count pwd-str) 6)))))
 
 (defn validate-team-member
   "Validates team member data and returns map of field errors"
@@ -146,6 +159,21 @@
   (fn [db _]
     (get-in db [:teams :modal-loading?] false)))
 
+(rf/reg-sub
+  :teams/password-visible?
+  (fn [db _]
+    (get-in db [:teams :password-visible?] false)))
+
+(rf/reg-event-db
+  :teams/toggle-password-visibility
+  (fn [db _]
+    (update-in db [:teams :password-visible?] not)))
+
+(rf/reg-event-db
+  :teams/reset-password-visibility
+  (fn [db _]
+    (assoc-in db [:teams :password-visible?] false)))
+
 
 (rf/reg-event-db
   :teams/open-modal
@@ -161,7 +189,8 @@
         (assoc-in [:teams :modal-team] nil)
         (assoc-in [:teams :modal-is-new?] false)
         (assoc-in [:teams :modal-form] {})
-        (assoc-in [:teams :modal-errors] {}))))
+        (assoc-in [:teams :modal-errors] {})
+        (assoc-in [:teams :password-visible?] false))))
 
 (rf/reg-event-db
   :teams/update-form-field
@@ -238,6 +267,80 @@
     [:div {:style {:color "#dc3545" :font-size "0.875rem" :margin-top "0.25rem"}}
      error-msg]))
 
+(defn- generate-random-password
+  "Generate a random 8-character password"
+  []
+  (let [chars "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"]
+    (apply str (repeatedly 8 #(nth chars (rand-int (count chars)))))))
+
+(defn- eye-icon
+  "SVG eye icon for showing password"
+  []
+  [:svg {:width "20" :height "20" :viewBox "0 0 24 24" :fill "none" :stroke "currentColor" :stroke-width "2"}
+   [:path {:d "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"}]
+   [:circle {:cx "12" :cy "12" :r "3"}]])
+
+(defn- eye-off-icon
+  "SVG eye-off icon for hiding password"
+  []
+  [:svg {:width "20" :height "20" :viewBox "0 0 24 24" :fill "none" :stroke "currentColor" :stroke-width "2"}
+   [:path {:d "M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"}]
+   [:line {:x1 "1" :y1 "1" :x2 "23" :y2 "23"}]])
+
+(defn- password-field-with-toggle
+  "Password field with visibility toggle and generate button"
+  [form-data errors is-new?]
+  (let [password-visible? (rf/subscribe [:teams/password-visible?])
+        has-error? (contains? errors :user/password)
+        password-value (str (get form-data :user/password ""))]
+    [:div {:style {:margin-bottom "1.5rem"}}
+     [field-label (tr/tr :teams/password) :user/password has-error?]
+     [:div {:style {:display "flex" :gap "0.5rem" :align-items "stretch"}}
+      [:div {:style {:position "relative" :flex "1"}}
+       [:input {:type (if @password-visible? "text" "password")
+                :value password-value
+                :placeholder (tr/tr :teams/password-placeholder)
+                :on-change #(rf/dispatch [:teams/update-form-field :user/password (.. % -target -value)])
+                :style {:width "100%"
+                        :padding "0.75rem 2.5rem 0.75rem 1rem"
+                        :border (if has-error? "2px solid #dc3545" "1px solid #d1d5db")
+                        :border-radius "8px"
+                        :font-size "1rem"
+                        :line-height "1.5"
+                        :box-shadow "0 1px 2px 0 rgba(0, 0, 0, 0.05)"
+                        :outline "none"}}]
+       [:button {:type "button"
+                 :on-click #(rf/dispatch [:teams/toggle-password-visibility])
+                 :title (if @password-visible?
+                          (tr/tr :teams/hide-password)
+                          (tr/tr :teams/show-password))
+                 :style {:position "absolute"
+                         :right "0.5rem"
+                         :top "50%"
+                         :transform "translateY(-50%)"
+                         :background "transparent"
+                         :border "none"
+                         :cursor "pointer"
+                         :color "#6b7280"
+                         :padding "0.25rem"
+                         :display "flex"
+                         :align-items "center"
+                         :justify-content "center"}}
+        (if @password-visible? [eye-off-icon] [eye-icon])]]
+      [:button {:type "button"
+                :on-click #(rf/dispatch [:teams/update-form-field :user/password (generate-random-password)])
+                :style {:padding "0.75rem 1rem"
+                        :background "#3b82f6"
+                        :color "white"
+                        :border "none"
+                        :border-radius "8px"
+                        :font-size "0.875rem"
+                        :font-weight "500"
+                        :cursor "pointer"
+                        :white-space "nowrap"}}
+       (tr/tr :teams/generate-new-password)]]
+     [field-error (get errors :user/password)]]))
+
 (defn- form-field
   "Complete form field with label, input and error"
   [label field-key form-data errors attrs]
@@ -261,11 +364,9 @@
     {:type "tel" :placeholder (tr/tr :teams/phone-placeholder)}]
    [form-field (tr/tr :teams/role) :user/role form-data errors
     {:type "select"
-     :options [{:value "employee" :label (tr/tr :teams/employee)}
-               {:value "admin" :label (tr/tr :teams/admin)}]}]
-   (when is-new?
-     [form-field (tr/tr :teams/password) :user/password form-data errors
-      {:type "password" :placeholder (tr/tr :teams/password-placeholder)}])
+     :options [{:value "employee" :label (tr/tr :header/role-employee)}
+               {:value "admin" :label (tr/tr :header/role-admin)}]}]
+   [password-field-with-toggle form-data errors is-new?]
    (when-not is-new?
      [form-field (tr/tr :teams/active-field) :user/active form-data errors
       {:type "select"
@@ -440,7 +541,7 @@
                       (delete-team-query user-id workspace-id load-teams))
 
         on-edit (fn [row]
-                  (rf/dispatch [:teams/open-modal row false]))
+                  (fetch-user-for-edit (:user/id row) workspace-id))
 
         on-delete (fn [row]
                     (when (js/confirm (tr/tr :teams/confirm-delete))

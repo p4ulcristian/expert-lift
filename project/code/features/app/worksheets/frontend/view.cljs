@@ -27,10 +27,9 @@
   (reset! modal-is-new? false))
 
 (defn- handle-pdf
-  "Handle PDF view action"
-  [worksheet]
-  (let [pdf-url (str "/pdf-generator/worksheet/" (:worksheet/id worksheet))]
-    (js/window.open pdf-url "_blank")))
+  "Handle PDF view action - opens in modal"
+  [worksheet pdf-modal-worksheet]
+  (reset! pdf-modal-worksheet worksheet))
 
 (defn- handle-delete
   "Handle delete worksheet action"
@@ -46,6 +45,42 @@
                            :worksheet/service-type ""
                            :worksheet/creation-date (.toISOString (js/Date.))})
   (reset! modal-is-new? true))
+
+;; =============================================================================
+;; PDF Modal Component
+;; =============================================================================
+
+(defn- pdf-modal
+  "Modal component for viewing PDF in iframe"
+  [worksheet on-close]
+  (let [pdf-url (str "/pdf-generator/worksheet/" (:worksheet/id worksheet) "/raw")]
+    [:div {:style {:position "fixed" :top 0 :left 0 :right 0 :bottom 0
+                   :background "rgba(0, 0, 0, 0.8)" :z-index 1000
+                   :display "flex" :flex-direction "column"
+                   :animation "fadeIn 0.2s ease-out"}}
+     ;; Header bar
+     [:div {:style {:display "flex" :justify-content "space-between" :align-items "center"
+                    :padding "0.75rem 1rem" :background "#1f2937" :color "white"}}
+      [:span {:style {:font-weight "600"}}
+       (str (tr/tr :worksheets/worksheet) " - " (:worksheet/serial-number worksheet))]
+      [:div {:style {:display "flex" :gap "0.5rem"}}
+       ;; Fullscreen / new tab button
+       [:button {:style {:background "#374151" :border "none" :color "white"
+                         :padding "0.5rem 1rem" :border-radius "0.375rem"
+                         :cursor "pointer" :display "flex" :align-items "center" :gap "0.5rem"}
+                 :on-click #(js/window.open pdf-url "_blank")}
+        [:i {:class "fa-solid fa-up-right-from-square"}]
+        (tr/tr :common/open-in-new-tab)]
+       ;; Close button
+       [:button {:style {:background "#dc2626" :border "none" :color "white"
+                         :padding "0.5rem 1rem" :border-radius "0.375rem"
+                         :cursor "pointer" :display "flex" :align-items "center" :gap "0.5rem"}
+                 :on-click on-close}
+        [:i {:class "fa-solid fa-xmark"}]
+        (tr/tr :common/close)]]]
+     ;; PDF iframe
+     [:iframe {:src pdf-url
+               :style {:flex 1 :border "none" :width "100%" :height "100%"}}]]))
 
 ;; =============================================================================
 ;; Main View Component
@@ -66,6 +101,8 @@
         ;; Modal state
         modal-worksheet (r/atom nil)
         modal-is-new? (r/atom false)
+        ;; PDF modal state
+        pdf-modal-worksheet (r/atom nil)
 
         ;; Load worksheets with current params
         load-worksheets (fn []
@@ -87,7 +124,8 @@
         on-edit (fn [worksheet]
                   (handle-edit worksheet modal-worksheet modal-is-new?))
 
-        on-pdf handle-pdf
+        on-pdf (fn [worksheet]
+                 (handle-pdf worksheet pdf-modal-worksheet))
 
         on-delete (fn [worksheet]
                     (handle-delete worksheet workspace-id load-worksheets))]
@@ -147,11 +185,17 @@
                     (reset! sort-direction direction)
                     (load-worksheets))}]
 
-       ;; Modal when open
+       ;; Worksheet edit modal
        (when @modal-worksheet
          [components/worksheet-modal
           @modal-worksheet
           @modal-is-new?
           save-worksheet
           (fn [] (reset! modal-worksheet nil))
-          workspace-id])]])))
+          workspace-id])
+
+       ;; PDF viewer modal
+       (when @pdf-modal-worksheet
+         [pdf-modal
+          @pdf-modal-worksheet
+          (fn [] (reset! pdf-modal-worksheet nil))])]])))

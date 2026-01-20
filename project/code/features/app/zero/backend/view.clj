@@ -1,5 +1,6 @@
 (ns features.app.zero.backend.view
   (:require
+   [app.backend.favicons :as favicons]
    [hiccup.page :refer [html5]]
    [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]))
 
@@ -31,6 +32,8 @@
    [:head
     [:meta {:charset "UTF-8"}]
     [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"}]
+    [:title "ElevaThor"]
+    (favicons/favicons)
     [:link {:rel "preconnect" :href "https://fonts.googleapis.com"}]
     [:link {:rel "preconnect" :href "https://fonts.gstatic.com" :crossorigin true}]
     [:link {:href "https://fonts.googleapis.com/css2?family=Skranji:wght@400;700&display=swap" :rel "stylesheet"}]

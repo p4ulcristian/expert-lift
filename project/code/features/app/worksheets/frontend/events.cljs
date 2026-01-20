@@ -44,14 +44,39 @@
 ;; Modal Form Events
 ;; =============================================================================
 
+(defn- normalize-elevators
+  "Normalize elevators data to a vector of name strings.
+   Handles: JSON string, vector of maps, single map, vector of strings"
+  [elevators]
+  (let [;; Parse JSON if string
+        parsed (cond
+                 (string? elevators)
+                 (try (js->clj (js/JSON.parse elevators) :keywordize-keys true)
+                      (catch :default _ nil))
+                 :else elevators)
+        ;; Ensure it's a vector
+        as-vec (cond
+                 (vector? parsed) parsed
+                 (sequential? parsed) (vec parsed)
+                 (map? parsed) [parsed]  ;; Single object -> wrap in vector
+                 :else [])]
+    ;; Extract names from each item
+    (mapv (fn [e]
+            (if (map? e)
+              (or (:name e) (:elevator/name e) (str e))
+              (str e)))
+          as-vec)))
+
 (rf/reg-event-db
  :worksheets/set-modal-form-data
  (fn [db [_ data]]
    ;; Construct address object from address data if present
    ;; Also load address-elevators for the elevator dropdown when editing
-   (let [address-elevators (or (:worksheet/address-elevators data)
-                               (:address_elevators data)
-                               (:address-elevators data))
+   (let [raw-elevators (or (:worksheet/address-elevators data)
+                           (:address_elevators data)
+                           (:address-elevators data))
+         ;; Normalize to vector of name strings
+         elevator-names (normalize-elevators raw-elevators)
          enhanced-data (cond-> data
                          ;; Add address object for display
                          (and (:worksheet/address-id data)
@@ -61,9 +86,9 @@
                                  :address/name (:worksheet/address-name data)
                                  :address/display (str (:worksheet/address-name data)
                                                        " - " (:worksheet/address-city data))})
-                         ;; Add address-elevators for dropdown
-                         address-elevators
-                         (assoc :worksheet/address-elevators address-elevators))]
+                         ;; Add address-elevators for dropdown (as simple name strings)
+                         (seq elevator-names)
+                         (assoc :worksheet/address-elevators elevator-names))]
      (assoc-in db [:worksheets :modal-form-data] enhanced-data))))
 
 (rf/reg-event-db
@@ -124,23 +149,24 @@
 
 (rf/reg-event-db
  :worksheets/open-signature-zoom
- (fn [db [_ label]]
-   (let [ref-dispatch-key (if (= label "Maintainer Signature")
-                            :worksheets/set-maintainer-signature-ref
-                            :worksheets/set-customer-signature-ref)]
-     (assoc-in db [:worksheets :signature-zoom-data]
-               {:label label
-                :ref-dispatch-key ref-dispatch-key}))))
+ (fn [db [_ ref-dispatch-key label]]
+   (assoc-in db [:worksheets :signature-zoom-data]
+             {:label label
+              :ref-dispatch-key ref-dispatch-key})))
 
 (rf/reg-event-fx
  :worksheets/close-signature-zoom
  (fn [{:keys [db]} _]
    (let [zoom-data (get-in db [:worksheets :signature-zoom-data])
          zoom-ref (get-in db [:worksheets :zoom-signature-ref])]
-     ;; Store signature data directly in re-frame state
-     ;; Using .toSVG() for smaller file size and resolution independence
-     (let [new-db (if (and zoom-data ^js zoom-ref (not (.isEmpty ^js zoom-ref)))
-                    (let [signature-data (.toDataURL ^js zoom-ref)  ;; base64 PNG
+     ;; Store signature as point data (JSON) for resolution independence
+     ;; This allows redrawing at any size without distortion
+     (let [new-db (if (and zoom-data zoom-ref (not (.isEmpty zoom-ref)))
+                    (let [;; Get point data as JavaScript array, convert to JSON string
+                          points-data (.toData zoom-ref)
+                          signature-json (js/JSON.stringify (clj->js points-data))
+                          ;; Prefix with "points:" to identify the format
+                          signature-data (str "points:" signature-json)
                           signature-key (if (= (:ref-dispatch-key zoom-data) :worksheets/set-maintainer-signature-ref)
                                           :worksheet/maintainer-signature
                                           :worksheet/customer-signature)]

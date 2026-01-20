@@ -37,10 +37,10 @@
         
         ;; Map frontend column names to database columns
         db-column (case sort-by
-                    "address/name" "name"
-                    "address/city" "city" 
-                    "address/country" "country"
-                    "address/contact-person" "contact_person"
+                    :address/name "name"
+                    :address/city "city"
+                    :address/country "country"
+                    :address/contact-person "contact_person"
                     "name")
         
         ;; Build the query parameters correctly
@@ -113,13 +113,13 @@
   [workspace-id search-term limit]
   (let [has-search? (and search-term (not (str/blank? search-term)))
         search-condition (if has-search?
-                          "AND search_normalized LIKE $2"
+                          "AND (LOWER(name) LIKE $2 OR LOWER(city) LIKE $2 OR LOWER(address_line1) LIKE $2 OR COALESCE(search_normalized, '') LIKE $2)"
                           "")
         search-param (when has-search? (str "%" (normalize-hungarian search-term) "%"))
-        params (if has-search? 
+        params (if has-search?
                 [workspace-id search-param limit]
                 [workspace-id limit])
-        query (str "SELECT id, name, address_line1, city, postal_code, elevators
+        query (str "SELECT id, name, address_line1, city, postal_code, elevators::text as elevators_json
                    FROM expert_lift.addresses
                    WHERE workspace_id = $1 "
                    search-condition

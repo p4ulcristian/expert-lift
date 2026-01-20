@@ -23,14 +23,12 @@
   [:div
    [:div {:style {:font-weight "500"
                   :color "#111827"
-                  :font-size "0.875rem"
-                  :text-transform "capitalize"}}
-    (:worksheet/work-type row)]
+                  :font-size "0.875rem"}}
+    (utils/translate-work-type (:worksheet/work-type row))]
    [:div {:style {:color "#6b7280"
                   :font-size "0.75rem"
-                  :margin-top "0.25rem"
-                  :text-transform "capitalize"}}
-    (str "Service: " (:worksheet/service-type row))]])
+                  :margin-top "0.25rem"}}
+    (utils/translate-service-type (:worksheet/service-type row))]])
 
 (defn status-cell
   "Render status column with colored badges"
@@ -38,14 +36,14 @@
   (let [status (:worksheet/status row)
         colors (get utils/status-colors status utils/default-status-color)]
     [:span {:style {:display "inline-block"
-                    :padding "0.25rem 0.75rem"
+                    :padding "2px 8px"
                     :background (:bg colors)
                     :color (:color colors)
-                    :border-radius "12px"
-                    :font-size "0.75rem"
+                    :border-radius "10px"
+                    :font-size "11px"
                     :font-weight "500"
-                    :text-transform "capitalize"}}
-     (str/replace (or status "") "_" " ")]))
+                    :white-space "nowrap"}}
+     (utils/translate-status status)]))
 
 (defn address-cell
   "Render address column with city subtitle"
@@ -104,18 +102,24 @@
     :sortable  true
     :cell      serial-cell
     :width     "140px"}
-   {:name      (tr/tr :worksheets/table-header-work-type)
-    :selector  :worksheet/work-type
-    :sortField :worksheet/work-type
-    :sortable  true
-    :cell      work-type-cell
-    :width     "160px"}
    {:name      (tr/tr :worksheets/table-header-address)
     :selector  :worksheet/address-name
     :sortField :worksheet/address-name
     :sortable  true
     :cell      address-cell
     :width     "200px"}
+   {:name      (tr/tr :worksheets/table-header-status)
+    :selector  :worksheet/status
+    :sortField :worksheet/status
+    :sortable  true
+    :cell      status-cell
+    :width     "110px"}
+   {:name      (tr/tr :worksheets/table-header-work-type)
+    :selector  :worksheet/work-type
+    :sortField :worksheet/work-type
+    :sortable  true
+    :cell      work-type-cell
+    :width     "160px"}
    {:name      "Felvonó"
     :selector  :worksheet/elevator-identifier
     :sortable  false
@@ -123,7 +127,7 @@
     :width     "100px"}
    {:name      (tr/tr :worksheets/table-header-assigned-to)
     :selector  :worksheet/assigned-to-name
-    :sortField :worksheet/assigned-to-name
+    :sortField :worksheet/assigned-to
     :sortable  true
     :cell      assigned-to-cell
     :width     "150px"}])

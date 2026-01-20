@@ -30,18 +30,11 @@
 
 ;; Authorization helpers
 (defn has-admin-role? [request]
-  (let [user-roles (get-in request [:session :user-roles])
-        session-data (:session request)]
-    (println "DEBUG: has-admin-role? check")
-    (println "  Session data:" session-data)
-    (println "  User roles:" user-roles)
-    (println "  Has admin/superadmin?" (some #{"admin" "superadmin"} user-roles))
+  (let [user-roles (get-in request [:session :user-roles])]
     (some #{"admin" "superadmin"} user-roles)))
 
 (defn has-superadmin-role? [request]
   (let [user-roles (get-in request [:session :user-roles])]
-    (println "DEBUG: has-superadmin-role? check")
-    (println "  User roles:" user-roles)
     (some #{"superadmin"} user-roles)))
 
 (defn can-edit-worksheet?
@@ -51,30 +44,16 @@
   [request worksheet-id workspace-id]
   (let [user-roles (get-in request [:session :user-roles])
         user-id (get-in request [:session :user-id])]
-    (println "DEBUG: can-edit-worksheet? check")
-    (println "  User roles:" user-roles)
-    (println "  User ID:" user-id)
-    (println "  Worksheet ID:" worksheet-id)
     (cond
       ;; Admins and superadmins can edit any worksheet
       (some #{"admin" "superadmin"} user-roles)
-      (do
-        (println "  -> Admin/superadmin - allowed")
-        true)
+      true
 
       ;; Employees can only edit their assigned worksheets
       :else
       (let [worksheet (first (worksheets-db/get-worksheet-by-id worksheet-id workspace-id))
             assigned-to (some-> worksheet :assigned_to_user_id str)]
-        (println "  Worksheet assigned_to_user_id:" assigned-to)
-        (println "  User ID (str):" (str user-id))
-        (if (= assigned-to (str user-id))
-          (do
-            (println "  -> Employee assigned to worksheet - allowed")
-            true)
-          (do
-            (println "  -> Employee NOT assigned - denied")
-            false))))))
+        (= assigned-to (str user-id))))))
 
 ;; User Management Handlers for Expert Lift
 ;; Workspace Management Handlers
@@ -209,33 +188,21 @@
   "Authenticate user with username/password and create session"
   [{:parquery/keys [context request] :as params}]
   (let [{:user/keys [username password]} params]
-    (println "DEBUG: login-user called")
-    (println "  Username:" username)
-    (println "  Password length:" (when password (count password)))
     (try
       (if-let [user (user-db/verify-password username password)]
         (let [session-data {:user-id (str (:id user))
                            :user-roles [(:role user)]
-                           :workspace-id (when (:workspace_id user) (str (:workspace_id user)))}
-              response {:success true
-                       :user/id (:id user)
-                       :user/username (:username user)
-                       :user/full-name (:full_name user)
-                       :user/role (:role user)
-                       :user/workspace-id (when (:workspace_id user) (str (:workspace_id user)))
-                       :session-data session-data}]
-          (println "DEBUG: Login successful for user:" (:username user))
-          (println "  User ID:" (:id user))
-          (println "  User role:" (:role user))
-          (println "  Workspace ID:" (:workspace_id user))
-          (println "  Session data being set:" session-data)
-          response)
-        (do
-          (println "DEBUG: Login failed - invalid credentials for username:" username)
-          {:success false :error "Invalid username or password"}))
+                           :workspace-id (when (:workspace_id user) (str (:workspace_id user)))}]
+          {:success true
+           :user/id (:id user)
+           :user/username (:username user)
+           :user/full-name (:full_name user)
+           :user/role (:role user)
+           :user/workspace-id (when (:workspace_id user) (str (:workspace_id user)))
+           :session-data session-data})
+        {:success false :error "Invalid username or password"})
       (catch Exception e
         (println "Error during login:" (.getMessage e))
-        (.printStackTrace e)
         {:success false :error "Login failed"}))))
 
 (defn logout-user
@@ -270,19 +237,13 @@
 (defn get-workspace-material-templates-paginated
   "Get material templates with pagination and filtering for workspace"
   [{:parquery/keys [context request] :as params}]
-  (println "DEBUG: get-workspace-material-templates-paginated called")
-  (println "  Context:" context)
-  (println "  Query params:" (dissoc params :parquery/context :parquery/request))
   (let [workspace-id (:workspace-id context)
         query-params (dissoc params :parquery/context :parquery/request)]
     (if workspace-id
       (try
-        (let [result (material-templates-db/get-material-templates-paginated workspace-id query-params)]
-          (println "DEBUG: material-templates query result:" result)
-          result)
+        (material-templates-db/get-material-templates-paginated workspace-id query-params)
         (catch Exception e
           (println "ERROR: get-workspace-material-templates-paginated failed:" (.getMessage e))
-          (.printStackTrace e)
           {:material-templates [] :pagination {:total-count 0 :page 0 :page-size 10 :total-pages 0}}))
       {:material-templates [] :pagination {:total-count 0 :page 0 :page-size 10 :total-pages 0}})))
 
@@ -301,19 +262,12 @@
 (defn create-workspace-material-template
   "Create new material template in workspace (admin+ only)"
   [{:parquery/keys [context request] :as params}]
-  (println "DEBUG: create-workspace-material-template called")
-  (println "  Context:" context)
-  (println "  Request keys:" (keys request))
-  (println "  Params:" (dissoc params :parquery/request))
   (if (has-admin-role? request)
     (let [workspace-id (get-in request [:session :workspace-id])
           {:material-template/keys [name unit category description]} params]
-      (println "DEBUG: Admin role check passed")
       (if workspace-id
         (try
-          (println "DEBUG: Attempting to create material template with workspace-id:" workspace-id)
           (let [result (first (material-templates-db/create-material-template workspace-id name unit category description))]
-            (println "DEBUG: Material template created successfully:" result)
             {:material-template/id (str (:id result))
              :material-template/name (:name result)
              :material-template/unit (:unit result)
@@ -327,12 +281,8 @@
           (catch Exception e
             (println "Error creating workspace material template:" (.getMessage e))
             {:success false :error (parse-db-error (.getMessage e))}))
-        (do
-          (println "DEBUG: No workspace-id in context - failing")
-          {:success false :error "No workspace context"})))
-    (do
-      (println "DEBUG: Admin role check failed - insufficient permissions")
-      {:success false :error "Insufficient permissions"})))
+        {:success false :error "No workspace context"}))
+    {:success false :error "Insufficient permissions"}))
 
 (defn update-workspace-material-template
   "Update existing material template in workspace (admin+ only)"
@@ -444,9 +394,18 @@
   (let [workspace-id (:workspace-id context)]
     (when workspace-id
       (try
-        (addresses-db/search-addresses-for-dropdown workspace-id
-                                                    (:search params "")
-                                                    (:limit params 20))
+        (->> (addresses-db/search-addresses-for-dropdown workspace-id
+                                                         (:search params "")
+                                                         (:limit params 20))
+             (map (fn [row]
+                    (let [elevators-raw (:elevators_json row)
+                          elevators-parsed (parse-elevators-json elevators-raw)]
+                      {:address/id (str (:id row))
+                       :address/name (:name row)
+                       :address/address-line1 (:address_line1 row)
+                       :address/city (:city row)
+                       :address/postal-code (:postal_code row)
+                       :elevators elevators-parsed}))))
         (catch Exception e
           (println "ERROR: search-workspace-addresses failed:" (.getMessage e))
           [])))))
@@ -518,7 +477,6 @@
           customer-signature (:worksheet/customer-signature params)]
       (if workspace-id
         (try
-          (println "DEBUG: Attempting to create worksheet with workspace-id:" workspace-id)
           (let [material-usage (when-let [materials (:worksheet/material-usage params)]
                                   (cheshire.core/generate-string materials))
                 result (first (worksheets-db/create-worksheet workspace-id creation-date
@@ -527,7 +485,6 @@
                                                              elevator-identifier user-id assigned-to-user-id
                                                              arrival-time departure-time work-duration-hours
                                                              maintainer-signature customer-signature))]
-            (println "DEBUG: Worksheet created successfully:" result)
             {:worksheet/id (str (:id result))
              :worksheet/serial-number (:serial_number result)
              :worksheet/creation-date (str (:creation_date result))
@@ -630,9 +587,7 @@
           elevators-json (format-elevators-for-db elevators)]
       (if workspace-id
         (try
-          (println "DEBUG: Attempting to create address with workspace-id:" workspace-id)
           (let [result (first (addresses-db/create-address workspace-id name address-line1 address-line2 city postal-code country contact-person contact-phone contact-email elevators-json))]
-            (println "DEBUG: Address created successfully:" result)
             {:address/id (str (:id result))
              :address/name (:name result)
              :address/address-line1 (:address_line1 result)
@@ -744,13 +699,15 @@
        :pagination {:total-count 0 :page 0 :page-size page-size :total-pages 0}})))
 
 (defn get-workspace-team-by-id
-  "Get single team member (user) by ID within workspace"
+  "Get single team member (user) by ID within workspace - includes password for admin editing"
   [{:parquery/keys [context request] :as params}]
   (let [workspace-id (:workspace-id context)
         user-id (:user/id params)]
     (when (and user-id workspace-id)
       (try
-        (first (teams-db/get-user-by-id user-id workspace-id))
+        (let [user (first (teams-db/get-user-by-id user-id workspace-id))]
+          (when user
+            (assoc user :password (:password_hash user))))
         (catch Exception e
           (println "ERROR: get-workspace-team-by-id failed:" (.getMessage e))
           nil)))))
@@ -781,9 +738,7 @@
           password (:user/password params)]
       (if workspace-id
         (try
-          (println "DEBUG: Attempting to create user with workspace-id:" workspace-id)
           (let [result (first (teams-db/create-user workspace-id username full-name email phone role password))]
-            (println "DEBUG: User created successfully:" result)
             {:user/id (str (:id result))
              :user/username (:username result)
              :user/full-name (:full_name result)
@@ -811,10 +766,14 @@
           email (:user/email params)
           phone (:user/phone params)
           role (:user/role params)
-          active (:user/active params)]
+          active (:user/active params)
+          password (:user/password params)]
       (if workspace-id
         (try
           (let [result (first (teams-db/update-user id workspace-id username full-name email phone role active))]
+            ;; Update password if provided
+            (when (and password (seq (clojure.string/trim (str password))))
+              (teams-db/update-user-password id workspace-id password))
             {:user/id (str (:id result))
              :user/username (:username result)
              :user/full-name (:full_name result)

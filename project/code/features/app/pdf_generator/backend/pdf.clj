@@ -11,10 +11,10 @@
   "Find a font file that supports Hungarian/Unicode characters.
    Checks common locations on Linux, macOS, and Windows."
   []
-  (let [font-paths [;; Linux (Ubuntu/Debian) - DejaVu has excellent Hungarian support
-                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-                    ;; Linux alternative paths
+  (let [font-paths [;; Arch Linux - DejaVu has excellent Hungarian support + checkmark
                     "/usr/share/fonts/TTF/DejaVuSans.ttf"
+                    ;; Linux (Ubuntu/Debian)
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
                     "/usr/share/fonts/dejavu/DejaVuSans.ttf"
                     ;; Arch Linux / Noto fonts (also good Unicode support)
                     "/usr/share/fonts/noto/NotoSans-Regular.ttf"

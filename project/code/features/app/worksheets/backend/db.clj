@@ -41,7 +41,7 @@
            a.address_line2 as address_line2,
            a.city as address_city,
            a.postal_code as address_postal_code,
-           a.elevators as address_elevators,
+           a.elevators::text as address_elevators,
            e.elevator_code as elevator_code,
            cu.full_name as created_by_name,
            au.full_name as assigned_to_name
@@ -65,15 +65,15 @@
                           "")
         search-param (when has-search? (str "%" (normalize-hungarian search) "%"))
         order-direction (if (= sort-direction "desc") "DESC" "ASC")
-        
+
         ;; Map frontend column names to database columns
         db-column (case sort-by
-                    "worksheet/serial-number" "w.serial_number"
-                    "worksheet/creation-date" "w.creation_date" 
-                    "worksheet/work-type" "w.work_type"
-                    "worksheet/status" "w.status"
-                    "worksheet/address-name" "a.name"
-                    "worksheet/assigned-to" "au.full_name"
+                    :worksheet/serial-number "w.serial_number"
+                    :worksheet/creation-date "w.creation_date"
+                    :worksheet/work-type "w.work_type"
+                    :worksheet/status "w.status"
+                    :worksheet/address-name "a.name"
+                    :worksheet/assigned-to "au.full_name"
                     "w.creation_date")
         
         ;; Build the query parameters correctly
@@ -87,7 +87,7 @@
                            a.address_line2 as address_line2,
                            a.city as address_city,
                            a.postal_code as address_postal_code,
-                           a.elevators as address_elevators,
+                           a.elevators::text as address_elevators,
                            e.elevator_code as elevator_code,
                            cu.full_name as created_by_name,
                            au.full_name as assigned_to_name
@@ -135,7 +135,7 @@
            a.address_line2 as address_line2,
            a.city as address_city,
            a.postal_code as address_postal_code,
-           a.elevators as address_elevators,
+           a.elevators::text as address_elevators,
            e.elevator_code as elevator_code,
            cu.full_name as created_by_name,
            au.full_name as assigned_to_name

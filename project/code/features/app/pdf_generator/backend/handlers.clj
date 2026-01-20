@@ -116,6 +116,7 @@
     {:institution-name (or (:address_name worksheet) "")
      :institution-address (format-full-address worksheet)
      :elevator-identifier (or (:elevator_identifier worksheet) (:elevator_code worksheet) "")
+     :serial-number (:serial_number worksheet)
      :work-type (get work-type-mapping (:work_type worksheet) "normal")
      :worksheet-work-type (:work_type worksheet)
      :arrival-time (format-time-from-iso (:arrival_time worksheet))

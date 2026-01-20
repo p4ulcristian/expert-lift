@@ -2,7 +2,8 @@
   "Utility functions and constants for worksheets feature"
   (:require
    [clojure.string :as str]
-   [router.frontend.zero :as router]))
+   [router.frontend.zero :as router]
+   [translations.core :as tr]))
 
 ;; =============================================================================
 ;; Router Helpers
@@ -103,22 +104,57 @@
 (def default-status-color
   {:bg "#f3f4f6" :color "#374151"})
 
-(def work-type-options
-  [["repair" "Repair"]
-   ["maintenance" "Maintenance"]
-   ["other" "Other"]])
+(defn work-type-options
+  "Returns work type options with translated labels"
+  []
+  [["repair" (tr/tr :worksheets/work-type-repair)]
+   ["maintenance" (tr/tr :worksheets/work-type-maintenance)]
+   ["other" (tr/tr :worksheets/work-type-other)]])
 
-(def service-type-options
-  [["normal" "Normal"]
-   ["night" "Night"]
-   ["weekend" "Weekend"]
-   ["holiday" "Holiday"]])
+(defn service-type-options
+  "Returns service type options with translated labels"
+  []
+  [["normal" (tr/tr :worksheets/service-type-normal)]
+   ["night" (tr/tr :worksheets/service-type-night)]
+   ["weekend" (tr/tr :worksheets/service-type-weekend)]
+   ["holiday" (tr/tr :worksheets/service-type-holiday)]])
 
-(def status-options
-  [["draft" "Draft"]
-   ["in_progress" "In Progress"]
-   ["completed" "Completed"]
-   ["cancelled" "Cancelled"]])
+(defn status-options
+  "Returns status options with translated labels"
+  []
+  [["draft" (tr/tr :worksheets/status-draft)]
+   ["in_progress" (tr/tr :worksheets/status-in-progress)]
+   ["completed" (tr/tr :worksheets/status-completed)]
+   ["cancelled" (tr/tr :worksheets/status-cancelled)]])
+
+(defn translate-work-type
+  "Translate work type value to localized string"
+  [value]
+  (case value
+    "repair" (tr/tr :worksheets/work-type-repair)
+    "maintenance" (tr/tr :worksheets/work-type-maintenance)
+    "other" (tr/tr :worksheets/work-type-other)
+    value))
+
+(defn translate-service-type
+  "Translate service type value to localized string"
+  [value]
+  (case value
+    "normal" (tr/tr :worksheets/service-type-normal)
+    "night" (tr/tr :worksheets/service-type-night)
+    "weekend" (tr/tr :worksheets/service-type-weekend)
+    "holiday" (tr/tr :worksheets/service-type-holiday)
+    value))
+
+(defn translate-status
+  "Translate status value to localized string"
+  [value]
+  (case value
+    "draft" (tr/tr :worksheets/status-draft)
+    "in_progress" (tr/tr :worksheets/status-in-progress)
+    "completed" (tr/tr :worksheets/status-completed)
+    "cancelled" (tr/tr :worksheets/status-cancelled)
+    value))
 
 (def required-fields
   "Set of field keys that are required in worksheet form"

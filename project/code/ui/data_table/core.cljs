@@ -182,8 +182,7 @@
   ;; No wrapping needed - cell function already converts js-row to CLJS map
   {:name   "Actions"
    :grow   1
-   :right  true
-   :style  {:gap "8px" :justifyContent "flex-end"}
+   :style  {:gap "8px"}
    :cell   (fn [^js js-row]
              (let [row (js-row->clj js-row)]
                (reagent/as-element
@@ -195,8 +194,7 @@
   [{:keys [custom-actions] :as config}]
   {:name  "Actions"
    :grow  1
-   :right true
-   :style {:gap "8px" :justifyContent "flex-end"}
+   :style {:gap "8px"}
    :cell  (fn [^js js-row]
             (let [row (js-row->clj js-row)]
               (reagent/as-element
@@ -205,10 +203,10 @@
 (defn add-actions-column [columns config]
   (cond
     (:custom-actions config)
-    (conj columns (custom-actions-column config))
+    (into [(custom-actions-column config)] columns)
 
     (or (:on-edit config) (:on-delete config))
-    (conj columns (actions-column config))
+    (into [(actions-column config)] columns)
 
     :else
     columns))

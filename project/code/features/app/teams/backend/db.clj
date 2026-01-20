@@ -38,11 +38,11 @@
         
         ;; Map frontend column names to database columns
         db-column (case sort-by
-                    "user/full-name" "full_name"
-                    "user/username" "username" 
-                    "user/email" "email"
-                    "user/role" "role"
-                    "user/active" "active"
+                    :user/full-name "full_name"
+                    :user/username "username"
+                    :user/email "email"
+                    :user/role "role"
+                    :user/active "active"
                     "full_name")
         
         ;; Build the query parameters correctly
@@ -72,11 +72,11 @@
                     :total-pages (int (Math/ceil (/ total-count page-size)))}})))
 
 (defn get-user-by-id
-  "Get user by ID (within workspace)"
+  "Get user by ID (within workspace) - includes password for admin editing"
   [user-id workspace-id]
-  (postgres/execute-sql 
-   "SELECT id, username, full_name, email, phone, role, active, created_at, updated_at 
-    FROM expert_lift.users 
+  (postgres/execute-sql
+   "SELECT id, username, full_name, email, phone, role, active, password_hash, created_at, updated_at
+    FROM expert_lift.users
     WHERE id = $1 AND workspace_id = $2"
    {:params [user-id workspace-id]}))
 
@@ -116,13 +116,42 @@
                           "AND (LOWER(full_name) LIKE $2 OR LOWER(username) LIKE $2)"
                           "")
         search-param (when has-search? (str "%" (str/lower-case search-term) "%"))
-        params (if has-search? 
+        params (if has-search?
                 [workspace-id search-param limit]
                 [workspace-id limit])
-        query (str "SELECT id, username, full_name, email, role 
-                   FROM expert_lift.users 
-                   WHERE workspace_id = $1 AND active = true " 
+        query (str "SELECT id, username, full_name, email, role
+                   FROM expert_lift.users
+                   WHERE workspace_id = $1 AND active = true "
                    search-condition
-                   " ORDER BY full_name 
+                   " ORDER BY full_name
                    LIMIT $" (if has-search? "3" "2"))]
     (postgres/execute-sql query {:params params})))
+
+(defn- generate-random-password
+  "Generate a random 8-character password with letters and numbers"
+  []
+  (let [chars "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+        random (java.util.Random.)]
+    (apply str (repeatedly 8 #(nth chars (.nextInt random (count chars)))))))
+
+(defn reset-user-password
+  "Reset user password and return the new password (within workspace)"
+  [user-id workspace-id]
+  (let [new-password (generate-random-password)]
+    (postgres/execute-sql
+     "UPDATE expert_lift.users
+      SET password_hash = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2 AND workspace_id = $3
+      RETURNING id"
+     {:params [new-password user-id workspace-id]})
+    new-password))
+
+(defn update-user-password
+  "Update user password to a specific value (within workspace)"
+  [user-id workspace-id password]
+  (postgres/execute-sql
+   "UPDATE expert_lift.users
+    SET password_hash = $1, updated_at = CURRENT_TIMESTAMP
+    WHERE id = $2 AND workspace_id = $3
+    RETURNING id"
+   {:params [password user-id workspace-id]}))
