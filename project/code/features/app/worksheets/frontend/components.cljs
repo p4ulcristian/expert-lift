@@ -251,7 +251,7 @@
   "Render material template selection form"
   [material-templates selected-template-id]
   (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
-        quantity-value (get form-data :worksheet/new-material-quantity "")
+        quantity-value (get form-data :worksheet/new-material-quantity 1)
         disabled? (or (empty? selected-template-id) (empty? (str quantity-value)))]
     [:div {:style {:display "grid" :grid-template-columns "2fr 1fr auto" :gap "0.5rem" :align-items "end"}}
      [:div
@@ -274,7 +274,7 @@
       [:input {:type "number"
                :value quantity-value
                :on-change #(rf/dispatch [:worksheets/update-form-field :worksheet/new-material-quantity (.. % -target -value)])
-               :placeholder "5"
+               :placeholder "1"
                :disabled (empty? selected-template-id)
                :style {:width "100%" :padding "0.5rem" :border "1px solid #d1d5db"
                        :border-radius "6px" :font-size "0.875rem"
@@ -295,7 +295,7 @@
   (let [form-data @(rf/subscribe [:worksheets/modal-form-data])
         custom-name (get form-data :worksheet/custom-material-name "")
         custom-unit (get form-data :worksheet/custom-material-unit "")
-        custom-quantity (get form-data :worksheet/custom-material-quantity "")
+        custom-quantity (get form-data :worksheet/custom-material-quantity 1)
         disabled? (or (empty? (str custom-name))
                       (empty? (str custom-unit))
                       (empty? (str custom-quantity)))]
@@ -317,12 +317,19 @@
        [:label {:style {:display "block" :margin-bottom "0.25rem" :font-weight "500"
                         :font-size "0.75rem" :color "#374151"}}
         (tr/tr :worksheets/unit)]
-       [:input {:type "text"
-                :value custom-unit
-                :on-change #(rf/dispatch [:worksheets/update-form-field :worksheet/custom-material-unit (.. % -target -value)])
-                :placeholder "pcs, kg, m..."
-                :style {:width "100%" :padding "0.5rem" :border "1px solid #d1d5db"
-                        :border-radius "6px" :font-size "0.875rem"}}]]
+       [:select {:value custom-unit
+                 :on-change #(rf/dispatch [:worksheets/update-form-field :worksheet/custom-material-unit (.. % -target -value)])
+                 :style {:width "100%" :padding "0.5rem" :border "1px solid #d1d5db"
+                         :border-radius "6px" :font-size "0.875rem"}}
+        [:option {:value ""} (tr/tr :worksheets/select-unit)]
+        [:option {:value "db"} "db"]
+        [:option {:value "kg"} "kg"]
+        [:option {:value "m"} "m"]
+        [:option {:value "l"} "l"]
+        [:option {:value "cm"} "cm"]
+        [:option {:value "mm"} "mm"]
+        [:option {:value "m²"} "m²"]
+        [:option {:value "m³"} "m³"]]]
       [:div
        [:label {:style {:display "block" :margin-bottom "0.25rem" :font-weight "500"
                         :font-size "0.75rem" :color "#374151"}}
@@ -330,7 +337,7 @@
        [:input {:type "number"
                 :value custom-quantity
                 :on-change #(rf/dispatch [:worksheets/update-form-field :worksheet/custom-material-quantity (.. % -target -value)])
-                :placeholder "5"
+                :placeholder "1"
                 :style {:width "100%" :padding "0.5rem" :border "1px solid #d1d5db"
                         :border-radius "6px" :font-size "0.875rem"}}]]
       [:button {:type "button"
@@ -588,7 +595,11 @@
                            :cursor "pointer" :font-weight "500"}}
           (tr/tr :worksheets/clear)]
          [:button {:type "button"
-                   :on-click #(rf/dispatch [:worksheets/close-signature-zoom])
+                   :on-click (fn []
+                               ;; Call .off() to release touch event before closing
+                               (when-let [^js ref @(rf/subscribe [:worksheets/zoom-signature-ref])]
+                                 (.off ref))
+                               (rf/dispatch [:worksheets/close-signature-zoom]))
                    :style {:padding "0.75rem 1.5rem" :font-size "0.875rem" :color "white"
                            :background "#3b82f6" :border "none" :border-radius "6px"
                            :cursor "pointer" :font-weight "500"}}
