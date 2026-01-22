@@ -390,14 +390,15 @@
           nil)))))
 
 (defn search-workspace-addresses
-  "Search addresses for dropdown - simplified data for UI"
+  "Search addresses for dropdown - simplified data for UI with pagination"
   [{:parquery/keys [context request] :as params}]
   (let [workspace-id (:workspace-id context)]
     (when workspace-id
       (try
         (->> (addresses-db/search-addresses-for-dropdown workspace-id
                                                          (:search params "")
-                                                         (:limit params 20))
+                                                         (:limit params 30)
+                                                         (:offset params 0))
              (map (fn [row]
                     (let [elevators-raw (:elevators_json row)
                           elevators-parsed (parse-elevators-json elevators-raw)]

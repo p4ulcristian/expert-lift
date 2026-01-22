@@ -109,20 +109,21 @@
    {:params [address-id workspace-id]}))
 
 (defn search-addresses-for-dropdown
-  "Search addresses for dropdown - returns simplified data for UI"
-  [workspace-id search-term limit]
+  "Search addresses for dropdown - returns simplified data for UI with pagination"
+  [workspace-id search-term limit offset]
   (let [has-search? (and search-term (not (str/blank? search-term)))
         search-condition (if has-search?
                           "AND (LOWER(name) LIKE $2 OR LOWER(city) LIKE $2 OR LOWER(address_line1) LIKE $2 OR COALESCE(search_normalized, '') LIKE $2)"
                           "")
         search-param (when has-search? (str "%" (normalize-hungarian search-term) "%"))
         params (if has-search?
-                [workspace-id search-param limit]
-                [workspace-id limit])
+                [workspace-id search-param limit offset]
+                [workspace-id limit offset])
         query (str "SELECT id, name, address_line1, city, postal_code, elevators::text as elevators_json
                    FROM expert_lift.addresses
                    WHERE workspace_id = $1 "
                    search-condition
                    " ORDER BY name
-                   LIMIT $" (if has-search? "3" "2"))]
+                   LIMIT $" (if has-search? "3" "2")
+                   " OFFSET $" (if has-search? "4" "3"))]
     (postgres/execute-sql query {:params params})))
