@@ -152,7 +152,7 @@
                     (rf/dispatch [:worksheets/update-modal-form-field :worksheet/address-id (:address/id address)])
                     (rf/dispatch [:worksheets/update-modal-form-field :worksheet/address-name (:address/name address)])
                     ;; Store elevators as name strings and clear previous selection
-                    (let [elevators (:elevators address)
+                    (let [elevators (:address/elevators address)
                           names (mapv (fn [e] (if (map? e) (or (:name e) (str e)) (str e)))
                                       (if (sequential? elevators) elevators []))]
                       (rf/dispatch [:worksheets/update-modal-form-field :worksheet/address-elevators names]))
